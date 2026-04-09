@@ -8,6 +8,6 @@ import { StoreBackend } from "deepagents";
  */
 export function createNexusStore(): StoreBackend {
   return new StoreBackend({
-    namespace: ["memories"],
+    namespace: ["nexus"],
   });
 }
