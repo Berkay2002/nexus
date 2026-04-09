@@ -45,6 +45,11 @@
       "source": "google-gemini/gemini-skills",
       "sourceType": "github",
       "computedHash": "d4d8a0a44f34da580097747b8dedf1c60d95697a145d4501b67f41d2a44ceec8"
+    },
+    "zod": {
+      "source": "pproenca/dot-skills",
+      "sourceType": "github",
+      "computedHash": "3307ca1bef37ac4f32264c971c2b54ca3191f4f248a820b2c1255fc045ceb125"
     }
   }
 }

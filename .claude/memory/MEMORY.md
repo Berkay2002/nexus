@@ -1,0 +1,1 @@
+- [Strict TDD for agents](feedback_tdd.md) — Always use red-green-refactor TDD for apps/agents/ work
