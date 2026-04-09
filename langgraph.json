@@ -1,0 +1,11 @@
+{
+  "node_version": "20",
+  "dependencies": [
+    "."
+  ],
+  "graphs": {
+    "research_agent": "./apps/agents/src/research-agent/retrieval-graph/graph.ts:graph",
+    "research_index_graph": "./apps/agents/src/research-agent/index-graph/graph.ts:graph"
+  },
+  "env": ".env"
+}

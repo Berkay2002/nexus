@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "skills": {
+    "deep-agents-core": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "computedHash": "f82c2219a3e3b91f04165a395ced7ab75ec3b8e3d82c0f5684c53eec746c35c7"
+    },
+    "framework-selection": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "computedHash": "70355c49d4ea25553a67306ce07ad2b808b85d917bb310fe12a76abf1d7b880b"
+    },
+    "langchain-dependencies": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "computedHash": "c0f6bdbf1d896c2d913984ec151d30c1d1ed53fdaa94495fc37495726bf946a1"
+    },
+    "langchain-fundamentals": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "computedHash": "7f23a1fb935bb09221a7fb4e50d484abbe3ba93767de832b1904cf9101ff1fe2"
+    },
+    "langchain-middleware": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "computedHash": "8649cb289562f93beef2caeb8fa10792e1af6be9c829c585c39e1a9328b22fab"
+    },
+    "langgraph-fundamentals": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "computedHash": "43a226ecc442ba6d6091eea39cf587a7583fa532e73db58259e35b1393c31418"
+    },
+    "langgraph-persistence": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "computedHash": "41777ec7edc4504e45564917459202021245f3cdf90157e4a65dd6641cd0c1d7"
+    },
+    "shadcn": {
+      "source": "shadcn/ui",
+      "sourceType": "github",
+      "computedHash": "642a177bee320618caa49f5106cadb4e7594c606e867f61ba7b56d19cf745cd5"
+    },
+    "vertex-ai-api-dev": {
+      "source": "google-gemini/gemini-skills",
+      "sourceType": "github",
+      "computedHash": "d4d8a0a44f34da580097747b8dedf1c60d95697a145d4501b67f41d2a44ceec8"
+    }
+  }
+}

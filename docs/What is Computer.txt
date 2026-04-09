@@ -1,0 +1,94 @@
+What is Computer?
+Computer is an independent digital worker that completes tasks and workflows for you. Instead of just providing information, it takes action: synthesizing large amounts of information across the web and in your own work context through hundreds of app connectors. Using this rich context, it can craft assets, create functioning apps, manage emails, conduct research, and more — all in your preferred style. It can monitor and act on schedule too, so it’s always-on even when you’re off the clock.
+
+ 
+
+Computer unifies every current AI capability into a single worker, including:
+
+Search-native intelligence for accurate, cited information
+
+Tool execution to complete tasks across platforms
+
+Rich media generation for creating visual content
+
+Document creation for reports and presentations
+
+Authenticated integrations with Gmail, Outlook, GitHub, Linear, Slack, Notion, and more
+
+Persistent memory that retains context across sessions
+
+Scheduling and automation for recurring tasks
+
+Secure cloud/isolated sandbox to protect your data
+
+Universal access with no complicated local install​
+
+Built on Perplexity's core strengths of accurate AI, superior deep research, advanced assistants (agents), multi-model orchestration, and safety and security, Computer represents the next evolution of AI.
+
+ 
+
+How does Computer work?
+Computer combines several powerful capabilities to complete complex tasks on your behalf:
+
+ 
+
+Asynchronous Execution
+Computer runs tasks in the background while you're away. It can monitor your email, calendar, flight status, and files with condition-based triggers, and supports scheduled jobs and proactive actions like morning briefings and deadline reminders.
+
+ 
+
+Wide Research & Parallel Web Search
+Computer can handle queries that require researching multiple items simultaneously, making it ideal for comprehensive market research and competitive analysis.
+
+ 
+
+Sub-Agents
+Computer uses domain-specific assistants that handle distinct task types:
+
+Market research agents for competitive intelligence
+
+Financial analysis agents for earnings reports and stock monitoring
+
+News monitoring agents for breaking updates
+
+Coordination agents that orchestrate handoffs between specialists
+
+Premium Data Integrations
+Computer connects with the tools you already use, including Gmail, Outlook, GitHub, Linear, Slack, Notion, Snowflake, Databricks, and Salesforce, along with finance tools and premium data connectors.
+
+ 
+
+Personal Cloud Sandbox
+Your data is kept in a secure, isolated environment with persistent memory across all sessions and platforms. Computer retains context from long conversations and automatically stores your preferences.
+
+ 
+
+Multi-Tool Orchestration
+Computer coordinates multiple tools and capabilities seamlessly, retrieving and synthesizing real-time information while handling multi-step reasoning and complex task automation.
+
+ 
+
+What’s the difference between Perplexity and Computer?
+Perplexity answers your questions. Computer does your work.
+
+Perplexity = search + knowledge. You ask, it finds and synthesizes information.
+
+Computer = an agent with tools. You ask, it actually does things — writes docs, builds slides, sends emails, browses the web, writes code, connects to your apps, and chains multi-step workflows together.
+
+One gives you answers. The other takes action.
+
+ 
+
+The key differentiator: Composition
+
+Capabilities chain together naturally. A single prompt can trigger research → analysis → document creation → email delivery → scheduled follow-up, all without you lifting a finger between steps.
+
+ 
+
+Example workflow:
+
+"Research our top 5 competitors, compare their pricing, create a slide deck with the findings, and email it to the team."
+
+ 
+
+Computer will run parallel web searches, build a comparison table, generate a branded PPTX, and send it via your connected Gmail — all in one session.
