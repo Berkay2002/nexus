@@ -1,16 +1,13 @@
 import { StoreBackend } from "deepagents";
 
 /**
- * Creates a StoreBackend for persistent memory storage.
+ * Creates the Nexus StoreBackend for persistent memory storage.
  *
- * Routes: /memories/ in the CompositeBackend
- * Namespace: ["nexus"] — single-user, agent-scoped
- *
- * The actual BaseStore instance is passed at the createDeepAgent() level
- * via the `store` parameter — StoreBackend reads from it automatically.
+ * Uses the LangGraph execution context's store (injected via createDeepAgent({ store })).
+ * Namespace is ["memories"] for memory-scoped isolation.
  */
 export function createNexusStore(): StoreBackend {
   return new StoreBackend({
-    namespace: ["nexus"],
+    namespace: ["memories"],
   });
 }
