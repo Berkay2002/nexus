@@ -32,6 +32,6 @@
   },
   "packageManager": "npm@11.2.1",
   "overrides": {
-    "@langchain/core": "^0.3.42"
+    "@langchain/core": "^1.1.39"
   }
 }
