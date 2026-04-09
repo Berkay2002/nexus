@@ -4,6 +4,7 @@
     "."
   ],
   "graphs": {
+    "nexus": "./apps/agents/src/nexus/graph.ts:graph",
     "research_agent": "./apps/agents/src/research-agent/retrieval-graph/graph.ts:graph",
     "research_index_graph": "./apps/agents/src/research-agent/index-graph/graph.ts:graph"
   },
