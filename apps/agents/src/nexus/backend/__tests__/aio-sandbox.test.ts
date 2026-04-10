@@ -3,11 +3,26 @@ import { AIOSandboxBackend } from "../aio-sandbox.js";
 
 // Integration test — requires AIO Sandbox running at :8080
 // Run: docker run --security-opt seccomp=unconfined --rm -it -p 8080:8080 ghcr.io/agent-infra/sandbox:latest
-describe("AIOSandboxBackend", () => {
+const SANDBOX_URL = process.env.SANDBOX_URL ?? "http://localhost:8080";
+
+async function isSandboxReachable(): Promise<boolean> {
+  try {
+    const res = await fetch(SANDBOX_URL, {
+      signal: AbortSignal.timeout(1000),
+    });
+    return res.status < 500;
+  } catch {
+    return false;
+  }
+}
+
+const sandboxReachable = await isSandboxReachable();
+
+describe.skipIf(!sandboxReachable)("AIOSandboxBackend", () => {
   let backend: AIOSandboxBackend;
 
   beforeAll(() => {
-    backend = new AIOSandboxBackend("http://localhost:8080");
+    backend = new AIOSandboxBackend(SANDBOX_URL);
   });
 
   it("should have a stable id", () => {

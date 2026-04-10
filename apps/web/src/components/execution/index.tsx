@@ -13,6 +13,7 @@ export function ExecutionView() {
     getSubagentsByMessage,
     submitPrompt,
     stop,
+    error,
   } = useNexusStream();
 
   const todos: NexusTodo[] = (values as any)?.todos ?? [];
@@ -28,6 +29,7 @@ export function ExecutionView() {
       isLoading={isLoading}
       onSubmit={submitPrompt}
       onStop={stop}
+      error={error}
     />
   );
 }

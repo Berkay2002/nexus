@@ -2,6 +2,9 @@ import { StateGraph } from "@langchain/langgraph";
 import { NexusStateAnnotation } from "./state.js";
 import { metaRouter } from "./meta-router.js";
 import { orchestratorNode } from "./orchestrator.js";
+import { logPreflight } from "./preflight.js";
+
+logPreflight();
 
 /**
  * Nexus main graph.

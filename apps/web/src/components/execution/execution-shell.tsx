@@ -26,6 +26,7 @@ type ExecutionShellProps = {
   onSubmit: (text: string) => void;
   onStop: () => void;
   topSlot?: ReactNode;
+  error?: unknown;
 };
 
 export function ExecutionShell({
@@ -38,10 +39,23 @@ export function ExecutionShell({
   onSubmit,
   onStop,
   topSlot,
+  error,
 }: ExecutionShellProps) {
+  const errorMessage = error
+    ? String((error as any)?.message ?? error)
+    : null;
+
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-screen overflow-hidden">
       {topSlot}
+
+      {errorMessage && (
+        <div className="border-b border-destructive/30 bg-destructive/10 px-4 py-2 shrink-0">
+          <p className="text-sm text-destructive">
+            <span className="font-semibold">Error:</span> {errorMessage}
+          </p>
+        </div>
+      )}
 
       <div className="flex items-center justify-between px-4 py-2.5 border-b shrink-0">
         <h1 className="text-lg font-semibold tracking-tight">Nexus</h1>

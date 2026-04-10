@@ -20,14 +20,32 @@ import { SandboxClient } from "@agent-infra/sandbox";
 export class AIOSandboxBackend extends BaseSandbox {
   readonly id = "aio-sandbox";
   private client: SandboxClient;
+  private baseURL: string;
 
   constructor(baseURL: string = "http://localhost:8080") {
     super();
+    this.baseURL = baseURL;
     this.client = new SandboxClient({ environment: baseURL });
   }
 
+  private unreachableMessage(): string {
+    return (
+      `AIO Sandbox unreachable at ${this.baseURL}. Is the container running? ` +
+      `Start with: docker run --security-opt seccomp=unconfined --rm -it -p 8080:8080 ghcr.io/agent-infra/sandbox:latest`
+    );
+  }
+
   async execute(command: string): Promise<ExecuteResponse> {
-    const response = await this.client.shell.execCommand({ command });
+    let response;
+    try {
+      response = await this.client.shell.execCommand({ command });
+    } catch {
+      return {
+        output: this.unreachableMessage(),
+        exitCode: 1,
+        truncated: false,
+      };
+    }
     // response is APIResponse — on success, body.data holds ShellCommandResult
     if (!response.ok) {
       const failed = response as { ok: false; error: unknown };

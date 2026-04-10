@@ -74,27 +74,29 @@ export const tavilySearch = tool(
   async (input) => {
     const apiKey = process.env.TAVILY_API_KEY;
     if (!apiKey) {
-      throw new Error("TAVILY_API_KEY environment variable is not set");
+      return "Error: TAVILY_API_KEY is not set. Add it to .env and restart the LangGraph server.";
     }
 
-    const response = await fetch("https://api.tavily.com/search", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(input),
-    });
+    try {
+      const response = await fetch("https://api.tavily.com/search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(input),
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `Tavily Search API error (${response.status}): ${errorText}`,
-      );
+      if (!response.ok) {
+        const errorText = await response.text();
+        return `Error: Tavily Search API returned ${response.status}: ${errorText}`;
+      }
+
+      const data = await response.json();
+      return JSON.stringify(data);
+    } catch (e) {
+      return `Error: Tavily Search request failed: ${e instanceof Error ? e.message : String(e)}`;
     }
-
-    const data = await response.json();
-    return JSON.stringify(data);
   },
   {
     name: TOOL_NAME,

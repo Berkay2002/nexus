@@ -19,7 +19,9 @@ import type { NexusState } from "./state.js";
  *
  * @param sandboxUrl - URL of the AIO Sandbox Docker container (default: http://localhost:8080)
  */
-export function createNexusOrchestrator(sandboxUrl = "http://localhost:8080") {
+export function createNexusOrchestrator(
+  sandboxUrl = process.env.SANDBOX_URL ?? "http://localhost:8080",
+) {
   const sandbox = new AIOSandboxBackend(sandboxUrl);
   const backend = createNexusBackend(sandbox);
 

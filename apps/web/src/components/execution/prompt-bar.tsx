@@ -102,16 +102,19 @@ export function PromptBar({
               }}
               placeholder="Follow up..."
               rows={1}
-              className="min-h-[36px] w-full resize-none whitespace-pre-wrap break-words border-0 bg-transparent! px-3 py-2 text-sm text-foreground shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+              className="min-h-9 w-full resize-none whitespace-pre-wrap break-words border-0 bg-transparent! px-3 py-2 text-sm text-foreground shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
             />
           </div>
 
-          <div className="flex min-h-[36px] items-center gap-2 p-1.5 pb-1">
+          <div className="flex min-h-9 items-center gap-2 p-1.5 pb-1">
             <div className="flex aspect-1 items-center gap-1 rounded-full bg-muted p-1 text-xs">
               <Cloud className="h-3.5 w-3.5 text-muted-foreground" />
             </div>
 
-            <div className="relative flex items-center">
+            <div
+              className="relative flex items-center"
+              title="Model is selected automatically by the router"
+            >
               <Select
                 value={selectedModel.value}
                 onValueChange={handleModelChange}
