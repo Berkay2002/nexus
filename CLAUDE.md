@@ -80,7 +80,7 @@ Key infrastructure files to **preserve** during UI rewrites:
 | Concern | Technology |
 |---------|-----------|
 | Orchestration | DeepAgents (`createDeepAgent`, `SubAgent`, `CompositeBackend`, `BaseSandbox`) |
-| Models | Google Gemini: `gemini-3.1-flash-lite-preview` (meta-router classifier + trivial prompts), `gemini-3-flash-preview` (orchestrator + code/general-purpose sub-agents — the default workhorse), `gemini-3.1-pro-preview` (deep-research sub-agent ONLY — Pro burns credits and hits quota fast), `gemini-3.1-flash-image-preview` (creative sub-agent / image generation) |
+| Models | Tier-based, provider-agnostic. Tiers: `classifier`, `default`, `code`, `deep-research`, `image`. Providers auto-detected from env: Google (`@langchain/google`), Anthropic (`@langchain/anthropic`), OpenAI (`@langchain/openai`). Priority: most tiers Google→Anthropic→OpenAI; `code` tier Anthropic→Google→OpenAI; `image` tier Google only. See `apps/agents/src/nexus/models/registry.ts`. |
 | Execution | AIO Sandbox Docker + `@agent-infra/sandbox` TS SDK |
 | Search | Tavily (Search, Extract, Map) — no Exa |
 | Frontend streaming | `@langchain/react` `useStream` hook (subagent streaming, filterSubagentMessages) |
@@ -96,7 +96,7 @@ Docs files are large. Always read headers first (`grep ^#{2,3} file.md`), then r
 - `useStream` comes from `@langchain/react` (v0.3.3+) for subagent features (`filterSubagentMessages`, `stream.subagents`, `getSubagentsByMessage`). The `@langchain/langgraph-sdk/react` version lacks these. `filterSubagentMessages` is typed on `AnyStreamOptions` but not on the `UseStreamOptions` overload — requires `as any` on the options object.
 - shadcn icon library is `hugeicons` — import `HugeiconsIcon` from `@hugeicons/react` (not `HugeIcon`), icons like `ArrowUp01Icon` from `@hugeicons/core-free-icons` (not `ArrowUpIcon`)
 - AIO Sandbox home directory is `/home/gem/` — workspace lives at `/home/gem/workspace/`
-- Scaffold `.env.example` has been replaced — uses Vertex AI (not Gemini Developer API): GOOGLE_GENAI_USE_VERTEXAI, GOOGLE_CLOUD_PROJECT, GEMINI_API_KEY, TAVILY_API_KEY, EXA_API_KEY
+- Model providers are auto-detected from env vars (Google / Anthropic / OpenAI). At least one is required for the default tier; Google is required for image generation. See `apps/agents/src/nexus/preflight.ts` for the runtime check and `models/registry.ts` for the tier priority.
 - `SubagentStreamInterface` has no `model` field — derive from `subagent_type` via static mapping
 - `stream.values` can be undefined initially — always use `stream.values?.todos` with optional chaining
 - DeepAgents always adds a general-purpose subagent alongside custom ones — must be addressed
@@ -118,6 +118,7 @@ Plans 1-7 implemented. Scaffold research-agent removed. `langgraph.json` points 
 - **Plan 5:** Skills — 5 orchestrator skills in `skills/{name}/SKILL.md + examples.md + templates/`, barrel export, `/skills/` StoreBackend route, skills seeding
 - **Plan 6:** Frontend landing page — deps upgraded to LangChain 1.x/zod 4/React 19.1/Next 15.5, StreamProvider refactored (no config form, `filterSubagentMessages`), dark mode, landing components (logo/tagline/prompt), `useNexusStream` hook, scaffold branding stripped
 - **Plan 7:** Frontend execution view — 30/70 split in `apps/web/src/components/execution/` (`execution-shell`, `todo-panel`, `agent-status-panel`, `subagent-card`, `synthesis-indicator`, `prompt-bar`, `message-feed`), landing↔execution switch via `hasMessages` in `app/page.tsx`, all wired through `useNexusStream`
+- **Provider-agnostic refactor (feat/provider-agnostic-models)**: Model selection is now tier-based. Supports Google, Anthropic, and OpenAI auto-detected from env vars with per-role UI overrides. See `apps/agents/src/nexus/models/` and `docs/superpowers/specs/2026-04-10-nexus-design.md` plus the plan file.
 - **Next:** Plan 8 (End-to-End Integration & Polish)
 
 ## Workspace Convention

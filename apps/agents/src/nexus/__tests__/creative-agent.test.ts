@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   CREATIVE_AGENT_NAME,
   CREATIVE_AGENT_DESCRIPTION,
   CREATIVE_SYSTEM_PROMPT,
 } from "../agents/creative/prompt.js";
-import { creativeAgent } from "../agents/creative/agent.js";
+import { createCreativeAgent } from "../agents/creative/agent.js";
 
 describe("Creative Agent prompt", () => {
   it("should export CREATIVE_AGENT_NAME as 'creative'", () => {
@@ -28,28 +28,42 @@ describe("Creative Agent prompt", () => {
   });
 });
 
-describe("Creative Agent config", () => {
-  it("should have name matching CREATIVE_AGENT_NAME", () => {
-    expect(creativeAgent.name).toBe("creative");
+describe("Creative Agent factory", () => {
+  const envKeys = [
+    "GOOGLE_CLOUD_PROJECT",
+    "GOOGLE_API_KEY",
+    "GEMINI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "OPENAI_API_KEY",
+  ];
+  const saved: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    for (const key of envKeys) saved[key] = process.env[key];
   });
 
-  it("should have a description", () => {
-    expect(creativeAgent.description).toBeTruthy();
+  afterEach(() => {
+    for (const key of envKeys) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
   });
 
-  it("should have a systemPrompt", () => {
-    expect(creativeAgent.systemPrompt).toBeTruthy();
+  it("should return null when no image-capable provider is available", () => {
+    for (const key of envKeys) delete process.env[key];
+    process.env.ANTHROPIC_API_KEY = "test-key";
+    process.env.OPENAI_API_KEY = "test-key";
+    expect(createCreativeAgent()).toBeNull();
   });
 
-  it("should have exactly 1 tool (generate_image)", () => {
-    expect(creativeAgent.tools).toHaveLength(1);
-    expect(creativeAgent.tools![0].name).toBe("generate_image");
-  });
-
-  it("should use a ChatGoogle instance pinned to gemini-3.1-flash-image-preview", () => {
-    expect(creativeAgent.model).toBeDefined();
-    expect((creativeAgent.model as any).model).toBe(
-      "gemini-3.1-flash-image-preview",
-    );
+  it("should return a SubAgent when google is available", () => {
+    for (const key of envKeys) delete process.env[key];
+    process.env.GOOGLE_API_KEY = "test-key";
+    const agent = createCreativeAgent();
+    expect(agent).not.toBeNull();
+    expect(agent!.name).toBe("creative");
+    expect(agent!.tools).toHaveLength(1);
+    expect(agent!.tools![0].name).toBe("generate_image");
+    expect(agent!.model).toBeDefined();
   });
 });

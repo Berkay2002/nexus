@@ -4,11 +4,18 @@ import { HumanMessage } from "@langchain/core/messages";
 import { z } from "zod/v4";
 
 /**
- * Integration tests that hit the real Gemini API.
- * Requires GOOGLE_API_KEY or Vertex AI credentials.
+ * Integration tests that hit a real model provider.
+ * Requires GOOGLE_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY.
  * Skip with: npx vitest run --exclude "**\/integration*"
  */
-describe("Meta-Router Integration", () => {
+const hasProvider =
+  !!process.env.GOOGLE_API_KEY ||
+  !!process.env.GEMINI_API_KEY ||
+  !!process.env.GOOGLE_CLOUD_PROJECT ||
+  !!process.env.ANTHROPIC_API_KEY ||
+  !!process.env.OPENAI_API_KEY;
+
+describe.skipIf(!hasProvider)("Meta-Router Integration", () => {
   it("should classify a trivial question as Flash-Lite", async () => {
     const state = {
       messages: [new HumanMessage("What is the capital of France?")],
@@ -18,11 +25,11 @@ describe("Meta-Router Integration", () => {
     const result = await metaRouter(state);
 
     expect(result.routerResult).not.toBeNull();
-    expect(result.routerResult!.model).toBe("gemini-3.1-flash-lite-preview");
+    expect(result.routerResult!.complexity).toBe("trivial");
     expect(result.routerResult!.reasoning).toBeTruthy();
   }, 30000);
 
-  it("should classify a complex project as Flash (Pro is reserved for deep-research)", async () => {
+  it("should classify a complex project as default", async () => {
     const state = {
       messages: [
         new HumanMessage(
@@ -35,7 +42,7 @@ describe("Meta-Router Integration", () => {
     const result = await metaRouter(state);
 
     expect(result.routerResult).not.toBeNull();
-    expect(result.routerResult!.model).toBe("gemini-3-flash-preview");
+    expect(result.routerResult!.complexity).toBe("default");
     expect(result.routerResult!.reasoning).toBeTruthy();
   }, 30000);
 

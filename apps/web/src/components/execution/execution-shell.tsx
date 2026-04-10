@@ -15,6 +15,7 @@ import {
   Conversation,
   ConversationContent,
 } from "@/components/ai-elements/conversation";
+import { SettingsButton } from "@/components/settings/settings-button";
 
 type ExecutionShellProps = {
   messages: any[];
@@ -59,12 +60,15 @@ export function ExecutionShell({
 
       <div className="flex items-center justify-between px-4 py-2.5 border-b shrink-0">
         <h1 className="text-lg font-semibold tracking-tight">Nexus</h1>
-        {isLoading && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-            Working...
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {isLoading && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              Working...
+            </div>
+          )}
+          <SettingsButton />
+        </div>
       </div>
 
       <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0">

@@ -1,5 +1,6 @@
 // apps/agents/src/nexus/agents/general-purpose/agent.ts
 import type { SubAgent } from "deepagents";
+import { createConfigurableModelMiddleware } from "../../middleware/configurable-model.js";
 
 /**
  * General-purpose subagent override.
@@ -14,6 +15,7 @@ import type { SubAgent } from "deepagents";
  */
 export const generalPurposeAgent: SubAgent = {
   name: "general-purpose",
+  middleware: [createConfigurableModelMiddleware("general-purpose")] as const,
   description:
     "General-purpose assistant for miscellaneous tasks that don't fit Research, Code, or Creative. " +
     "Use only when no specialized agent is appropriate. Prefer specialized agents for better results.",

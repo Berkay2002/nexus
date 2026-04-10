@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   RESEARCH_AGENT_NAME,
   RESEARCH_AGENT_DESCRIPTION,
   RESEARCH_SYSTEM_PROMPT,
 } from "../agents/research/prompt.js";
-import { researchAgent } from "../agents/research/agent.js";
+import { createResearchAgent } from "../agents/research/agent.js";
 
 describe("Research Agent prompt", () => {
   it("should export RESEARCH_AGENT_NAME as 'research'", () => {
@@ -28,29 +28,43 @@ describe("Research Agent prompt", () => {
   });
 });
 
-describe("Research Agent config", () => {
-  it("should have name matching RESEARCH_AGENT_NAME", () => {
-    expect(researchAgent.name).toBe("research");
+describe("Research Agent factory", () => {
+  const envKeys = [
+    "GOOGLE_CLOUD_PROJECT",
+    "GOOGLE_API_KEY",
+    "GEMINI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "OPENAI_API_KEY",
+  ];
+  const saved: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    for (const key of envKeys) saved[key] = process.env[key];
   });
 
-  it("should have a description", () => {
-    expect(researchAgent.description).toBeTruthy();
+  afterEach(() => {
+    for (const key of envKeys) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
   });
 
-  it("should have a systemPrompt", () => {
-    expect(researchAgent.systemPrompt).toBeTruthy();
+  it("should return null when no provider is available", () => {
+    for (const key of envKeys) delete process.env[key];
+    expect(createResearchAgent()).toBeNull();
   });
 
-  it("should have exactly 3 tools (tavily_search, tavily_extract, tavily_map)", () => {
-    expect(researchAgent.tools).toHaveLength(3);
-    const toolNames = researchAgent.tools!.map((t) => t.name);
+  it("should return a SubAgent with research tools when google is available", () => {
+    for (const key of envKeys) delete process.env[key];
+    process.env.GOOGLE_API_KEY = "test-key";
+    const agent = createResearchAgent();
+    expect(agent).not.toBeNull();
+    expect(agent!.name).toBe("research");
+    expect(agent!.tools).toHaveLength(3);
+    const toolNames = agent!.tools!.map((t) => t.name);
     expect(toolNames).toContain("tavily_search");
     expect(toolNames).toContain("tavily_extract");
     expect(toolNames).toContain("tavily_map");
-  });
-
-  it("should use a ChatGoogle instance pinned to gemini-3.1-pro-preview", () => {
-    expect(researchAgent.model).toBeDefined();
-    expect((researchAgent.model as any).model).toBe("gemini-3.1-pro-preview");
+    expect(agent!.model).toBeDefined();
   });
 });

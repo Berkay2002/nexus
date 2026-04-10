@@ -23,14 +23,15 @@ All agents write to `/home/gem/workspace/` inside the AIO Sandbox:
 
 ## Implemented Agent Structure
 All agent code lives under `apps/agents/src/nexus/`:
-- `agents/{research,code,creative,general-purpose}/` — each has `agent.ts` (SubAgent config) + `prompt.ts` (system prompt)
-- `agents/index.ts` — barrel export with `nexusSubagents` array
+- `agents/{research,code,creative,general-purpose}/` — each has `agent.ts` (factory returning `SubAgent | null` when its tier is unavailable) + `prompt.ts` (system prompt)
+- `agents/index.ts` — `getNexusSubagents()` filter that always includes general-purpose and drops factories whose tier can't be resolved
 - `tools/{search,extract,map,generate-image}/` — each has `tool.ts` (Zod schema + impl) + `prompt.ts` (TOOL_NAME + TOOL_DESCRIPTION)
 - `tools/index.ts` — barrel export with grouped tool arrays (`researchTools`, `creativeTools`, `allTools`)
 - `skills/{deep-research,build-app,generate-image,data-analysis,write-report}/` — each has `SKILL.md`, `examples.md`, `templates/`
 - `skills/index.ts` — barrel export that recursively collects skill files as `FileData` map
+- `models/` — Provider-agnostic tier registry (`types.ts`, `providers.ts`, `availability.ts`, `registry.ts`, `index.ts`). Use `resolveTier("<tier>")` to obtain a `BaseChatModel` for a role. Tiers: `classifier` | `default` | `code` | `deep-research` | `image`. Override with `"<provider>:<model-id>"` strings via `configurable.models` or `context.models`.
 - `backend/` — `aio-sandbox.ts`, `composite.ts`, `store.ts`
-- `middleware/configurable-model.ts` — runtime model swapping
+- `middleware/configurable-model.ts` — per-role runtime model swapping via closure-per-agent factory `createConfigurableModelMiddleware(agentName)`
 - `prompts/orchestrator-system.ts` — orchestrator system prompt with delegation and skills guidance
 - `db/` — SQLite schema with Drizzle ORM
 

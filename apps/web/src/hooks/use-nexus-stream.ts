@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from "uuid";
 import { ensureToolCallsHaveResponses } from "@/lib/ensure-tool-responses";
 import type { Message } from "@langchain/langgraph-sdk";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
+import { getModelsByRole } from "@/stores/model-settings";
 
 type HumanContentPart =
   | { type: "text"; text: string }
@@ -45,11 +46,17 @@ export function useNexusStream() {
       const toolMessages = ensureToolCallsHaveResponses(
         stream.messages as Message[],
       );
+      const modelsByRole = getModelsByRole();
       stream.submit(
         { messages: [...toolMessages, newMessage] },
         {
           streamMode: ["values"],
           streamSubgraphs: true,
+          config: {
+            configurable: {
+              models: modelsByRole,
+            },
+          },
           optimisticValues: (prev: Record<string, unknown>) => ({
             ...prev,
             messages: [
@@ -58,7 +65,7 @@ export function useNexusStream() {
               newMessage,
             ],
           }),
-        },
+        } as any,
       );
     },
     [stream],

@@ -1,3 +1,10 @@
+import {
+  isProviderAvailable,
+  isTierAvailable,
+  getTierDefault,
+} from "./models/index.js";
+import type { Tier, ProviderId } from "./models/index.js";
+
 export type GoogleAuthMode = "vertex-adc" | "api-key" | "none";
 
 export class NexusConfigError extends Error {
@@ -42,25 +49,101 @@ export function detectGoogleAuthMode(): GoogleAuthMode {
 
 export function checkMissing(): string[] {
   const missing: string[] = [];
-  if (detectGoogleAuthMode() === "none") {
+
+  // At least one model provider must be available for the default tier.
+  if (!isTierAvailable("default")) {
     missing.push(
-      "Google credentials (one of: Vertex AI [ADC via `gcloud auth application-default login` + GOOGLE_CLOUD_PROJECT], GOOGLE_API_KEY, or GEMINI_API_KEY)",
+      "Google credentials or another model provider required: set GEMINI_API_KEY / GOOGLE_API_KEY / GOOGLE_CLOUD_PROJECT for Google, ANTHROPIC_API_KEY for Anthropic, or OPENAI_API_KEY for OpenAI",
     );
   }
+
   if (!process.env.TAVILY_API_KEY) missing.push("TAVILY_API_KEY");
+
   return missing;
 }
 
+const PROVIDERS: ProviderId[] = ["google", "anthropic", "openai"];
+
+const PROVIDER_KEY_HINT: Record<ProviderId, string> = {
+  google: "GEMINI_API_KEY / GOOGLE_API_KEY / GOOGLE_CLOUD_PROJECT",
+  anthropic: "ANTHROPIC_API_KEY not set",
+  openai: "OPENAI_API_KEY not set",
+};
+
+const TIERS: Tier[] = ["classifier", "default", "code", "deep-research", "image"];
+
+const SUBAGENTS: Array<{ name: string; tier: Tier | null }> = [
+  { name: "research", tier: "deep-research" },
+  { name: "code", tier: "code" },
+  { name: "creative", tier: "image" },
+];
+
 export function logPreflight(): void {
+  // Alias must run before any availability checks.
   aliasApiKey();
-  const mode = detectGoogleAuthMode();
-  const missing = checkMissing();
-  if (missing.length === 0) {
-    console.log(`[nexus] preflight ok (google auth: ${mode})`);
-    return;
+
+  const googleMode = detectGoogleAuthMode();
+
+  console.log("[Nexus] Preflight");
+
+  // --- Providers ---
+  console.log("[Nexus] Providers:");
+  for (const provider of PROVIDERS) {
+    const available = isProviderAvailable(provider);
+    const mark = available ? "[OK]" : "[--]";
+    let hint = "";
+    if (provider === "google" && available) {
+      hint = ` (${googleMode})`;
+    } else if (!available) {
+      hint = ` (${PROVIDER_KEY_HINT[provider]})`;
+    }
+    const label = provider.padEnd(10);
+    console.log(`  ${label}${mark}${hint}`);
   }
-  console.warn(
-    `[nexus] preflight warning: missing ${missing.join(", ")}. ` +
-      `Server starts but requests will fail with a clear error. See .env.example.`,
+
+  // --- Tier resolution ---
+  console.log("[Nexus] Tier resolution:");
+  for (const tier of TIERS) {
+    const descriptor = getTierDefault(tier);
+    const resolution = descriptor
+      ? `${descriptor.provider}:${descriptor.id}`
+      : "unavailable";
+    const label = tier.padEnd(14);
+    console.log(`  ${label}→ ${resolution}`);
+  }
+
+  // --- Sub-agents ---
+  console.log("[Nexus] Sub-agents:");
+  for (const { name, tier } of SUBAGENTS) {
+    const enabled = tier !== null && isTierAvailable(tier);
+    const status = enabled ? "enabled" : "disabled (no provider for tier)";
+    const label = name.padEnd(16);
+    console.log(`  ${label}→ ${status}`);
+  }
+  console.log(`  ${"general-purpose".padEnd(16)}→ always enabled`);
+
+  // --- Search ---
+  const tavilyOk = Boolean(process.env.TAVILY_API_KEY);
+  console.log(
+    `[Nexus] Search: TAVILY_API_KEY ${tavilyOk ? "[OK]" : "[--] (TAVILY_API_KEY not set)"}`,
   );
+
+  // --- Fail-fast if no default tier ---
+  if (!isTierAvailable("default")) {
+    // graph.ts imports this module at load time and calls logPreflight() unconditionally.
+    // Vitest suites that import graph.ts would otherwise crash when no provider is configured,
+    // even for tests that never exercise a live provider call. Skip the throw in test envs.
+    if (process.env.VITEST || process.env.NODE_ENV === "test") {
+      console.warn(
+        "[Nexus] Running in test environment — skipping fatal provider check.",
+      );
+      return;
+    }
+
+    throw new Error(
+      "[Nexus] FATAL: No model provider available for the default tier. " +
+        "Set at least one of GEMINI_API_KEY, GOOGLE_API_KEY, GOOGLE_CLOUD_PROJECT, " +
+        "ANTHROPIC_API_KEY, or OPENAI_API_KEY.",
+    );
+  }
 }

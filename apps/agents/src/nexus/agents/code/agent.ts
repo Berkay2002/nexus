@@ -1,6 +1,7 @@
 // apps/agents/src/nexus/agents/code/agent.ts
 import type { SubAgent } from "deepagents";
-import { createGoogleModel } from "../../models.js";
+import { resolveTier } from "../../models/index.js";
+import { createConfigurableModelMiddleware } from "../../middleware/configurable-model.js";
 import {
   CODE_AGENT_NAME,
   CODE_AGENT_DESCRIPTION,
@@ -8,16 +9,23 @@ import {
 } from "./prompt.js";
 
 /**
- * Code sub-agent.
+ * Code sub-agent factory.
+ *
+ * Returns `null` if no provider is available for the code tier.
  *
  * No custom tools — relies entirely on auto-provisioned sandbox tools:
  * execute (shell), ls, read_file, write_file, edit_file, glob, grep.
  * These are provided automatically because the orchestrator uses a
  * sandbox backend (AIOSandboxBackend via CompositeBackend).
  */
-export const codeAgent: SubAgent = {
-  name: CODE_AGENT_NAME,
-  description: CODE_AGENT_DESCRIPTION,
-  systemPrompt: CODE_SYSTEM_PROMPT,
-  model: createGoogleModel("gemini-3-flash-preview"),
-};
+export function createCodeAgent(): SubAgent | null {
+  const model = resolveTier("code");
+  if (!model) return null;
+  return {
+    name: CODE_AGENT_NAME,
+    description: CODE_AGENT_DESCRIPTION,
+    systemPrompt: CODE_SYSTEM_PROMPT,
+    model,
+    middleware: [createConfigurableModelMiddleware(CODE_AGENT_NAME)] as const,
+  };
+}

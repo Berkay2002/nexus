@@ -3,11 +3,14 @@ import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
 /**
  * Router classification result written by the meta-router node.
  * Read by the orchestrator node to select the correct model at runtime.
+ *
+ * Abstract complexity label — the orchestrator node translates it into a
+ * concrete provider model via the tier-based model registry.
  */
 export interface RouterResult {
-  /** The Gemini model name to use for the orchestrator */
-  model: string;
-  /** Brief reasoning for the model selection */
+  /** Abstract complexity label — "trivial" routes to the classifier tier, "default" to the default tier */
+  complexity: "trivial" | "default";
+  /** Brief reasoning for the classification */
   reasoning: string;
 }
 

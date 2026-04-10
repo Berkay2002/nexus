@@ -12,6 +12,7 @@ import {
   getElapsedTime,
   getModelBadge,
   getStatusColor,
+  useSubagentModelLabels,
 } from "@/lib/subagent-utils";
 import {
   ChevronDown,
@@ -134,6 +135,7 @@ export function SubagentCard({
   const agentType = subagent.toolCall?.args?.subagent_type ?? "unknown";
   const description = subagent.toolCall?.args?.description ?? "";
   const status = subagent.status ?? "pending";
+  const labelBySubagent = useSubagentModelLabels();
 
   return (
     <Collapsible defaultOpen={defaultOpen}>
@@ -155,7 +157,7 @@ export function SubagentCard({
                 variant="outline"
                 className="text-[0.6rem] h-4 px-1.5 font-mono shrink-0"
               >
-                {getModelBadge(agentType)}
+                {getModelBadge(agentType, labelBySubagent)}
               </Badge>
             </div>
             {description && (

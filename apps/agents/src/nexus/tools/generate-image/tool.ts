@@ -1,7 +1,7 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod/v4";
 import { HumanMessage } from "@langchain/core/messages";
-import { createGoogleModel } from "../../models.js";
+import { resolveTier } from "../../models/index.js";
 import { TOOL_NAME, TOOL_DESCRIPTION } from "./prompt.js";
 
 export const generateImageSchema = z.object({
@@ -21,10 +21,15 @@ export type GenerateImageInput = z.infer<typeof generateImageSchema>;
 
 export const generateImage = tool(
   async ({ prompt, filename }) => {
-    const model = createGoogleModel("gemini-3.1-flash-image-preview", {
+    const model = resolveTier("image", undefined, {
       temperature: 1,
       responseModalities: ["IMAGE", "TEXT"],
     } as any);
+    if (!model) {
+      throw new Error(
+        "Image generation unavailable — no image-capable provider configured",
+      );
+    }
 
     const response = await model.invoke([
       new HumanMessage(`Generate an image: ${prompt}`),
