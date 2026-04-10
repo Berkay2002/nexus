@@ -31,6 +31,10 @@ import { generalPurposeAgent } from "./general-purpose/agent.js";
  * All Nexus sub-agents, ready to pass to createDeepAgent({ subagents }).
  * Includes the general-purpose override to prevent DeepAgents from
  * adding an uncontrolled default agent.
+ *
+ * Note: All sub-agents get the `execute` tool auto-provisioned via the shared
+ * sandbox backend — not just Code. This is accepted because filtering is not
+ * supported by DeepAgents, and the Research/Creative prompts don't reference it.
  */
 export const nexusSubagents = [
   researchAgent,

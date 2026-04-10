@@ -37,14 +37,17 @@ vi.mock("@agent-infra/sandbox", () => ({
 const { createNexusOrchestrator } = await import("../orchestrator.js");
 
 describe("Orchestrator sub-agent wiring", () => {
-  it("should pass subagents to createDeepAgent", () => {
+  beforeEach(() => {
+    capturedParams = null;
     createNexusOrchestrator();
+  });
+
+  it("should pass subagents to createDeepAgent", () => {
     expect(capturedParams).not.toBeNull();
     expect(capturedParams!.subagents).toBeDefined();
   });
 
   it("should include all 4 sub-agents", () => {
-    createNexusOrchestrator();
     const subagents = capturedParams!.subagents as Array<{ name: string }>;
     expect(subagents).toHaveLength(4);
     const names = subagents.map((a) => a.name);
@@ -55,7 +58,6 @@ describe("Orchestrator sub-agent wiring", () => {
   });
 
   it("should include research agent with tools", () => {
-    createNexusOrchestrator();
     const subagents = capturedParams!.subagents as Array<{
       name: string;
       tools?: Array<{ name: string }>;
@@ -65,7 +67,6 @@ describe("Orchestrator sub-agent wiring", () => {
   });
 
   it("should include code agent without custom tools", () => {
-    createNexusOrchestrator();
     const subagents = capturedParams!.subagents as Array<{
       name: string;
       tools?: unknown[];
@@ -75,7 +76,6 @@ describe("Orchestrator sub-agent wiring", () => {
   });
 
   it("should include creative agent with tools", () => {
-    createNexusOrchestrator();
     const subagents = capturedParams!.subagents as Array<{
       name: string;
       tools?: Array<{ name: string }>;

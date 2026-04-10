@@ -6,6 +6,7 @@ import {
   RESEARCH_SYSTEM_PROMPT,
 } from "./prompt.js";
 
+// Note: exa_search omitted per project decision — Tavily only, no Exa (see CLAUDE.md)
 export const researchAgent: SubAgent = {
   name: RESEARCH_AGENT_NAME,
   description: RESEARCH_AGENT_DESCRIPTION,
