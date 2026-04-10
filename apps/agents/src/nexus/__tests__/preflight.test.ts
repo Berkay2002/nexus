@@ -7,6 +7,8 @@ import {
 
 const ENV_KEYS = [
   "GOOGLE_GENAI_USE_VERTEXAI",
+  "GOOGLE_APPLICATION_CREDENTIALS",
+  "GOOGLE_CLOUD_CREDENTIALS",
   "GOOGLE_CLOUD_PROJECT",
   "GOOGLE_CLOUD_LOCATION",
   "GOOGLE_API_KEY",
@@ -32,8 +34,12 @@ describe("preflight", () => {
   });
 
   describe("detectGoogleAuthMode", () => {
-    it("returns vertex-adc when Vertex vars are set", () => {
-      process.env.GOOGLE_GENAI_USE_VERTEXAI = "true";
+    it("returns vertex-adc when GOOGLE_APPLICATION_CREDENTIALS is set", () => {
+      process.env.GOOGLE_APPLICATION_CREDENTIALS = "/tmp/key.json";
+      expect(detectGoogleAuthMode()).toBe("vertex-adc");
+    });
+
+    it("returns vertex-adc when only GOOGLE_CLOUD_PROJECT is set (ADC via gcloud)", () => {
       process.env.GOOGLE_CLOUD_PROJECT = "my-project";
       expect(detectGoogleAuthMode()).toBe("vertex-adc");
     });
@@ -54,15 +60,17 @@ describe("preflight", () => {
       expect(detectGoogleAuthMode()).toBe("none");
     });
 
-    it("returns none when GOOGLE_GENAI_USE_VERTEXAI=true but no project", () => {
-      process.env.GOOGLE_GENAI_USE_VERTEXAI = "true";
-      expect(detectGoogleAuthMode()).toBe("none");
+    it("prefers api-key when both GOOGLE_API_KEY and GOOGLE_CLOUD_PROJECT are set", () => {
+      // ChatGoogle auto-selects AI Studio whenever an API key is present, so
+      // explicit API key wins even if Vertex vars are also set.
+      process.env.GOOGLE_API_KEY = "key-abc";
+      process.env.GOOGLE_CLOUD_PROJECT = "my-project";
+      expect(detectGoogleAuthMode()).toBe("api-key");
     });
   });
 
   describe("checkMissing", () => {
-    it("returns empty for Vertex AI + Tavily", () => {
-      process.env.GOOGLE_GENAI_USE_VERTEXAI = "true";
+    it("returns empty for Vertex ADC + Tavily", () => {
       process.env.GOOGLE_CLOUD_PROJECT = "my-project";
       process.env.TAVILY_API_KEY = "tvly-x";
       expect(checkMissing()).toEqual([]);

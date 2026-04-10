@@ -11,7 +11,7 @@ export class NexusConfigError extends Error {
 
 /**
  * Alias GEMINI_API_KEY → GOOGLE_API_KEY if only the former is set.
- * `@langchain/google-genai` reads GOOGLE_API_KEY; this lets users who copy
+ * `@langchain/google` reads GOOGLE_API_KEY; this lets users who copy
  * Vertex AI Express Mode docs (which use GEMINI_API_KEY) work unchanged.
  */
 export function aliasApiKey(): void {
@@ -20,12 +20,23 @@ export function aliasApiKey(): void {
   }
 }
 
+/**
+ * Detect which Google auth path is active.
+ *
+ * An explicit `GOOGLE_API_KEY` always wins: ChatGoogle auto-selects AI Studio
+ * whenever an API key is present, so project/ADC env vars alongside it have
+ * no effect. Otherwise, ADC (credentials file or `GOOGLE_CLOUD_PROJECT`)
+ * selects Vertex AI.
+ */
 export function detectGoogleAuthMode(): GoogleAuthMode {
-  const vertex =
-    process.env.GOOGLE_GENAI_USE_VERTEXAI === "true" &&
-    !!process.env.GOOGLE_CLOUD_PROJECT;
-  if (vertex) return "vertex-adc";
   if (process.env.GOOGLE_API_KEY) return "api-key";
+  if (
+    process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+    process.env.GOOGLE_CLOUD_CREDENTIALS ||
+    process.env.GOOGLE_CLOUD_PROJECT
+  ) {
+    return "vertex-adc";
+  }
   return "none";
 }
 
@@ -33,7 +44,7 @@ export function checkMissing(): string[] {
   const missing: string[] = [];
   if (detectGoogleAuthMode() === "none") {
     missing.push(
-      "Google credentials (one of: Vertex AI [GOOGLE_GENAI_USE_VERTEXAI=true + GOOGLE_CLOUD_PROJECT], GOOGLE_API_KEY, or GEMINI_API_KEY)",
+      "Google credentials (one of: Vertex AI [ADC via `gcloud auth application-default login` + GOOGLE_CLOUD_PROJECT], GOOGLE_API_KEY, or GEMINI_API_KEY)",
     );
   }
   if (!process.env.TAVILY_API_KEY) missing.push("TAVILY_API_KEY");
