@@ -46,7 +46,10 @@ describe("Creative Agent config", () => {
     expect(creativeAgent.tools![0].name).toBe("generate_image");
   });
 
-  it("should use gemini-3.1-flash-image-preview model", () => {
-    expect(creativeAgent.model).toBe("google-genai:gemini-3.1-flash-image-preview");
+  it("should use a ChatGoogle instance pinned to gemini-3.1-flash-image-preview", () => {
+    expect(creativeAgent.model).toBeDefined();
+    expect((creativeAgent.model as any).model).toBe(
+      "gemini-3.1-flash-image-preview",
+    );
   });
 });
