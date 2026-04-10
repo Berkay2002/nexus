@@ -42,7 +42,12 @@ export function useNexusStream() {
   const hasMessages = stream.messages.length > 0;
 
   return {
-    ...stream,
+    messages: stream.messages,
+    isLoading: stream.isLoading,
+    error: stream.error,
+    values: stream.values,
+    submit: stream.submit,
+    stop: stream.stop,
     submitPrompt,
     hasMessages,
   };

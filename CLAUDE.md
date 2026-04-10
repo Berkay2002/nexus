@@ -83,7 +83,7 @@ Key infrastructure files to **preserve** during UI rewrites:
 | Models | Google Gemini: `gemini-3-flash-preview` (router/orchestrator), `gemini-3.1-pro-preview` (sub-agents), `gemini-3.1-flash-image-preview` (images) |
 | Execution | AIO Sandbox Docker + `@agent-infra/sandbox` TS SDK |
 | Search | Tavily (Search, Extract, Map) — no Exa |
-| Frontend streaming | `@langchain/langgraph-sdk/react` `useStream` hook |
+| Frontend streaming | `@langchain/react` `useStream` hook (subagent streaming, filterSubagentMessages) |
 | UI components | shadcn/ui + AI Elements (`@ai-elements/react`) |
 | Persistence | SQLite + Drizzle ORM via LangGraph StoreBackend |
 
@@ -93,7 +93,8 @@ Docs files are large. Always read headers first (`grep ^#{2,3} file.md`), then r
 
 ## Known Gotchas
 
-- `useStream` comes from `@langchain/langgraph-sdk/react`, NOT `@langchain/react` (both packages are needed but for different purposes)
+- `useStream` comes from `@langchain/react` (v0.3.3+) for subagent features (`filterSubagentMessages`, `stream.subagents`, `getSubagentsByMessage`). The `@langchain/langgraph-sdk/react` version lacks these. `filterSubagentMessages` is typed on `AnyStreamOptions` but not on the `UseStreamOptions` overload — requires `as any` on the options object.
+- shadcn icon library is `hugeicons` — import `HugeiconsIcon` from `@hugeicons/react` (not `HugeIcon`), icons like `ArrowUp01Icon` from `@hugeicons/core-free-icons` (not `ArrowUpIcon`)
 - AIO Sandbox home directory is `/home/gem/` — workspace lives at `/home/gem/workspace/`
 - Scaffold `.env.example` has been replaced — uses Vertex AI (not Gemini Developer API): GOOGLE_GENAI_USE_VERTEXAI, GOOGLE_CLOUD_PROJECT, GEMINI_API_KEY, TAVILY_API_KEY, EXA_API_KEY
 - `SubagentStreamInterface` has no `model` field — derive from `subagent_type` via static mapping
@@ -105,16 +106,18 @@ Docs files are large. Always read headers first (`grep ^#{2,3} file.md`), then r
 - Vitest does not auto-load `.env` — for integration tests needing API keys: `source .env && export VAR_NAME` before running
 - `FileData` from `deepagents` is a union of `FileDataV1` (`content: string[]`) and `FileDataV2` (`content: string | Uint8Array`). Skills use V1 format (line array).
 - Skills are seeded via `orchestrator.invoke({ files: nexusSkillFiles })` — the barrel export at `skills/index.ts` recursively collects all skill files as a `FileData` map with virtual POSIX paths (`/skills/{name}/...`)
+- `apps/agents` has pre-existing TypeScript build errors (test files, db/index.ts) — use `npx next build` in `apps/web/` directly instead of `npm run build` from root
 
 ## Current State
 
-Plans 1-5 implemented. Scaffold research-agent removed. `langgraph.json` points to `nexus` graph.
+Plans 1-6 implemented. Scaffold research-agent removed. `langgraph.json` points to `nexus` graph.
 - **Plan 1:** AIO Sandbox backend, CompositeBackend, StoreBackend, DB schema
 - **Plan 2:** Meta-router (Flash classifier), ConfigurableModel middleware, orchestrator (DeepAgent), graph wiring
 - **Plan 3:** Custom tools — `tavily_search`, `tavily_extract`, `tavily_map`, `generate_image` in `tools/{name}/prompt.ts + tool.ts`
 - **Plan 4:** Sub-agents — research, code, creative, general-purpose in `agents/{name}/agent.ts + prompt.ts`
 - **Plan 5:** Skills — 5 orchestrator skills in `skills/{name}/SKILL.md + examples.md + templates/`, barrel export, `/skills/` StoreBackend route, skills seeding
-- **Next:** Plans 6-8 (Frontend, Integration)
+- **Plan 6:** Frontend landing page — deps upgraded to LangChain 1.x/zod 4/React 19.1/Next 15.5, StreamProvider refactored (no config form, `filterSubagentMessages`), dark mode, landing components (logo/tagline/prompt), `useNexusStream` hook, scaffold branding stripped
+- **Next:** Plans 7-8 (Execution View, Integration)
 
 ## Workspace Convention
 
