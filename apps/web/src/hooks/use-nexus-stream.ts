@@ -1,3 +1,4 @@
+// apps/web/src/hooks/use-nexus-stream.ts
 "use client";
 
 import { useStreamContext } from "@/providers/Stream";
@@ -41,6 +42,16 @@ export function useNexusStream() {
 
   const hasMessages = stream.messages.length > 0;
 
+  // Subagent data — these come from @langchain/react useStream with filterSubagentMessages: true
+  // stream.subagents is a Map<string, SubagentStreamInterface>
+  // stream.getSubagentsByMessage returns SubagentStreamInterface[] for a given message ID
+  const subagents = (stream as any).subagents as
+    | Map<string, any>
+    | undefined;
+  const getSubagentsByMessage = (stream as any).getSubagentsByMessage as
+    | ((messageId: string) => any[])
+    | undefined;
+
   return {
     messages: stream.messages,
     isLoading: stream.isLoading,
@@ -48,7 +59,10 @@ export function useNexusStream() {
     values: stream.values,
     submit: stream.submit,
     stop: stream.stop,
+    interrupt: stream.interrupt,
     submitPrompt,
     hasMessages,
+    subagents,
+    getSubagentsByMessage,
   };
 }
