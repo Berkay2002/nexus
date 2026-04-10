@@ -17,11 +17,13 @@ logPreflight();
  * The meta-router writes routerResult to state. The orchestrator node
  * reads it and passes it as context to the ConfigurableModel middleware.
  */
-const workflow = new StateGraph(NexusStateAnnotation)
-  .addNode("metaRouter", metaRouter)
-  .addNode("orchestrator", orchestratorNode)
-  .addEdge("__start__", "metaRouter")
-  .addEdge("metaRouter", "orchestrator")
-  .addEdge("orchestrator", "__end__");
+export function createNexusWorkflow() {
+  return new StateGraph(NexusStateAnnotation)
+    .addNode("metaRouter", metaRouter)
+    .addNode("orchestrator", orchestratorNode)
+    .addEdge("__start__", "metaRouter")
+    .addEdge("metaRouter", "orchestrator")
+    .addEdge("orchestrator", "__end__");
+}
 
-export const graph = workflow.compile();
+export const graph = createNexusWorkflow().compile();
