@@ -6,7 +6,7 @@ import React, {
   ReactNode,
   useEffect,
 } from "react";
-import { useStream } from "@langchain/langgraph-sdk/react";
+import { useStream } from "@langchain/react";
 import { type Message } from "@langchain/langgraph-sdk";
 import {
   uiMessageReducer,
@@ -19,18 +19,8 @@ import { toast } from "sonner";
 
 export type StateType = { messages: Message[]; ui?: UIMessage[] };
 
-const useTypedStream = useStream<
-  StateType,
-  {
-    UpdateType: {
-      messages?: Message[] | Message | string;
-      ui?: (UIMessage | RemoveUIMessage)[] | UIMessage | RemoveUIMessage;
-    };
-    CustomEventType: UIMessage | RemoveUIMessage;
-  }
->;
-
-type StreamContextType = ReturnType<typeof useTypedStream>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type StreamContextType = ReturnType<typeof useStream<any>>;
 const StreamContext = createContext<StreamContextType | undefined>(undefined);
 
 // Nexus defaults — no config form needed
@@ -56,26 +46,31 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
   const [threadId, setThreadId] = useQueryState("threadId");
   const { getThreads, setThreads } = useThreads();
 
-  const streamValue = useTypedStream({
+  // filterSubagentMessages is typed on AnyStreamOptions but not on the
+  // UseStreamOptions overload. Runtime handles it — use type assertion.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const streamValue = useStream<StateType>({
     apiUrl: API_URL,
     apiKey: API_KEY,
     assistantId: ASSISTANT_ID,
     threadId: threadId ?? null,
-    // TODO: enable after SDK confirms support — needed for Plan 7 sub-agent streaming cards
-    // filterSubagentMessages: true,
-    onCustomEvent: (event, options) => {
-      options.mutate((prev) => {
-        const ui = uiMessageReducer(prev.ui ?? [], event);
+    filterSubagentMessages: true,
+    onCustomEvent: (event: unknown, options: { mutate: (fn: (prev: StateType) => Partial<StateType>) => void }) => {
+      options.mutate((prev: StateType) => {
+        const ui = uiMessageReducer(
+          prev.ui ?? [],
+          event as UIMessage | RemoveUIMessage,
+        );
         return { ...prev, ui };
       });
     },
-    onThreadId: (id) => {
+    onThreadId: (id: string) => {
       setThreadId(id);
       setTimeout(() => {
         getThreads().then(setThreads).catch(console.error);
       }, 4000);
     },
-  });
+  } as any);
 
   useEffect(() => {
     checkGraphStatus(API_URL).then((ok) => {
