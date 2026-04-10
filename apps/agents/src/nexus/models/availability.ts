@@ -21,6 +21,10 @@ export function isOpenAIAvailable(): boolean {
   return hasEnv("OPENAI_API_KEY");
 }
 
+export function isZaiAvailable(): boolean {
+  return hasEnv("ZAI_API_KEY");
+}
+
 export function isProviderAvailable(provider: ProviderId): boolean {
   switch (provider) {
     case "google":
@@ -29,5 +33,7 @@ export function isProviderAvailable(provider: ProviderId): boolean {
       return isAnthropicAvailable();
     case "openai":
       return isOpenAIAvailable();
+    case "zai":
+      return isZaiAvailable();
   }
 }

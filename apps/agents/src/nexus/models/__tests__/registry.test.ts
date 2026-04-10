@@ -16,6 +16,8 @@ function clearProviderEnv() {
   vi.stubEnv("GEMINI_API_KEY", "");
   vi.stubEnv("ANTHROPIC_API_KEY", "");
   vi.stubEnv("OPENAI_API_KEY", "");
+  vi.stubEnv("ZAI_API_KEY", "");
+  vi.stubEnv("ZAI_BASE_URL", "");
 }
 
 function enableGoogle() {
@@ -30,18 +32,39 @@ function enableOpenAI() {
   vi.stubEnv("OPENAI_API_KEY", "test-openai-key");
 }
 
+function enableZai() {
+  vi.stubEnv("ZAI_API_KEY", "test-zai-key");
+}
+
 describe("models/registry", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
   });
 
-  it("all providers available → default tier returns ChatGoogle (priority)", () => {
+  it("all providers available → default tier returns ChatAnthropic (priority)", () => {
     clearProviderEnv();
     enableGoogle();
     enableAnthropic();
     enableOpenAI();
     const model = resolveTier("default");
-    expect(model).toBeInstanceOf(ChatGoogle);
+    expect(model).toBeInstanceOf(ChatAnthropic);
+  });
+
+  it("only zai available → default tier returns a ChatOpenAI (z.ai reuses ChatOpenAI)", () => {
+    clearProviderEnv();
+    enableZai();
+    const model = resolveTier("default");
+    expect(model).toBeInstanceOf(ChatOpenAI);
+    expect(isTierAvailable("deep-research")).toBe(true);
+    expect(isTierAvailable("image")).toBe(false);
+  });
+
+  it("deep-research tier falls through to zai when no other providers are set", () => {
+    clearProviderEnv();
+    enableZai();
+    const descriptor = getTierDefault("deep-research");
+    expect(descriptor?.provider).toBe("zai");
+    expect(descriptor?.id).toBe("glm-5.1");
   });
 
   it("only anthropic available → default returns ChatAnthropic, image returns null", () => {

@@ -77,13 +77,36 @@ export const MODEL_CATALOG: ModelDescriptor[] = [
     tiers: ["default", "code", "deep-research"],
     capabilities: { tools: true, images: false },
   },
+  // Z.AI (GLM). OpenAI-wire-compatible; routed via ChatOpenAI + custom baseURL.
+  // Users on the GLM Coding Plan set ZAI_BASE_URL to the /coding/ endpoint.
+  {
+    provider: "zai",
+    id: "glm-4.7",
+    label: "GLM-4.7",
+    tiers: ["classifier", "default"],
+    capabilities: { tools: true, images: false },
+  },
+  {
+    provider: "zai",
+    id: "glm-5-turbo",
+    label: "GLM-5 Turbo",
+    tiers: ["classifier", "default"],
+    capabilities: { tools: true, images: false },
+  },
+  {
+    provider: "zai",
+    id: "glm-5.1",
+    label: "GLM-5.1",
+    tiers: ["default", "code", "deep-research"],
+    capabilities: { tools: true, images: false },
+  },
 ];
 
 export const TIER_PRIORITY: Record<Tier, ProviderId[]> = {
-  classifier: ["google", "anthropic", "openai"],
-  default: ["google", "anthropic", "openai"],
-  code: ["anthropic", "google", "openai"],
-  "deep-research": ["google", "anthropic", "openai"],
+  classifier: ["google", "anthropic", "openai", "zai"],
+  default: ["anthropic", "openai", "zai", "google"],
+  code: ["anthropic", "google", "openai", "zai"],
+  "deep-research": ["google", "anthropic", "openai", "zai"],
   image: ["google"],
 };
 

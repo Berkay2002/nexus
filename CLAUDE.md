@@ -80,7 +80,7 @@ Key infrastructure files to **preserve** during UI rewrites:
 | Concern | Technology |
 |---------|-----------|
 | Orchestration | DeepAgents (`createDeepAgent`, `SubAgent`, `CompositeBackend`, `BaseSandbox`) |
-| Models | Tier-based, provider-agnostic. Tiers: `classifier`, `default`, `code`, `deep-research`, `image`. Providers auto-detected from env: Google (`@langchain/google`), Anthropic (`@langchain/anthropic`), OpenAI (`@langchain/openai`). Priority: most tiers Google→Anthropic→OpenAI; `code` tier Anthropic→Google→OpenAI; `image` tier Google only. See `apps/agents/src/nexus/models/registry.ts`. |
+| Models | Tier-based, provider-agnostic. Tiers: `classifier`, `default`, `code`, `deep-research`, `image`. Providers auto-detected from env: Google (`@langchain/google`), Anthropic (`@langchain/anthropic`), OpenAI (`@langchain/openai`), Z.AI/GLM (via `@langchain/openai` pointed at z.ai's OpenAI-compatible endpoint). Priority: `classifier` / `deep-research` Google→Anthropic→OpenAI→Z.AI; `default` Anthropic→OpenAI→Z.AI→Google; `code` Anthropic→Google→OpenAI→Z.AI; `image` Google only. See `apps/agents/src/nexus/models/registry.ts`. |
 | Execution | AIO Sandbox Docker + `@agent-infra/sandbox` TS SDK |
 | Search | Tavily (Search, Extract, Map) — no Exa |
 | Frontend streaming | `@langchain/react` `useStream` hook (subagent streaming, filterSubagentMessages) |
@@ -96,7 +96,7 @@ Docs files are large. Always read headers first (`grep ^#{2,3} file.md`), then r
 - `useStream` comes from `@langchain/react` (v0.3.3+) for subagent features (`filterSubagentMessages`, `stream.subagents`, `getSubagentsByMessage`). The `@langchain/langgraph-sdk/react` version lacks these. `filterSubagentMessages` is typed on `AnyStreamOptions` but not on the `UseStreamOptions` overload — requires `as any` on the options object.
 - shadcn icon library is `hugeicons` — import `HugeiconsIcon` from `@hugeicons/react` (not `HugeIcon`), icons like `ArrowUp01Icon` from `@hugeicons/core-free-icons` (not `ArrowUpIcon`)
 - AIO Sandbox home directory is `/home/gem/` — workspace lives at `/home/gem/workspace/`
-- Model providers are auto-detected from env vars (Google / Anthropic / OpenAI). At least one is required for the default tier; Google is required for image generation. See `apps/agents/src/nexus/preflight.ts` for the runtime check and `models/registry.ts` for the tier priority.
+- Model providers are auto-detected from env vars (Google / Anthropic / OpenAI / Z.AI). At least one is required for the default tier; Google is required for image generation. Z.AI reuses `ChatOpenAI` with a custom `baseURL` — defaults to `https://api.z.ai/api/paas/v4`, set `ZAI_BASE_URL=https://api.z.ai/api/coding/paas/v4` when on the GLM Coding Plan. See `apps/agents/src/nexus/preflight.ts` for the runtime check and `models/registry.ts` for the tier priority.
 - `SubagentStreamInterface` has no `model` field — derive from `subagent_type` via static mapping
 - `stream.values` can be undefined initially — always use `stream.values?.todos` with optional chaining
 - DeepAgents always adds a general-purpose subagent alongside custom ones — must be addressed

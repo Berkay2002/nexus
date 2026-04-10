@@ -53,7 +53,7 @@ export function checkMissing(): string[] {
   // At least one model provider must be available for the default tier.
   if (!isTierAvailable("default")) {
     missing.push(
-      "Google credentials or another model provider required: set GEMINI_API_KEY / GOOGLE_API_KEY / GOOGLE_CLOUD_PROJECT for Google, ANTHROPIC_API_KEY for Anthropic, or OPENAI_API_KEY for OpenAI",
+      "Google credentials or another model provider required: set GEMINI_API_KEY / GOOGLE_API_KEY / GOOGLE_CLOUD_PROJECT for Google, ANTHROPIC_API_KEY for Anthropic, OPENAI_API_KEY for OpenAI, or ZAI_API_KEY for Z.AI (GLM)",
     );
   }
 
@@ -62,12 +62,13 @@ export function checkMissing(): string[] {
   return missing;
 }
 
-const PROVIDERS: ProviderId[] = ["google", "anthropic", "openai"];
+const PROVIDERS: ProviderId[] = ["google", "anthropic", "openai", "zai"];
 
 const PROVIDER_KEY_HINT: Record<ProviderId, string> = {
   google: "GEMINI_API_KEY / GOOGLE_API_KEY / GOOGLE_CLOUD_PROJECT",
   anthropic: "ANTHROPIC_API_KEY not set",
   openai: "OPENAI_API_KEY not set",
+  zai: "ZAI_API_KEY not set",
 };
 
 const TIERS: Tier[] = ["classifier", "default", "code", "deep-research", "image"];
@@ -143,7 +144,7 @@ export function logPreflight(): void {
     throw new Error(
       "[Nexus] FATAL: No model provider available for the default tier. " +
         "Set at least one of GEMINI_API_KEY, GOOGLE_API_KEY, GOOGLE_CLOUD_PROJECT, " +
-        "ANTHROPIC_API_KEY, or OPENAI_API_KEY.",
+        "ANTHROPIC_API_KEY, OPENAI_API_KEY, or ZAI_API_KEY.",
     );
   }
 }

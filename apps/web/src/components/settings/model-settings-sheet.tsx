@@ -57,12 +57,14 @@ const PROVIDER_LABELS: Record<ProviderId, string> = {
   google: "Google",
   anthropic: "Anthropic",
   openai: "OpenAI",
+  zai: "Z.AI",
 };
 
 const PROVIDER_ENV_HINTS: Record<ProviderId, string> = {
   google: "GEMINI_API_KEY, GOOGLE_API_KEY, or GOOGLE_CLOUD_PROJECT",
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
+  zai: "ZAI_API_KEY (optionally ZAI_BASE_URL for the GLM Coding Plan)",
 };
 
 interface ModelSettingsSheetProps {

@@ -20,7 +20,7 @@
 
 import { NextResponse } from "next/server";
 
-export type ProviderId = "google" | "anthropic" | "openai";
+export type ProviderId = "google" | "anthropic" | "openai" | "zai";
 export type Role =
   | "orchestrator"
   | "research"
@@ -107,6 +107,26 @@ const CATALOG: CatalogEntry[] = [
     label: "GPT-5.4",
     roles: ["orchestrator", "code", "research", "general-purpose"],
   },
+  // Z.AI (GLM) — OpenAI-compatible. Backend routes via ChatOpenAI + custom
+  // baseURL (`ZAI_BASE_URL` overrides for the GLM Coding Plan endpoint).
+  {
+    provider: "zai",
+    id: "glm-4.7",
+    label: "GLM-4.7",
+    roles: ["orchestrator", "general-purpose"],
+  },
+  {
+    provider: "zai",
+    id: "glm-5-turbo",
+    label: "GLM-5 Turbo",
+    roles: ["orchestrator", "general-purpose"],
+  },
+  {
+    provider: "zai",
+    id: "glm-5.1",
+    label: "GLM-5.1",
+    roles: ["orchestrator", "code", "research", "general-purpose"],
+  },
 ];
 
 function hasEnv(name: string): boolean {
@@ -130,36 +150,46 @@ function isOpenAIAvailable(): boolean {
   return hasEnv("OPENAI_API_KEY");
 }
 
+function isZaiAvailable(): boolean {
+  return hasEnv("ZAI_API_KEY");
+}
+
 function toFullId(provider: ProviderId, id: string): string {
   return `${provider}:${id}`;
 }
 
 // Per-role default priority lists. Each entry is a (provider, id) pair; the
 // first entry whose provider is available becomes the default for that role.
+// Must stay in sync with TIER_PRIORITY in
+// apps/agents/src/nexus/models/registry.ts.
 const DEFAULT_PRIORITIES: Record<
   Role,
   Array<{ provider: ProviderId; id: string }>
 > = {
   orchestrator: [
-    { provider: "google", id: "gemini-3-flash-preview" },
     { provider: "anthropic", id: "claude-haiku-4-5" },
     { provider: "openai", id: "gpt-5.4-mini" },
+    { provider: "zai", id: "glm-5-turbo" },
+    { provider: "google", id: "gemini-3-flash-preview" },
   ],
   research: [
     { provider: "google", id: "gemini-3.1-pro-preview" },
     { provider: "anthropic", id: "claude-opus-4-6" },
     { provider: "openai", id: "gpt-5.4" },
+    { provider: "zai", id: "glm-5.1" },
   ],
   code: [
     { provider: "anthropic", id: "claude-sonnet-4-6" },
     { provider: "google", id: "gemini-3-flash-preview" },
     { provider: "openai", id: "gpt-5.4" },
+    { provider: "zai", id: "glm-5.1" },
   ],
   creative: [{ provider: "google", id: "gemini-3.1-flash-image-preview" }],
   "general-purpose": [
-    { provider: "google", id: "gemini-3-flash-preview" },
     { provider: "anthropic", id: "claude-haiku-4-5" },
     { provider: "openai", id: "gpt-5.4-mini" },
+    { provider: "zai", id: "glm-5-turbo" },
+    { provider: "google", id: "gemini-3-flash-preview" },
   ],
 };
 
@@ -176,6 +206,7 @@ export async function GET(): Promise<NextResponse<ModelsApiResponse>> {
     google: isGoogleAvailable(),
     anthropic: isAnthropicAvailable(),
     openai: isOpenAIAvailable(),
+    zai: isZaiAvailable(),
   };
 
   const availableModels: ModelOption[] = CATALOG.filter(
