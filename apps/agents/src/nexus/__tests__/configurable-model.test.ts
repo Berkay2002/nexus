@@ -121,16 +121,15 @@ describe("createConfigurableModelMiddleware — per-role routing", () => {
     expect(typeof capturedModel).toBe("object");
   });
 
-  it("unresolvable override falls back to static model (pass-through)", async () => {
-    // Deliberately clear all provider env keys so resolveTier returns null.
-    // When the override catalog lookup fails AND no tier fallback is available,
-    // resolveTier("default", "nonexistent:bad-model-id") returns null and the
-    // middleware passes through with the agent's static model unchanged.
-    vi.stubEnv("GOOGLE_API_KEY", "");
-    vi.stubEnv("GOOGLE_CLOUD_PROJECT", "");
-    vi.stubEnv("GEMINI_API_KEY", "");
-    vi.stubEnv("ANTHROPIC_API_KEY", "");
-    vi.stubEnv("OPENAI_API_KEY", "");
+  it("unresolvable override warns and falls back even when providers are available", async () => {
+    // Regression test for the silent-fallback bug: with providers available,
+    // the middleware must still warn and pass through to the static model
+    // when the override can't be matched to any catalog entry. The middleware
+    // uses resolveOverride (strict) rather than resolveTier (which walks the
+    // tier-priority chain and silently picks something else).
+    vi.stubEnv("GOOGLE_API_KEY", "test-google-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-anthropic-key");
+    vi.stubEnv("OPENAI_API_KEY", "test-openai-key");
 
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 

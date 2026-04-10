@@ -1,6 +1,6 @@
 import { createMiddleware } from "langchain";
 import { z } from "zod/v4";
-import { resolveTier } from "../models/index.js";
+import { resolveOverride } from "../models/index.js";
 
 /**
  * APPROACH: Closure-per-agent factory (Approach 3)
@@ -32,9 +32,14 @@ import { resolveTier } from "../models/index.js";
  * the classifier-translated model to the orchestrator.
  *
  * `models` — per-role map of `role → "provider:model-id"` (or bare id).
- * Roles match agent names: "orchestrator", "research", "code", "creative",
- * "general-purpose". Extra keys are harmless — middleware only looks up the
- * key matching the current agent's name.
+ * Sub-agent role keys match each agent's `name` field: "research", "code",
+ * "creative", "general-purpose". The orchestrator is a special case: its
+ * middleware instance is bound to "nexus-orchestrator" (the DeepAgent name),
+ * but the frontend sends the key as "orchestrator"; `orchestratorNode`
+ * unpacks `models.orchestrator` and re-injects it via the legacy `ctx.model`
+ * path, so this middleware's Priority-2 branch handles orchestrator overrides.
+ * Extra keys are harmless — middleware only looks up the key matching its
+ * bound agent name.
  */
 export const modelContextSchema = z.object({
   model: z
@@ -77,10 +82,13 @@ export function createConfigurableModelMiddleware(agentName: string) {
 
       if (!override) return handler(request);
 
-      const model = resolveTier("default", override);
+      // Resolve the override strictly — no tier-priority fallback. If the
+      // override can't be satisfied, warn and pass through to the agent's
+      // static model rather than silently picking an unrelated provider.
+      const model = resolveOverride(override);
       if (!model) {
         console.warn(
-          `[ConfigurableModel:${agentName}] override "${override}" could not be resolved — falling back to the agent's static model. Set a provider API key (GEMINI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY) for the chosen model, or pick a different model.`,
+          `[ConfigurableModel:${agentName}] override "${override}" could not be resolved — falling back to the agent's static model. Set a provider API key (GEMINI_API_KEY, GOOGLE_API_KEY, GOOGLE_CLOUD_PROJECT, ANTHROPIC_API_KEY, OPENAI_API_KEY) for the chosen model, or pick a different model.`,
         );
         return handler(request);
       }

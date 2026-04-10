@@ -131,6 +131,21 @@ export function resolveTier(
   return providerFactories[descriptor.provider](descriptor.id, options);
 }
 
+/**
+ * Resolve ONLY an explicit override, without any tier-priority fallback.
+ * Returns null if the override is unparseable, not in the catalog, or its
+ * provider isn't available. Use this when the caller needs to distinguish
+ * "user's override worked" from "we silently picked something else".
+ */
+export function resolveOverride(
+  override: string,
+  options?: ModelBuildOptions,
+): BaseChatModel | null {
+  const descriptor = findOverrideDescriptor(override);
+  if (!descriptor || !isProviderAvailable(descriptor.provider)) return null;
+  return providerFactories[descriptor.provider](descriptor.id, options);
+}
+
 export function listAvailableModels(): ModelDescriptor[] {
   return MODEL_CATALOG.filter((m) => isProviderAvailable(m.provider));
 }

@@ -60,7 +60,7 @@ const PROVIDER_LABELS: Record<ProviderId, string> = {
 };
 
 const PROVIDER_ENV_HINTS: Record<ProviderId, string> = {
-  google: "GEMINI_API_KEY or GOOGLE_CLOUD_PROJECT",
+  google: "GEMINI_API_KEY, GOOGLE_API_KEY, or GOOGLE_CLOUD_PROJECT",
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
 };

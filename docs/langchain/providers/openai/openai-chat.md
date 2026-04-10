@@ -124,10 +124,10 @@ AIMessageChunk {
   "content": " la"
 }
 AIMessageChunk {
-  "content": " programmation",,
+  "content": " programmation",
 }
 AIMessageChunk {
-  "content": ".",,
+  "content": ".",
 }
 AIMessageChunk {
   "content": "",
