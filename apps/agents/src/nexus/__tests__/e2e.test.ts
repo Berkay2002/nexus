@@ -24,7 +24,7 @@ describe.skipIf(skip)("Nexus E2E graph", () => {
     });
 
     expect(result.routerResult).toBeDefined();
-    expect(result.routerResult?.model).toBeTruthy();
+    expect(result.routerResult?.complexity).toBeTruthy();
     expect(result.messages.length).toBeGreaterThan(1);
 
     const last = result.messages[result.messages.length - 1];

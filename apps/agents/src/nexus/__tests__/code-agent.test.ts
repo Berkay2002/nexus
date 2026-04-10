@@ -1,11 +1,11 @@
 // apps/agents/src/nexus/__tests__/code-agent.test.ts
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   CODE_AGENT_NAME,
   CODE_AGENT_DESCRIPTION,
   CODE_SYSTEM_PROMPT,
 } from "../agents/code/prompt.js";
-import { codeAgent } from "../agents/code/agent.js";
+import { createCodeAgent } from "../agents/code/agent.js";
 
 describe("Code Agent prompt", () => {
   it("should export CODE_AGENT_NAME as 'code'", () => {
@@ -33,25 +33,41 @@ describe("Code Agent prompt", () => {
   });
 });
 
-describe("Code Agent config", () => {
-  it("should have name matching CODE_AGENT_NAME", () => {
-    expect(codeAgent.name).toBe("code");
+describe("Code Agent factory", () => {
+  const envKeys = [
+    "GOOGLE_CLOUD_PROJECT",
+    "GOOGLE_API_KEY",
+    "GEMINI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "OPENAI_API_KEY",
+  ];
+  const saved: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    for (const key of envKeys) saved[key] = process.env[key];
   });
 
-  it("should have a description", () => {
-    expect(codeAgent.description).toBeTruthy();
+  afterEach(() => {
+    for (const key of envKeys) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
   });
 
-  it("should have a systemPrompt", () => {
-    expect(codeAgent.systemPrompt).toBeTruthy();
+  it("should return null when no provider is available", () => {
+    for (const key of envKeys) delete process.env[key];
+    expect(createCodeAgent()).toBeNull();
   });
 
-  it("should have no custom tools (uses auto-provisioned execute + filesystem)", () => {
-    expect(codeAgent.tools).toBeUndefined();
-  });
-
-  it("should use a ChatGoogle instance pinned to gemini-3-flash-preview", () => {
-    expect(codeAgent.model).toBeDefined();
-    expect((codeAgent.model as any).model).toBe("gemini-3-flash-preview");
+  it("should return a SubAgent with name 'code' when a provider is available", () => {
+    for (const key of envKeys) delete process.env[key];
+    process.env.GOOGLE_API_KEY = "test-key";
+    const agent = createCodeAgent();
+    expect(agent).not.toBeNull();
+    expect(agent!.name).toBe("code");
+    expect(agent!.description).toBeTruthy();
+    expect(agent!.systemPrompt).toBeTruthy();
+    expect(agent!.tools).toBeUndefined();
+    expect(agent!.model).toBeDefined();
   });
 });

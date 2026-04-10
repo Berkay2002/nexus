@@ -1,54 +1,59 @@
 import { z } from "zod/v4";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { createGoogleModel } from "./models.js";
+import { resolveTier } from "./models/index.js";
 import type { NexusState } from "./state.js";
 
 /**
  * Structured output schema for the meta-router.
  *
- * The router picks the *orchestrator* model — Gemini 3.1 Pro is reserved for
- * the deep-research sub-agent and must never be selected here. The router
- * chooses between Flash (the default workhorse) and Flash-Lite (ultra-cheap,
- * low-latency tier for trivially simple prompts).
+ * The router emits an abstract complexity label, not a provider-specific model
+ * name. The orchestrator node translates the label into a concrete model via
+ * the tier-based model registry.
  */
 export const routerOutputSchema = z.object({
-  model: z
-    .enum(["gemini-3.1-flash-lite-preview", "gemini-3-flash-preview"])
-    .describe("The Gemini model to use for the orchestrator"),
+  complexity: z
+    .enum(["trivial", "default"])
+    .describe("Complexity of the request"),
   reasoning: z
     .string()
-    .describe("Brief reasoning for the model selection (1-2 sentences)"),
+    .describe("Brief reasoning for the classification (1-2 sentences)"),
 });
 
 export type RouterOutput = z.infer<typeof routerOutputSchema>;
 
-const ROUTER_SYSTEM_PROMPT = `You are a silent request classifier. Your job is to analyze the user's prompt and decide which Gemini model the orchestrator should run on.
+const ROUTER_SYSTEM_PROMPT = `You are a silent request classifier. Your job is to analyze the user's prompt and decide how complex it is so the system can pick an appropriately sized model for the orchestrator.
 
 Classification criteria:
-- Intent complexity: Trivial one-shot answer vs. multi-step task requiring planning and delegation
-- Implied scope: Does this need sub-agents (research, code, creative) at all?
-- Domain signals: Research-heavy, code-heavy, creative, or multi-domain
+- Intent complexity: trivial one-shot answer vs. multi-step task requiring planning and delegation
+- Implied scope: does this need sub-agents (research, code, creative) at all?
+- Domain signals: research-heavy, code-heavy, creative, or multi-domain
 
-Model selection:
-- "gemini-3.1-flash-lite-preview" — Trivial, high-frequency, low-latency tasks that need neither sub-agents nor multi-step planning. Examples: "What is 2+2?", "Rephrase this sentence", "What's the capital of France?", "Summarize this short paragraph".
-- "gemini-3-flash-preview" — Everything else. The default. Any prompt that plausibly needs the orchestrator to plan, use tools, or delegate to a sub-agent. Examples: "Research X and write a report", "Build me a website", "Analyze this dataset", "Create a marketing campaign".
+Labels:
+- "trivial" — high-frequency one-shot tasks that need neither sub-agent delegation nor multi-step planning. Examples: "What is 2+2?", "Rephrase this sentence", "What's the capital of France?", "Summarize this short paragraph".
+- "default" — everything else. Any prompt that plausibly needs the orchestrator to plan, use tools, or delegate to a sub-agent. Examples: "Research X and write a report", "Build me a website", "Analyze this dataset", "Create a marketing campaign".
 
-When in doubt, choose "gemini-3-flash-preview". Never select a Pro model — deep reasoning is handled by the deep-research sub-agent downstream, not the orchestrator.
+When in doubt, choose "default".
 
 Respond ONLY with the structured output. Do not include any other text.`;
 
 /**
  * Meta-router LangGraph node.
  *
- * Uses gemini-3.1-flash-lite-preview (fastest, cheapest) as the classifier.
+ * Uses the classifier-tier model (cheapest/fastest) as the classifier, falling
+ * back to the default tier if no classifier-specific model is available.
  * Returns { routerResult } to be written to graph state.
  */
 export async function metaRouter(
   state: NexusState,
 ): Promise<Pick<NexusState, "routerResult">> {
-  const model = createGoogleModel("gemini-3.1-flash-lite-preview", {
-    temperature: 0,
-  });
+  const model =
+    resolveTier("classifier", undefined, { temperature: 0 }) ??
+    resolveTier("default", undefined, { temperature: 0 });
+  if (!model) {
+    throw new Error(
+      "No model available for meta-router — set GOOGLE_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY",
+    );
+  }
 
   const structuredModel = model.withStructuredOutput(routerOutputSchema, {
     name: "RouterOutput",
@@ -67,7 +72,7 @@ export async function metaRouter(
 
   return {
     routerResult: {
-      model: result.model,
+      complexity: result.complexity,
       reasoning: result.reasoning,
     },
   };

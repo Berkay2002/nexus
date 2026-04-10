@@ -1,4 +1,8 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// Ensure a provider is considered available so the orchestrator and
+// sub-agent factories can resolve their model tiers during this unit test.
+process.env.GOOGLE_API_KEY = process.env.GOOGLE_API_KEY ?? "test-key";
 
 /**
  * These tests verify the orchestrator is wired with sub-agents

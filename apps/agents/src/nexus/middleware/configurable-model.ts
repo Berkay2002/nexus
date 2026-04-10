@@ -1,6 +1,6 @@
 import { createMiddleware } from "langchain";
 import { z } from "zod/v4";
-import { createGoogleModel } from "../models.js";
+import { resolveTier } from "../models/index.js";
 
 /**
  * Context schema for model selection.
@@ -10,16 +10,20 @@ export const modelContextSchema = z.object({
   model: z
     .string()
     .optional()
-    .describe("Gemini model name to use (e.g., 'gemini-3-flash-preview')"),
+    .describe(
+      "Model override — bare id (e.g., 'gemini-3-flash-preview') or 'provider:id'",
+    ),
 });
 
 /**
  * ConfigurableModel middleware.
  *
  * Intercepts every model call and swaps the model if `runtime.context.model`
- * is set. Uses `createGoogleModel` so the resulting ChatGoogle picks up the
- * same env-driven platform auto-detection (Vertex ADC vs AI Studio API key)
- * used everywhere else in apps/agents.
+ * is set. The override string is passed to `resolveTier("default", override)`
+ * which accepts a bare id or `provider:id` syntax and enforces provider
+ * availability.
+ *
+ * Task 3 will extend this with per-role routing via a `models` map.
  *
  * Usage: Pass as middleware to createDeepAgent, and invoke the agent with
  * `{ context: { model: "gemini-3-flash-preview" } }` to override.
@@ -32,7 +36,10 @@ export const configurableModelMiddleware = createMiddleware({
     if (!modelName) {
       return handler(request);
     }
-    const model = createGoogleModel(modelName);
+    const model = resolveTier("default", modelName);
+    if (!model) {
+      return handler(request);
+    }
     return handler({ ...request, model });
   },
 });

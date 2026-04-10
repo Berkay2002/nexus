@@ -1,16 +1,25 @@
 import type { SubAgent } from "deepagents";
 import { creativeTools } from "../../tools/index.js";
-import { createGoogleModel } from "../../models.js";
+import { resolveTier } from "../../models/index.js";
 import {
   CREATIVE_AGENT_NAME,
   CREATIVE_AGENT_DESCRIPTION,
   CREATIVE_SYSTEM_PROMPT,
 } from "./prompt.js";
 
-export const creativeAgent: SubAgent = {
-  name: CREATIVE_AGENT_NAME,
-  description: CREATIVE_AGENT_DESCRIPTION,
-  systemPrompt: CREATIVE_SYSTEM_PROMPT,
-  tools: [...creativeTools],
-  model: createGoogleModel("gemini-3.1-flash-image-preview"),
-};
+/**
+ * Creative sub-agent factory.
+ *
+ * Returns `null` if no provider is available for the image tier.
+ */
+export function createCreativeAgent(): SubAgent | null {
+  const model = resolveTier("image");
+  if (!model) return null;
+  return {
+    name: CREATIVE_AGENT_NAME,
+    description: CREATIVE_AGENT_DESCRIPTION,
+    systemPrompt: CREATIVE_SYSTEM_PROMPT,
+    tools: [...creativeTools],
+    model,
+  };
+}

@@ -1,37 +1,36 @@
 import { describe, it, expect } from "vitest";
 import { routerOutputSchema, metaRouter } from "../meta-router.js";
-import { HumanMessage } from "@langchain/core/messages";
 import { z } from "zod/v4";
 
 describe("routerOutputSchema", () => {
-  it("should accept valid Flash classification", () => {
+  it("should accept valid 'default' classification", () => {
     const result = z.safeParse(routerOutputSchema, {
-      model: "gemini-3-flash-preview",
-      reasoning: "Default workhorse for multi-step tasks",
+      complexity: "default",
+      reasoning: "Multi-step task requiring delegation",
     });
     expect(result.success).toBe(true);
   });
 
-  it("should accept valid Flash-Lite classification", () => {
+  it("should accept valid 'trivial' classification", () => {
     const result = z.safeParse(routerOutputSchema, {
-      model: "gemini-3.1-flash-lite-preview",
+      complexity: "trivial",
       reasoning: "Trivial one-shot question, low latency",
     });
     expect(result.success).toBe(true);
   });
 
-  it("should reject Pro model names — Pro is deep-research only", () => {
+  it("should reject unknown complexity labels", () => {
     const result = z.safeParse(routerOutputSchema, {
-      model: "gemini-3.1-pro-preview",
-      reasoning: "Pro is not a valid orchestrator model",
+      complexity: "hard",
+      reasoning: "Unknown label",
     });
     expect(result.success).toBe(false);
   });
 
-  it("should reject invalid model names", () => {
+  it("should reject legacy model-id shaped output", () => {
     const result = z.safeParse(routerOutputSchema, {
-      model: "gpt-4",
-      reasoning: "Not a valid Gemini model",
+      model: "gemini-3-flash-preview",
+      reasoning: "Legacy shape",
     });
     expect(result.success).toBe(false);
   });
