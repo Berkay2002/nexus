@@ -11,10 +11,37 @@ work in parallel → assembled deliverable. Inspired by Perplexity Computer.
 
 - Node.js 20+
 - Docker (for the AIO Sandbox container)
-- Google Gemini credentials — one of:
-  - **Vertex AI** (recommended — safest, no keys in env): Google Cloud project with Vertex AI enabled + `gcloud auth application-default login`
-  - **API key**: `GOOGLE_API_KEY` or `GEMINI_API_KEY` from https://aistudio.google.com/apikey
+- **At least one model provider** (see [Providers](#providers) below)
 - Tavily API key — https://tavily.com
+
+## Providers
+
+Nexus is provider-agnostic. Set credentials for **any one** of the providers
+below and Nexus will auto-detect it on startup. Setting more than one lets the
+tier router pick the best model per role.
+
+| Provider          | Env vars                                                      | Tiers covered                                    |
+| ----------------- | ------------------------------------------------------------- | ------------------------------------------------ |
+| Google (Vertex)   | `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION` + ADC login   | classifier, default, code, deep-research, image |
+| Google (AI Studio)| `GEMINI_API_KEY`                                              | classifier, default, code, deep-research, image |
+| Anthropic         | `ANTHROPIC_API_KEY`                                           | classifier, default, code, deep-research         |
+| OpenAI            | `OPENAI_API_KEY`                                              | classifier, default, code, deep-research         |
+| Z.AI (GLM)        | `ZAI_API_KEY` (+ optional `ZAI_BASE_URL`)                     | classifier, default, code, deep-research         |
+
+**Image generation requires Google** — the creative sub-agent disables itself
+if no Google credentials are present.
+
+### Tiers
+
+Every agent asks the registry for a **tier**, not a specific model. Tiers:
+
+- `classifier` — fast routing decisions (Flash Lite / Haiku / nano / GLM-4.7)
+- `default` — general-purpose reasoning (Flash / Sonnet / GPT-5.4 / GLM-5 Turbo)
+- `code` — code generation and refactors (Sonnet / Opus / GPT-5.4 / GLM-5.1)
+- `deep-research` — long-horizon research with the frontier model of each provider (Gemini 3.1 Pro / Claude Opus 4.6 / GPT-5.4 / GLM-5.1)
+- `image` — image generation (Gemini 3.1 Flash Image; Google only)
+
+Priority order per tier is defined in `apps/agents/src/nexus/models/registry.ts`.
 
 ## Setup
 
@@ -25,24 +52,14 @@ work in parallel → assembled deliverable. Inspired by Perplexity Computer.
    npm install
    ```
 
-2. Copy env template and choose one Google auth path in `.env`:
+2. Copy the env template and fill in **one** provider plus Tavily:
    ```
    cp .env.example .env
    ```
 
-   **Option A — Vertex AI (recommended):**
-   ```
-   GOOGLE_CLOUD_PROJECT="your-project-id"
-   GOOGLE_CLOUD_LOCATION="us-central1"
-   TAVILY_API_KEY="..."
-   ```
-   Then run `gcloud auth application-default login` (one-time). `@langchain/google` auto-selects Vertex AI whenever ADC is present and no `GOOGLE_API_KEY` is set.
-
-   **Option B — API key:**
-   ```
-   GOOGLE_API_KEY="..."           # or GEMINI_API_KEY="..."
-   TAVILY_API_KEY="..."
-   ```
+   Vertex users also run `gcloud auth application-default login` once. Z.AI
+   GLM Coding Plan users should set
+   `ZAI_BASE_URL=https://api.z.ai/api/coding/paas/v4`.
 
 3. Start the AIO Sandbox (separate terminal):
    ```
@@ -55,10 +72,34 @@ work in parallel → assembled deliverable. Inspired by Perplexity Computer.
    npm run dev
    ```
 
-   Runs LangGraph on :2024 and Next.js on :3000. On startup you should see
-   `[nexus] preflight ok (google auth: vertex-adc)` (or `api-key`).
+   Runs LangGraph on :2024 and Next.js on :3000. The startup log shows which
+   providers were detected and how each tier resolved:
+   ```
+   [Nexus] Preflight
+   [Nexus] Providers:
+     google    [OK] (vertex-adc)
+     anthropic [--] (ANTHROPIC_API_KEY not set)
+     openai    [--] (OPENAI_API_KEY not set)
+     zai       [--] (ZAI_API_KEY not set)
+   [Nexus] Tier resolution:
+     classifier    → google:gemini-3.1-flash-lite-preview
+     default       → google:gemini-3-flash-preview
+     code          → google:gemini-3-flash-preview
+     deep-research → google:gemini-3.1-pro-preview
+     image         → google:gemini-3.1-flash-image-preview
+   ```
+
+   Nexus fails fast on startup if no provider can satisfy the `default` tier.
 
 5. Open http://localhost:3000.
+
+## Runtime model overrides
+
+The settings gear in the top-right of the UI opens a panel that lists every
+model the server detected (`/api/models`) and lets you override the model
+per role (orchestrator, router, research, code, creative). Overrides are
+passed through on each run via `configurable.models` and scoped to the
+current session — they are not persisted server-side.
 
 ## Architecture
 
@@ -75,9 +116,18 @@ for the full design spec.
 
 ## Troubleshooting
 
-- **"Cannot reach LangGraph server"** — `npm run dev` isn't running, or it crashed.
-  Check the terminal for a `[nexus] preflight warning`.
+- **`No provider can satisfy the 'default' tier`** — no provider env vars
+  detected. Set at least one of `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` /
+  `OPENAI_API_KEY` / `ZAI_API_KEY` (or a Vertex `GOOGLE_CLOUD_PROJECT` with
+  ADC) and restart.
+- **Creative sub-agent disabled** — image generation requires Google. Add a
+  Google credential if you need `generate_image`.
+- **Vertex AI auth errors** — re-run `gcloud auth application-default login`
+  and verify `GOOGLE_CLOUD_PROJECT` matches a project with Vertex AI enabled.
+- **Z.AI 404 / model-not-found** — if you're on the GLM Coding Plan, set
+  `ZAI_BASE_URL=https://api.z.ai/api/coding/paas/v4`. The default base URL
+  (`https://api.z.ai/api/paas/v4`) only serves the pay-as-you-go catalog.
+- **"Cannot reach LangGraph server"** — `npm run dev` isn't running, or it
+  crashed during preflight. Check the terminal output.
 - **"AIO Sandbox unreachable"** — start the Docker container (step 3 above).
-- **Vertex AI auth errors** — re-run `gcloud auth application-default login` and
-  verify `GOOGLE_CLOUD_PROJECT` matches a project with Vertex AI enabled.
 - **"TAVILY_API_KEY is not set"** — fill in `.env`, restart `npm run dev`.
