@@ -1,14 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   AIMessage,
   AIMessageChunk,
   HumanMessage,
-  HumanMessage as HM,
   SystemMessage,
   ToolMessage,
 } from "@langchain/core/messages";
 import { buildReasoningMap, injectReasoningContent, ZaiChatOpenAI } from "../zai-chat-model.js";
-import { vi } from "vitest";
 
 describe("buildReasoningMap", () => {
   it("returns empty array when no AIMessages present", () => {
@@ -177,9 +175,9 @@ describe("ZaiChatOpenAI overrides", () => {
       });
       await model.invoke([
         new SystemMessage("sys"),
-        new HM("q1"),
+        new HumanMessage("q1"),
         priorAI,
-        new HM("q2"),
+        new HumanMessage("q2"),
       ]);
       expect(received).toHaveLength(1);
       const req = received[0] as {
@@ -202,8 +200,8 @@ describe("ZaiChatOpenAI overrides", () => {
           additional_kwargs: { reasoning_content: text },
         });
       await Promise.all([
-        model.invoke([new HM("a"), ai("alpha"), new HM("a2")]),
-        model.invoke([new HM("b"), ai("beta"), new HM("b2")]),
+        model.invoke([new HumanMessage("a"), ai("alpha"), new HumanMessage("a2")]),
+        model.invoke([new HumanMessage("b"), ai("beta"), new HumanMessage("b2")]),
       ]);
       const reasonings = (
         received as Array<{
@@ -286,9 +284,9 @@ describe("ZaiChatOpenAI streaming", () => {
         additional_kwargs: { reasoning_content: "stream thinking" },
       });
       const stream = await model.stream([
-        new HM("q1"),
+        new HumanMessage("q1"),
         priorAI,
-        new HM("q2"),
+        new HumanMessage("q2"),
       ]);
       for await (const _ of stream) {
         // drain

@@ -91,7 +91,8 @@ interface CompletionsLike {
  * inject reasoning_content onto outbound assistant messages before the HTTP
  * call. Tests stub the unpatched path via `_originalCompletionWithRetry`.
  */
-function patchCompletionsForReasoning(target: CompletionsLike): void {
+function patchCompletionsForReasoning(target: CompletionsLike | undefined): void {
+  if (!target || typeof target.completionWithRetry !== "function") return;
   if (target._originalCompletionWithRetry) return;
   const original = target.completionWithRetry.bind(target);
   target._originalCompletionWithRetry = original;
@@ -112,12 +113,20 @@ function patchCompletionsForReasoning(target: CompletionsLike): void {
 export class ZaiChatOpenAI extends ChatOpenAI {
   constructor(fields?: ChatOpenAIFields) {
     super(fields);
-    patchCompletionsForReasoning(
-      (this as unknown as { completions: CompletionsLike }).completions,
-    );
-    patchCompletionsForReasoning(
-      (this as unknown as { responses: CompletionsLike }).responses,
-    );
+    const facade = this as unknown as {
+      completions?: CompletionsLike;
+      responses?: CompletionsLike;
+    };
+    patchCompletionsForReasoning(facade.completions);
+    patchCompletionsForReasoning(facade.responses);
+    if (
+      typeof facade.completions?.completionWithRetry !== "function" &&
+      typeof facade.responses?.completionWithRetry !== "function"
+    ) {
+      throw new Error(
+        "[ZaiChatOpenAI] @langchain/openai no longer exposes completionWithRetry on either inner facade — reasoning injection cannot be installed. Check for a @langchain/openai upgrade.",
+      );
+    }
   }
 
   async _generate(
@@ -135,7 +144,7 @@ export class ZaiChatOpenAI extends ChatOpenAI {
     messages: BaseMessage[],
     options: this["ParsedCallOptions"],
     runManager?: Parameters<ChatOpenAI["_streamResponseChunks"]>[2],
-  ): ReturnType<ChatOpenAI["_streamResponseChunks"]> {
+  ): AsyncGenerator<ChatGenerationChunk> {
     const map = buildReasoningMap(messages);
     // Buffer inside reasoningCtx.run so the underlying completionWithRetry
     // call (made during super's iteration) sees the store. yield* outside a
