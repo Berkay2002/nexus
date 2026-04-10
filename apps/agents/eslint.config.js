@@ -22,7 +22,7 @@ export default [
         ecmaVersion: 2021,
         sourceType: "module",
         project: "./tsconfig.json",
-        tsconfigRootDir: ".",
+        tsconfigRootDir: import.meta.dirname,
       },
       globals: {
         ...globals.node,
