@@ -34,7 +34,7 @@ const ROLE_ORDER: Array<{ role: Role; label: string; description: string }> = [
   {
     role: "research",
     label: "Research",
-    description: "Deep research sub-agent. Pro-tier by default.",
+    description: "Deep research sub-agent. High-capability model by default.",
   },
   {
     role: "code",

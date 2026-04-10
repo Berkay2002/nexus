@@ -6,7 +6,7 @@
 // Zustand is not installed, so this is a plain custom hook backed by a
 // module-level store + subscribe pattern so multiple components stay in sync.
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 
 export type Role =
   | "orchestrator"
@@ -130,7 +130,3 @@ export function getModelsByRole(): ModelsByRole {
   return state;
 }
 
-// Satisfy no-unused imports lint (useState/useEffect are available for
-// consumers who want to build derived hooks on top of this file).
-void useState;
-void useEffect;
