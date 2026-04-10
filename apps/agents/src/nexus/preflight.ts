@@ -90,7 +90,7 @@ export function logPreflight(): void {
   console.log("[Nexus] Providers:");
   for (const provider of PROVIDERS) {
     const available = isProviderAvailable(provider);
-    const mark = available ? "✓" : "✗";
+    const mark = available ? "[OK]" : "[--]";
     let hint = "";
     if (provider === "google" && available) {
       hint = ` (${googleMode})`;
@@ -125,19 +125,14 @@ export function logPreflight(): void {
   // --- Search ---
   const tavilyOk = Boolean(process.env.TAVILY_API_KEY);
   console.log(
-    `[Nexus] Search: TAVILY_API_KEY ${tavilyOk ? "✓" : "✗ (TAVILY_API_KEY not set)"}`,
+    `[Nexus] Search: TAVILY_API_KEY ${tavilyOk ? "[OK]" : "[--] (TAVILY_API_KEY not set)"}`,
   );
 
   // --- Fail-fast if no default tier ---
   if (!isTierAvailable("default")) {
-    const msg =
-      "[Nexus] FATAL: No model provider available for the default tier. " +
-      "Set at least one of GEMINI_API_KEY, GOOGLE_API_KEY, GOOGLE_CLOUD_PROJECT, " +
-      "ANTHROPIC_API_KEY, or OPENAI_API_KEY.";
-    console.error(msg);
-
-    // In test environments, warn but don't throw — tests mock models and don't
-    // need a live provider.
+    // graph.ts imports this module at load time and calls logPreflight() unconditionally.
+    // Vitest suites that import graph.ts would otherwise crash when no provider is configured,
+    // even for tests that never exercise a live provider call. Skip the throw in test envs.
     if (process.env.VITEST || process.env.NODE_ENV === "test") {
       console.warn(
         "[Nexus] Running in test environment — skipping fatal provider check.",
@@ -145,6 +140,10 @@ export function logPreflight(): void {
       return;
     }
 
-    throw new Error(msg);
+    throw new Error(
+      "[Nexus] FATAL: No model provider available for the default tier. " +
+        "Set at least one of GEMINI_API_KEY, GOOGLE_API_KEY, GOOGLE_CLOUD_PROJECT, " +
+        "ANTHROPIC_API_KEY, or OPENAI_API_KEY.",
+    );
   }
 }

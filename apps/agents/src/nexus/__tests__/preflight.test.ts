@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   aliasApiKey,
   detectGoogleAuthMode,
   checkMissing,
+  logPreflight,
 } from "../preflight.js";
 
 const ENV_KEYS = [
@@ -31,6 +32,7 @@ describe("preflight", () => {
       if (saved[k] === undefined) delete process.env[k];
       else process.env[k] = saved[k];
     }
+    vi.unstubAllEnvs();
   });
 
   describe("detectGoogleAuthMode", () => {
@@ -92,13 +94,54 @@ describe("preflight", () => {
     it("reports missing credentials when nothing is set", () => {
       const missing = checkMissing();
       expect(missing).toHaveLength(2);
-      expect(missing[0]).toContain("Google credentials");
+      // The message now reflects the multi-provider contract — not Google-specific
+      expect(missing[0]).toContain("model provider");
       expect(missing).toContain("TAVILY_API_KEY");
     });
 
     it("reports only TAVILY_API_KEY when Google auth present", () => {
       process.env.GOOGLE_API_KEY = "k";
       expect(checkMissing()).toEqual(["TAVILY_API_KEY"]);
+    });
+
+    it("returns empty (no model-provider item) when only ANTHROPIC_API_KEY + Tavily are set", () => {
+      vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
+      vi.stubEnv("TAVILY_API_KEY", "test-key");
+      vi.stubEnv("GEMINI_API_KEY", "");
+      vi.stubEnv("GOOGLE_API_KEY", "");
+      vi.stubEnv("GOOGLE_CLOUD_PROJECT", "");
+      vi.stubEnv("OPENAI_API_KEY", "");
+      const missing = checkMissing();
+      expect(missing).toEqual([]);
+    });
+
+    it("returns empty (no model-provider item) when only OPENAI_API_KEY + Tavily are set", () => {
+      vi.stubEnv("OPENAI_API_KEY", "test-key");
+      vi.stubEnv("TAVILY_API_KEY", "test-key");
+      vi.stubEnv("GEMINI_API_KEY", "");
+      vi.stubEnv("GOOGLE_API_KEY", "");
+      vi.stubEnv("GOOGLE_CLOUD_PROJECT", "");
+      vi.stubEnv("ANTHROPIC_API_KEY", "");
+      const missing = checkMissing();
+      expect(missing).toEqual([]);
+    });
+  });
+
+  describe("logPreflight", () => {
+    it("throws when no provider is available outside of test envs", () => {
+      vi.stubEnv("GEMINI_API_KEY", "");
+      vi.stubEnv("GOOGLE_API_KEY", "");
+      vi.stubEnv("GOOGLE_CLOUD_PROJECT", "");
+      vi.stubEnv("ANTHROPIC_API_KEY", "");
+      vi.stubEnv("OPENAI_API_KEY", "");
+      vi.stubEnv("VITEST", "");
+      vi.stubEnv("NODE_ENV", "production");
+
+      const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      expect(() => logPreflight()).toThrow(/no model provider/i);
+
+      consoleLogSpy.mockRestore();
     });
   });
 });
