@@ -133,7 +133,7 @@ function ResponseComponent({
       </div>
 
       <div className="flex items-center justify-end w-full gap-2">
-        <Button variant="brand" disabled={streaming} onClick={handleSubmit}>
+        <Button variant="default" disabled={streaming} onClick={handleSubmit}>
           Send Response
         </Button>
       </div>
@@ -159,7 +159,7 @@ function AcceptComponent({
         <ArgsRenderer args={actionRequestArgs} />
       )}
       <Button
-        variant="brand"
+        variant="default"
         disabled={streaming}
         onClick={handleSubmit}
         className="w-full"
@@ -295,7 +295,7 @@ function EditAndOrAcceptComponent({
       })}
 
       <div className="flex items-center justify-end w-full gap-2">
-        <Button variant="brand" disabled={streaming} onClick={handleSubmit}>
+        <Button variant="default" disabled={streaming} onClick={handleSubmit}>
           {buttonText}
         </Button>
       </div>
