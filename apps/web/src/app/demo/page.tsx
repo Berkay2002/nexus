@@ -1,17 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
-import { TodoPanel } from "@/components/execution/todo-panel";
-import { AgentStatusPanel } from "@/components/execution/agent-status-panel";
-import { MessageFeed } from "@/components/execution/message-feed";
-import { PromptBar } from "@/components/execution/prompt-bar";
+import { ExecutionShell } from "@/components/execution/execution-shell";
 import type { NexusTodo } from "@/lib/subagent-utils";
-import { Conversation, ConversationContent } from "@/components/ai-elements/conversation";
 import { Button } from "@/components/ui/button";
 import { RotateCcw, Play, FastForward } from "lucide-react";
 
@@ -252,70 +243,39 @@ export default function DemoPage() {
     return [];
   };
 
-  return (
-    <div className="flex flex-col h-screen">
-      {/* Demo controls */}
-      <div className="flex items-center justify-between px-4 py-2 bg-primary/10 border-b border-primary/20 shrink-0">
-        <span className="text-xs font-medium text-primary">
-          DEMO MODE — Mock data, no backend required
-        </span>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant={state === "running" ? "default" : "outline"} onClick={() => setState("running")} className="h-7 text-xs">
-            <Play className="size-3 mr-1" />Running
-          </Button>
-          <Button size="sm" variant={state === "synthesizing" ? "default" : "outline"} onClick={() => setState("synthesizing")} className="h-7 text-xs">
-            <FastForward className="size-3 mr-1" />Synthesizing
-          </Button>
-          <Button size="sm" variant={state === "complete" ? "default" : "outline"} onClick={() => setState("complete")} className="h-7 text-xs">
-            Complete
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => setState("running")} className="h-7 text-xs">
-            <RotateCcw className="size-3" />
-          </Button>
-        </div>
+  const demoToolbar = (
+    <div className="flex items-center justify-between px-4 py-2 bg-primary/10 border-b border-primary/20 shrink-0">
+      <span className="text-xs font-medium text-primary">
+        DEMO MODE — Mock data, no backend required
+      </span>
+      <div className="flex items-center gap-2">
+        <Button size="sm" variant={state === "running" ? "default" : "outline"} onClick={() => setState("running")} className="h-7 text-xs">
+          <Play className="size-3 mr-1" />Running
+        </Button>
+        <Button size="sm" variant={state === "synthesizing" ? "default" : "outline"} onClick={() => setState("synthesizing")} className="h-7 text-xs">
+          <FastForward className="size-3 mr-1" />Synthesizing
+        </Button>
+        <Button size="sm" variant={state === "complete" ? "default" : "outline"} onClick={() => setState("complete")} className="h-7 text-xs">
+          Complete
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setState("running")} className="h-7 text-xs">
+          <RotateCcw className="size-3" />
+        </Button>
       </div>
-
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b shrink-0">
-        <h1 className="text-lg font-semibold tracking-tight">Nexus</h1>
-        {isLoading && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-            Working...
-          </div>
-        )}
-      </div>
-
-      {/* Main content — always render both panels */}
-      <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
-        <ResizablePanel defaultSize={30} minSize={20} maxSize={40} className="flex flex-col min-w-0 max-md:hidden">
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            <div className="flex flex-col gap-6 p-4">
-              <TodoPanel todos={todos} />
-              <AgentStatusPanel subagents={subagentMap} />
-            </div>
-          </div>
-        </ResizablePanel>
-        <ResizableHandle withHandle className="max-md:hidden" />
-
-        <ResizablePanel defaultSize={70} minSize={50} className="flex flex-col min-w-0">
-          <Conversation className="flex-1">
-            <ConversationContent className="gap-5 p-0">
-              <MessageFeed
-                messages={messages}
-                getSubagentsByMessage={getSubagentsByMessage}
-                allSubagents={allSubagents}
-                isLoading={isLoading}
-              />
-            </ConversationContent>
-          </Conversation>
-          <PromptBar
-            onSubmit={(text) => alert(`Would submit: ${text}`)}
-            isLoading={isLoading}
-            onStop={() => setState("complete")}
-          />
-        </ResizablePanel>
-      </ResizablePanelGroup>
     </div>
+  );
+
+  return (
+    <ExecutionShell
+      messages={messages}
+      todos={todos}
+      subagents={subagentMap}
+      allSubagents={allSubagents}
+      getSubagentsByMessage={getSubagentsByMessage}
+      isLoading={isLoading}
+      onSubmit={(text) => alert(`Would submit: ${text}`)}
+      onStop={() => setState("complete")}
+      topSlot={demoToolbar}
+    />
   );
 }
