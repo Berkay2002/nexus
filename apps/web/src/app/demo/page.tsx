@@ -6,7 +6,6 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { TodoPanel } from "@/components/execution/todo-panel";
 import { AgentStatusPanel } from "@/components/execution/agent-status-panel";
 import { MessageFeed } from "@/components/execution/message-feed";
@@ -305,16 +304,16 @@ export default function DemoPage() {
       )}
 
       {/* Main content — always render both panels */}
-      <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0">
-        <ResizablePanel defaultSize={30} minSize={20} maxSize={40} className="flex flex-col max-lg:hidden">
-          <ScrollArea className="flex-1">
+      <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
+        <ResizablePanel defaultSize={30} minSize={20} maxSize={40} className="flex flex-col max-md:hidden">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             <div className="flex flex-col gap-6 p-4">
               <TodoPanel todos={todos} />
               <AgentStatusPanel subagents={subagentMap} />
             </div>
-          </ScrollArea>
+          </div>
         </ResizablePanel>
-        <ResizableHandle withHandle className="max-lg:hidden" />
+        <ResizableHandle withHandle className="max-md:hidden" />
 
         <ResizablePanel defaultSize={70} minSize={50} className="flex flex-col">
           <Conversation className="flex-1">
