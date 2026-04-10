@@ -1,1 +1,2 @@
 - [Strict TDD for agents](feedback_tdd.md) — Always use red-green-refactor TDD for apps/agents/ work
+- [Systematic context for plans](feedback_plan_context_gathering.md) — Read all skills + NEXUS.md docs before writing plans
