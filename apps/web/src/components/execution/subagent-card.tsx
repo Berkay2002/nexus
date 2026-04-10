@@ -81,9 +81,7 @@ function StreamingContent({ subagent }: { subagent: any }) {
       typeof lastMsg?.content === "string"
         ? lastMsg.content
         : "An error occurred";
-    return (
-      <p className="text-sm text-destructive">{errorText}</p>
-    );
+    return <p className="text-sm text-destructive">{errorText}</p>;
   }
 
   // Streaming: show last AI message
@@ -93,9 +91,7 @@ function StreamingContent({ subagent }: { subagent: any }) {
   const lastAI = aiMessages[aiMessages.length - 1];
   if (!lastAI) {
     if (subagent.status === "pending") {
-      return (
-        <p className="text-sm text-muted-foreground italic">Waiting...</p>
-      );
+      return <p className="text-sm text-muted-foreground italic">Waiting...</p>;
     }
     return (
       <div className="flex items-center gap-1.5">
