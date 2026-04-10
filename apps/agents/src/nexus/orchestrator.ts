@@ -4,6 +4,7 @@ import { createNexusBackend } from "./backend/composite.js";
 import { configurableModelMiddleware } from "./middleware/configurable-model.js";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "./prompts/orchestrator-system.js";
 import { nexusSubagents } from "./agents/index.js";
+import { nexusSkillFiles } from "./skills/index.js";
 import type { NexusState } from "./state.js";
 
 /**
@@ -64,7 +65,10 @@ export async function orchestratorNode(
     : undefined;
 
   const result = await orchestrator.invoke(
-    { messages: state.messages },
+    {
+      messages: state.messages,
+      files: nexusSkillFiles,
+    },
     {
       context: { model: modelWithProvider },
     },
