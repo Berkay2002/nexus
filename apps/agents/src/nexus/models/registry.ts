@@ -67,7 +67,7 @@ export const MODEL_CATALOG: ModelDescriptor[] = [
     provider: "openai",
     id: "gpt-5.4-mini",
     label: "GPT-5.4 mini",
-    tiers: ["classifier", "default"],
+    tiers: ["classifier", "default", "code"],
     capabilities: { tools: true, images: false },
   },
   {
