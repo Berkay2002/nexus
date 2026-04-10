@@ -63,7 +63,7 @@ npm run format
 
 `langgraph.json` at root registers graphs. Currently points to scaffold's `research-agent` — will be replaced with `nexus` graph.
 
-Key planned structure: `src/nexus/` with `graph.ts` (entry), `meta-router.ts`, `orchestrator.ts`, `subagents/`, `tools/`, `backend/`, `middleware/`, plus `skills/` and `memories/` directories.
+Structure: `src/nexus/` — `graph.ts` (entry), `meta-router.ts`, `orchestrator.ts`, `state.ts`, `backend/` (aio-sandbox, composite, store), `middleware/` (configurable-model), `prompts/` (orchestrator-system), `tools/` (search, extract, map, generate-image — each with prompt.ts + tool.ts), `__tests__/`. 46 unit tests, 3 Tavily integration tests.
 
 ### apps/web — Next.js Frontend
 
@@ -82,7 +82,7 @@ Key infrastructure files to **preserve** during UI rewrites:
 | Orchestration | DeepAgents (`createDeepAgent`, `SubAgent`, `CompositeBackend`, `BaseSandbox`) |
 | Models | Google Gemini: `gemini-3-flash-preview` (router/orchestrator), `gemini-3.1-pro-preview` (sub-agents), `gemini-3.1-flash-image-preview` (images) |
 | Execution | AIO Sandbox Docker + `@agent-infra/sandbox` TS SDK |
-| Search | Tavily (Search/Extract/Map) + Exa (neural/semantic) |
+| Search | Tavily (Search, Extract, Map) — no Exa |
 | Frontend streaming | `@langchain/langgraph-sdk/react` `useStream` hook |
 | UI components | shadcn/ui + AI Elements (`@ai-elements/react`) |
 | Persistence | SQLite + Drizzle ORM via LangGraph StoreBackend |
@@ -95,16 +95,22 @@ Docs files are large. Always read headers first (`grep ^#{2,3} file.md`), then r
 
 - `useStream` comes from `@langchain/langgraph-sdk/react`, NOT `@langchain/react` (both packages are needed but for different purposes)
 - AIO Sandbox home directory is `/home/gem/` — workspace lives at `/home/gem/workspace/`
-- Scaffold `apps/agents/package.json` has wrong dependencies (Anthropic, Elasticsearch, Pinecone, MongoDB) — must be replaced with Google Gemini, Tavily, Exa, SQLite
 - Scaffold `.env.example` has been replaced — uses Vertex AI (not Gemini Developer API): GOOGLE_GENAI_USE_VERTEXAI, GOOGLE_CLOUD_PROJECT, GEMINI_API_KEY, TAVILY_API_KEY, EXA_API_KEY
 - `SubagentStreamInterface` has no `model` field — derive from `subagent_type` via static mapping
 - `stream.values` can be undefined initially — always use `stream.values?.todos` with optional chaining
 - DeepAgents always adds a general-purpose subagent alongside custom ones — must be addressed
 - CompositeBackend wrapping a sandbox as default route is untested in docs — verify early in Plan 1
+- Custom tools live in `tools/{name}/prompt.ts` (TOOL_NAME + TOOL_DESCRIPTION) + `tool.ts` (Zod schema + implementation). Short folder names: `search/`, `extract/`, `map/`, `generate-image/`
+- Tavily Map API returns `results` (array of URL strings) and `base_url`, NOT `urls` — check `docs/custom/` OpenAPI specs for actual response shapes
+- Vitest does not auto-load `.env` — for integration tests needing API keys: `source .env && export VAR_NAME` before running
 
 ## Current State
 
-Scaffold from `create-agent-chat-app`. The `apps/agents/src/research-agent/` and scaffold dependencies (Anthropic, Elasticsearch, Pinecone, MongoDB) will be replaced per the design spec. No tests configured yet.
+Plans 1-3 implemented. Scaffold research-agent removed. `langgraph.json` points to `nexus` graph.
+- **Plan 1:** AIO Sandbox backend, CompositeBackend, StoreBackend, DB schema
+- **Plan 2:** Meta-router (Flash classifier), ConfigurableModel middleware, orchestrator (DeepAgent), graph wiring
+- **Plan 3:** Custom tools — `tavily_search`, `tavily_extract`, `tavily_map`, `generate_image` in `tools/{name}/prompt.ts + tool.ts`
+- **Next:** Plan 4 (Sub-Agents), Plans 5-8 (Skills, Frontend, Integration)
 
 ## Workspace Convention
 
