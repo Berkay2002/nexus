@@ -44,8 +44,8 @@ describe("Tavily Tools Integration", () => {
     });
 
     const parsed = JSON.parse(result);
-    expect(parsed.urls).toBeDefined();
-    expect(parsed.urls.length).toBeGreaterThan(0);
+    expect(parsed.results).toBeDefined();
+    expect(parsed.results.length).toBeGreaterThan(0);
     expect(parsed).toHaveProperty("base_url");
   }, 30000);
 });
