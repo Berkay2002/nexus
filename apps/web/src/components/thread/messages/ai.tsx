@@ -23,13 +23,13 @@ function CustomComponent({
 }) {
   const { values } = useStreamContext();
   const customComponents = values.ui?.filter(
-    (ui) => ui.metadata?.message_id === message.id,
+    (ui: any) => ui.metadata?.message_id === message.id,
   );
 
   if (!customComponents?.length) return null;
   return (
     <Fragment key={message.id}>
-      {customComponents.map((customComponent) => (
+      {customComponents.map((customComponent: any) => (
         <LoadExternalComponent
           key={customComponent.id}
           stream={thread as any}
@@ -87,7 +87,7 @@ export function AssistantMessage({
   const hasNoAIOrToolMessages = !thread.messages.find(
     (m) => m.type === "ai" || m.type === "tool",
   );
-  const meta = message ? thread.getMessagesMetadata(message) : undefined;
+  const meta = message ? thread.getMessagesMetadata(message as any) : undefined;
   const threadInterrupt = thread.interrupt;
 
   const parentCheckpoint = meta?.firstSeenState?.parent_checkpoint;

@@ -140,7 +140,8 @@ export function Thread() {
       content: input,
     };
 
-    const toolMessages = ensureToolCallsHaveResponses(stream.messages);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const toolMessages = ensureToolCallsHaveResponses(stream.messages as any);
     stream.submit(
       { messages: [...toolMessages, newHumanMessage] },
       {
@@ -306,13 +307,13 @@ export function Thread() {
                     message.type === "human" ? (
                       <HumanMessage
                         key={message.id || `${message.type}-${index}`}
-                        message={message}
+                        message={message as any}
                         isLoading={isLoading}
                       />
                     ) : (
                       <AssistantMessage
                         key={message.id || `${message.type}-${index}`}
-                        message={message}
+                        message={message as any}
                         isLoading={isLoading}
                         handleRegenerate={handleRegenerate}
                       />
