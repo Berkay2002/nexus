@@ -103,14 +103,18 @@ Docs files are large. Always read headers first (`grep ^#{2,3} file.md`), then r
 - Custom tools live in `tools/{name}/prompt.ts` (TOOL_NAME + TOOL_DESCRIPTION) + `tool.ts` (Zod schema + implementation). Short folder names: `search/`, `extract/`, `map/`, `generate-image/`
 - Tavily Map API returns `results` (array of URL strings) and `base_url`, NOT `urls` — check `docs/custom/` OpenAPI specs for actual response shapes
 - Vitest does not auto-load `.env` — for integration tests needing API keys: `source .env && export VAR_NAME` before running
+- `FileData` from `deepagents` is a union of `FileDataV1` (`content: string[]`) and `FileDataV2` (`content: string | Uint8Array`). Skills use V1 format (line array).
+- Skills are seeded via `orchestrator.invoke({ files: nexusSkillFiles })` — the barrel export at `skills/index.ts` recursively collects all skill files as a `FileData` map with virtual POSIX paths (`/skills/{name}/...`)
 
 ## Current State
 
-Plans 1-3 implemented. Scaffold research-agent removed. `langgraph.json` points to `nexus` graph.
+Plans 1-5 implemented. Scaffold research-agent removed. `langgraph.json` points to `nexus` graph.
 - **Plan 1:** AIO Sandbox backend, CompositeBackend, StoreBackend, DB schema
 - **Plan 2:** Meta-router (Flash classifier), ConfigurableModel middleware, orchestrator (DeepAgent), graph wiring
 - **Plan 3:** Custom tools — `tavily_search`, `tavily_extract`, `tavily_map`, `generate_image` in `tools/{name}/prompt.ts + tool.ts`
-- **Next:** Plan 4 (Sub-Agents), Plans 5-8 (Skills, Frontend, Integration)
+- **Plan 4:** Sub-agents — research, code, creative, general-purpose in `agents/{name}/agent.ts + prompt.ts`
+- **Plan 5:** Skills — 5 orchestrator skills in `skills/{name}/SKILL.md + examples.md + templates/`, barrel export, `/skills/` StoreBackend route, skills seeding
+- **Next:** Plans 6-8 (Frontend, Integration)
 
 ## Workspace Convention
 
