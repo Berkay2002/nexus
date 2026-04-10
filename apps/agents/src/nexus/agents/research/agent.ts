@@ -1,6 +1,7 @@
 import type { SubAgent } from "deepagents";
 import { researchTools } from "../../tools/index.js";
 import { resolveTier } from "../../models/index.js";
+import { createConfigurableModelMiddleware } from "../../middleware/configurable-model.js";
 import {
   RESEARCH_AGENT_NAME,
   RESEARCH_AGENT_DESCRIPTION,
@@ -22,5 +23,6 @@ export function createResearchAgent(): SubAgent | null {
     systemPrompt: RESEARCH_SYSTEM_PROMPT,
     tools: [...researchTools],
     model,
+    middleware: [createConfigurableModelMiddleware(RESEARCH_AGENT_NAME)] as const,
   };
 }

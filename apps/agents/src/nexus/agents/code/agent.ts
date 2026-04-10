@@ -1,6 +1,7 @@
 // apps/agents/src/nexus/agents/code/agent.ts
 import type { SubAgent } from "deepagents";
 import { resolveTier } from "../../models/index.js";
+import { createConfigurableModelMiddleware } from "../../middleware/configurable-model.js";
 import {
   CODE_AGENT_NAME,
   CODE_AGENT_DESCRIPTION,
@@ -25,5 +26,6 @@ export function createCodeAgent(): SubAgent | null {
     description: CODE_AGENT_DESCRIPTION,
     systemPrompt: CODE_SYSTEM_PROMPT,
     model,
+    middleware: [createConfigurableModelMiddleware(CODE_AGENT_NAME)] as const,
   };
 }

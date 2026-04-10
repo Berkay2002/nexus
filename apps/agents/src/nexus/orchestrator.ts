@@ -73,13 +73,17 @@ export async function orchestratorNode(
   const tierForComplexity: Tier =
     state.routerResult?.complexity === "trivial" ? "classifier" : "default";
   const descriptor = getTierDefault(tierForComplexity);
-  const selectedModel = descriptor
+  const classifierResolvedString = descriptor
     ? `${descriptor.provider}:${descriptor.id}`
     : undefined;
 
   const modelsByRole = (config?.configurable as any)?.models as
     | Record<string, string>
     | undefined;
+
+  // Per-role override for the orchestrator wins over the classifier's complexity result
+  const orchestratorOverride = modelsByRole?.["orchestrator"];
+  const selectedModel = orchestratorOverride ?? classifierResolvedString;
 
   const result = await orchestrator.invoke(
     {

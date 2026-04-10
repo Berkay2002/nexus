@@ -1,6 +1,7 @@
 import type { SubAgent } from "deepagents";
 import { creativeTools } from "../../tools/index.js";
 import { resolveTier } from "../../models/index.js";
+import { createConfigurableModelMiddleware } from "../../middleware/configurable-model.js";
 import {
   CREATIVE_AGENT_NAME,
   CREATIVE_AGENT_DESCRIPTION,
@@ -21,5 +22,6 @@ export function createCreativeAgent(): SubAgent | null {
     systemPrompt: CREATIVE_SYSTEM_PROMPT,
     tools: [...creativeTools],
     model,
+    middleware: [createConfigurableModelMiddleware(CREATIVE_AGENT_NAME)] as const,
   };
 }
