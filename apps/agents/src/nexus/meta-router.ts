@@ -9,7 +9,7 @@ import type { NexusState } from "./state.js";
  */
 export const routerOutputSchema = z.object({
   model: z
-    .enum(["gemini-2.0-flash", "gemini-2.5-pro-preview-05-06"])
+    .enum(["gemini-3-flash-preview", "gemini-3.1-pro-preview"])
     .describe("The Gemini model to use for the orchestrator"),
   reasoning: z
     .string()
@@ -27,8 +27,8 @@ Classification criteria:
 - Clarity: Specific enough to act on directly, or requires sophisticated planning
 
 Model selection:
-- "gemini-2.0-flash" — Simple, single-domain tasks. Quick answers, single sub-agent or no sub-agents needed. Examples: "What is X?", "Summarize this article", "Convert this CSV to JSON"
-- "gemini-2.5-pro-preview-05-06" — Complex, multi-step, multi-domain tasks. Requires sophisticated planning, multiple sub-agents, or quality decomposition. Examples: "Build me a website", "Research X and write a report with visualizations", "Create a marketing campaign"
+- "gemini-3-flash-preview" — Simple, single-domain tasks. Quick answers, single sub-agent or no sub-agents needed. Examples: "What is X?", "Summarize this article", "Convert this CSV to JSON"
+- "gemini-3.1-pro-preview" — Complex, multi-step, multi-domain tasks. Requires sophisticated planning, multiple sub-agents, or quality decomposition. Examples: "Build me a website", "Research X and write a report with visualizations", "Create a marketing campaign"
 
 When in doubt, choose Pro. It's better to over-provision than under-provision.
 
@@ -37,14 +37,14 @@ Respond ONLY with the structured output. Do not include any other text.`;
 /**
  * Meta-router LangGraph node.
  *
- * Always uses gemini-2.0-flash (fast, cheap) to classify the user's prompt.
+ * Always uses gemini-3-flash-preview (fast, cheap) to classify the user's prompt.
  * Returns { routerResult } to be written to graph state.
  */
 export async function metaRouter(
   state: NexusState,
 ): Promise<Pick<NexusState, "routerResult">> {
   const model = new ChatGoogleGenerativeAI({
-    model: "gemini-2.0-flash",
+    model: "gemini-3-flash-preview",
     temperature: 0,
   });
 

@@ -7,7 +7,7 @@ import { z } from "zod/v4";
  * The `model` field is optional — when absent, the default model is used.
  */
 export const modelContextSchema = z.object({
-  model: z.string().optional().describe("Model name to use (e.g., 'google-genai:gemini-2.0-flash')"),
+  model: z.string().optional().describe("Model name to use (e.g., 'google-genai:gemini-3-flash-preview')"),
 });
 
 /**
@@ -17,7 +17,7 @@ export const modelContextSchema = z.object({
  * Uses `initChatModel` from langchain to dynamically resolve the model by name.
  *
  * Usage: Pass as middleware to createDeepAgent, and invoke the agent with
- * `{ context: { model: "google-genai:gemini-2.0-flash" } }` to override.
+ * `{ context: { model: "google-genai:gemini-3-flash-preview" } }` to override.
  */
 export const configurableModelMiddleware = createMiddleware({
   name: "ConfigurableModel",

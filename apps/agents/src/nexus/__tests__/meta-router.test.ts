@@ -6,7 +6,7 @@ import { z } from "zod/v4";
 describe("routerOutputSchema", () => {
   it("should accept valid Flash classification", () => {
     const result = z.safeParse(routerOutputSchema, {
-      model: "gemini-2.0-flash",
+      model: "gemini-3-flash-preview",
       reasoning: "Simple question, single-step",
     });
     expect(result.success).toBe(true);
@@ -14,7 +14,7 @@ describe("routerOutputSchema", () => {
 
   it("should accept valid Pro classification", () => {
     const result = z.safeParse(routerOutputSchema, {
-      model: "gemini-2.5-pro-preview-05-06",
+      model: "gemini-3.1-pro-preview",
       reasoning: "Complex multi-step project",
     });
     expect(result.success).toBe(true);

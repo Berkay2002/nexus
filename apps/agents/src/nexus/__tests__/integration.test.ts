@@ -18,7 +18,7 @@ describe("Meta-Router Integration", () => {
     const result = await metaRouter(state);
 
     expect(result.routerResult).not.toBeNull();
-    expect(result.routerResult!.model).toBe("gemini-2.0-flash");
+    expect(result.routerResult!.model).toBe("gemini-3-flash-preview");
     expect(result.routerResult!.reasoning).toBeTruthy();
   }, 30000);
 
@@ -35,7 +35,7 @@ describe("Meta-Router Integration", () => {
     const result = await metaRouter(state);
 
     expect(result.routerResult).not.toBeNull();
-    expect(result.routerResult!.model).toBe("gemini-2.5-pro-preview-05-06");
+    expect(result.routerResult!.model).toBe("gemini-3.1-pro-preview");
     expect(result.routerResult!.reasoning).toBeTruthy();
   }, 30000);
 

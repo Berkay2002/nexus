@@ -22,7 +22,7 @@ export function createNexusOrchestrator(sandboxUrl = "http://localhost:8080") {
 
   return createDeepAgent({
     name: "nexus-orchestrator",
-    model: "google-genai:gemini-2.0-flash",
+    model: "google-genai:gemini-3-flash-preview",
     systemPrompt: ORCHESTRATOR_SYSTEM_PROMPT,
     middleware: [configurableModelMiddleware] as const,
     backend,

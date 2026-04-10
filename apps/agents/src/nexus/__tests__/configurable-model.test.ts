@@ -8,7 +8,7 @@ import { z } from "zod/v4";
 describe("modelContextSchema", () => {
   it("should accept a valid model string", () => {
     const result = z.safeParse(modelContextSchema, {
-      model: "gemini-2.0-flash",
+      model: "gemini-3-flash-preview",
     });
     expect(result.success).toBe(true);
   });
