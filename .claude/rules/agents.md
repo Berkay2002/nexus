@@ -21,8 +21,21 @@ All agents write to `/home/gem/workspace/` inside the AIO Sandbox:
 - `/home/gem/workspace/shared/` — final deliverables
 - Any agent can READ from any path. The orchestrator tells sub-agents where to look via task descriptions.
 
+## Implemented Agent Structure
+All agent code lives under `apps/agents/src/nexus/`:
+- `agents/{research,code,creative,general-purpose}/` — each has `agent.ts` (SubAgent config) + `prompt.ts` (system prompt)
+- `agents/index.ts` — barrel export with `nexusSubagents` array
+- `tools/{search,extract,map,generate-image}/` — each has `tool.ts` (Zod schema + impl) + `prompt.ts` (TOOL_NAME + TOOL_DESCRIPTION)
+- `tools/index.ts` — barrel export with grouped tool arrays (`researchTools`, `creativeTools`, `allTools`)
+- `skills/{deep-research,build-app,generate-image,data-analysis,write-report}/` — each has `SKILL.md`, `examples.md`, `templates/`
+- `skills/index.ts` — barrel export that recursively collects skill files as `FileData` map
+- `backend/` — `aio-sandbox.ts`, `composite.ts`, `store.ts`
+- `middleware/configurable-model.ts` — runtime model swapping
+- `prompts/orchestrator-system.ts` — orchestrator system prompt with delegation and skills guidance
+- `db/` — SQLite schema with Drizzle ORM
+
 ## Tool Definitions
-Use LangChain `tool()` with Zod schemas. Use snake_case parameter names matching the underlying APIs (Tavily, Exa). Access API keys via `runtime.context` — never hardcode.
+Use LangChain `tool()` with Zod schemas. Use snake_case parameter names matching the underlying APIs (Tavily). Access API keys via `runtime.context` — never hardcode.
 
 ## Sub-Agent System Prompts
 Must include:
@@ -37,6 +50,7 @@ Must include:
 - Keep files under 10 MB
 - Skills for the orchestrator should include sub-agent delegation patterns
 - One workflow per skill — avoid overlap between skills
+- Skills are seeded via `orchestrator.invoke({ files: nexusSkillFiles })` — the barrel export at `skills/index.ts` recursively collects all skill files as a `FileData` map with virtual POSIX paths (`/skills/{name}/...`)
 
 ## General-Purpose Subagent
-DeepAgents always adds a GP subagent alongside custom ones. Either override it or instruct the orchestrator to prefer specialized agents.
+DeepAgents always adds a GP subagent alongside custom ones. The `general-purpose/` agent overrides it with a custom prompt that defers to specialized agents.
