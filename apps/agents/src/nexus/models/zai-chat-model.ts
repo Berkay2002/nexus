@@ -23,6 +23,52 @@ export function buildReasoningMap(messages: BaseMessage[]): (string | null)[] {
   return map;
 }
 
+interface RequestLike {
+  messages?: unknown;
+}
+
+/**
+ * Mutate `request.messages` in place, setting `reasoning_content` on assistant
+ * params in the order they appear. If the assistant count in the request does
+ * not match the reasoning map length, log a warning and leave the request
+ * untouched — safer than corrupting it.
+ */
+export function injectReasoningContent(
+  request: RequestLike,
+  map: (string | null)[],
+): void {
+  const messages = request.messages;
+  if (!Array.isArray(messages)) return;
+
+  const assistantIndices: number[] = [];
+  for (let i = 0; i < messages.length; i++) {
+    const entry = messages[i];
+    if (
+      entry &&
+      typeof entry === "object" &&
+      (entry as { role?: unknown }).role === "assistant"
+    ) {
+      assistantIndices.push(i);
+    }
+  }
+
+  if (assistantIndices.length !== map.length) {
+    if (map.length > 0) {
+      console.warn(
+        `[ZaiChatOpenAI] reasoning map/message count mismatch (map=${map.length}, assistants=${assistantIndices.length}); skipping injection`,
+      );
+    }
+    return;
+  }
+
+  for (let i = 0; i < assistantIndices.length; i++) {
+    const value = map[i];
+    if (typeof value !== "string" || value.length === 0) continue;
+    const entry = messages[assistantIndices[i]] as Record<string, unknown>;
+    entry.reasoning_content = value;
+  }
+}
+
 export class ZaiChatOpenAI extends ChatOpenAI {
   constructor(fields?: ChatOpenAIFields) {
     super(fields);
