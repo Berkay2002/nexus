@@ -1,0 +1,86 @@
+import { describe, it, expect, vi } from "vitest";
+
+/**
+ * These tests verify the orchestrator is wired with sub-agents
+ * without hitting real APIs. We mock createDeepAgent to capture
+ * the params it receives.
+ */
+
+// Mock createDeepAgent to capture params
+let capturedParams: Record<string, unknown> | null = null;
+vi.mock("deepagents", () => ({
+  createDeepAgent: (params: Record<string, unknown>) => {
+    capturedParams = params;
+    return {
+      invoke: vi.fn().mockResolvedValue({ messages: [] }),
+    };
+  },
+  CompositeBackend: class {
+    constructor() {}
+  },
+  StoreBackend: class {
+    constructor() {}
+  },
+  BaseSandbox: class {
+    constructor() {}
+  },
+}));
+
+// Mock @agent-infra/sandbox since AIOSandboxBackend creates a SandboxClient
+vi.mock("@agent-infra/sandbox", () => ({
+  SandboxClient: class {
+    constructor() {}
+  },
+}));
+
+// Must import AFTER mock setup
+const { createNexusOrchestrator } = await import("../orchestrator.js");
+
+describe("Orchestrator sub-agent wiring", () => {
+  it("should pass subagents to createDeepAgent", () => {
+    createNexusOrchestrator();
+    expect(capturedParams).not.toBeNull();
+    expect(capturedParams!.subagents).toBeDefined();
+  });
+
+  it("should include all 4 sub-agents", () => {
+    createNexusOrchestrator();
+    const subagents = capturedParams!.subagents as Array<{ name: string }>;
+    expect(subagents).toHaveLength(4);
+    const names = subagents.map((a) => a.name);
+    expect(names).toContain("research");
+    expect(names).toContain("code");
+    expect(names).toContain("creative");
+    expect(names).toContain("general-purpose");
+  });
+
+  it("should include research agent with tools", () => {
+    createNexusOrchestrator();
+    const subagents = capturedParams!.subagents as Array<{
+      name: string;
+      tools?: Array<{ name: string }>;
+    }>;
+    const research = subagents.find((a) => a.name === "research")!;
+    expect(research.tools).toHaveLength(3);
+  });
+
+  it("should include code agent without custom tools", () => {
+    createNexusOrchestrator();
+    const subagents = capturedParams!.subagents as Array<{
+      name: string;
+      tools?: unknown[];
+    }>;
+    const code = subagents.find((a) => a.name === "code")!;
+    expect(code.tools).toBeUndefined();
+  });
+
+  it("should include creative agent with tools", () => {
+    createNexusOrchestrator();
+    const subagents = capturedParams!.subagents as Array<{
+      name: string;
+      tools?: Array<{ name: string }>;
+    }>;
+    const creative = subagents.find((a) => a.name === "creative")!;
+    expect(creative.tools).toHaveLength(1);
+  });
+});

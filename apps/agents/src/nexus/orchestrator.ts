@@ -3,13 +3,15 @@ import { AIOSandboxBackend } from "./backend/aio-sandbox.js";
 import { createNexusBackend } from "./backend/composite.js";
 import { configurableModelMiddleware } from "./middleware/configurable-model.js";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "./prompts/orchestrator-system.js";
+import { nexusSubagents } from "./agents/index.js";
 import type { NexusState } from "./state.js";
 
 /**
  * Creates the Nexus orchestrator DeepAgent.
  *
  * The orchestrator is the central brain — it receives user prompts,
- * plans work via write_todos, and delegates to specialized sub-agents.
+ * plans work via write_todos, and delegates to specialized sub-agents
+ * (research, code, creative, general-purpose).
  *
  * Model is selected at runtime via ConfigurableModel middleware,
  * based on the meta-router's classification in graph state.
@@ -28,6 +30,7 @@ export function createNexusOrchestrator(sandboxUrl = "http://localhost:8080") {
     backend,
     memory: ["/memories/AGENTS.md"],
     skills: ["/skills/"],
+    subagents: [...nexusSubagents],
   });
 }
 
