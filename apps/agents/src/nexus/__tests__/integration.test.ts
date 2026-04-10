@@ -9,7 +9,7 @@ import { z } from "zod/v4";
  * Skip with: npx vitest run --exclude "**\/integration*"
  */
 describe("Meta-Router Integration", () => {
-  it("should classify a simple question as Flash", async () => {
+  it("should classify a trivial question as Flash-Lite", async () => {
     const state = {
       messages: [new HumanMessage("What is the capital of France?")],
       routerResult: null,
@@ -18,11 +18,11 @@ describe("Meta-Router Integration", () => {
     const result = await metaRouter(state);
 
     expect(result.routerResult).not.toBeNull();
-    expect(result.routerResult!.model).toBe("gemini-3-flash-preview");
+    expect(result.routerResult!.model).toBe("gemini-3.1-flash-lite-preview");
     expect(result.routerResult!.reasoning).toBeTruthy();
   }, 30000);
 
-  it("should classify a complex project as Pro", async () => {
+  it("should classify a complex project as Flash (Pro is reserved for deep-research)", async () => {
     const state = {
       messages: [
         new HumanMessage(
@@ -35,7 +35,7 @@ describe("Meta-Router Integration", () => {
     const result = await metaRouter(state);
 
     expect(result.routerResult).not.toBeNull();
-    expect(result.routerResult!.model).toBe("gemini-3.1-pro-preview");
+    expect(result.routerResult!.model).toBe("gemini-3-flash-preview");
     expect(result.routerResult!.reasoning).toBeTruthy();
   }, 30000);
 

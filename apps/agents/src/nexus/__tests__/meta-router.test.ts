@@ -7,17 +7,25 @@ describe("routerOutputSchema", () => {
   it("should accept valid Flash classification", () => {
     const result = z.safeParse(routerOutputSchema, {
       model: "gemini-3-flash-preview",
-      reasoning: "Simple question, single-step",
+      reasoning: "Default workhorse for multi-step tasks",
     });
     expect(result.success).toBe(true);
   });
 
-  it("should accept valid Pro classification", () => {
+  it("should accept valid Flash-Lite classification", () => {
     const result = z.safeParse(routerOutputSchema, {
-      model: "gemini-3.1-pro-preview",
-      reasoning: "Complex multi-step project",
+      model: "gemini-3.1-flash-lite-preview",
+      reasoning: "Trivial one-shot question, low latency",
     });
     expect(result.success).toBe(true);
+  });
+
+  it("should reject Pro model names — Pro is deep-research only", () => {
+    const result = z.safeParse(routerOutputSchema, {
+      model: "gemini-3.1-pro-preview",
+      reasoning: "Pro is not a valid orchestrator model",
+    });
+    expect(result.success).toBe(false);
   });
 
   it("should reject invalid model names", () => {

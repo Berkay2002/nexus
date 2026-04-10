@@ -80,7 +80,7 @@ Key infrastructure files to **preserve** during UI rewrites:
 | Concern | Technology |
 |---------|-----------|
 | Orchestration | DeepAgents (`createDeepAgent`, `SubAgent`, `CompositeBackend`, `BaseSandbox`) |
-| Models | Google Gemini: `gemini-3-flash-preview` (router/orchestrator), `gemini-3.1-pro-preview` (sub-agents), `gemini-3.1-flash-image-preview` (images) |
+| Models | Google Gemini: `gemini-3.1-flash-lite-preview` (meta-router classifier + trivial prompts), `gemini-3-flash-preview` (orchestrator + code/general-purpose sub-agents — the default workhorse), `gemini-3.1-pro-preview` (deep-research sub-agent ONLY — Pro burns credits and hits quota fast), `gemini-3.1-flash-image-preview` (creative sub-agent / image generation) |
 | Execution | AIO Sandbox Docker + `@agent-infra/sandbox` TS SDK |
 | Search | Tavily (Search, Extract, Map) — no Exa |
 | Frontend streaming | `@langchain/react` `useStream` hook (subagent streaming, filterSubagentMessages) |

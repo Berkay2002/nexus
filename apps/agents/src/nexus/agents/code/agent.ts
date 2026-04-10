@@ -19,5 +19,5 @@ export const codeAgent: SubAgent = {
   name: CODE_AGENT_NAME,
   description: CODE_AGENT_DESCRIPTION,
   systemPrompt: CODE_SYSTEM_PROMPT,
-  model: createGoogleModel("gemini-3.1-pro-preview"),
+  model: createGoogleModel("gemini-3-flash-preview"),
 };

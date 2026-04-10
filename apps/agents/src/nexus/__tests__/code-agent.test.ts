@@ -50,8 +50,8 @@ describe("Code Agent config", () => {
     expect(codeAgent.tools).toBeUndefined();
   });
 
-  it("should use a ChatGoogle instance pinned to gemini-3.1-pro-preview", () => {
+  it("should use a ChatGoogle instance pinned to gemini-3-flash-preview", () => {
     expect(codeAgent.model).toBeDefined();
-    expect((codeAgent.model as any).model).toBe("gemini-3.1-pro-preview");
+    expect((codeAgent.model as any).model).toBe("gemini-3-flash-preview");
   });
 });
