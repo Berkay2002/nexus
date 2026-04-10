@@ -3,10 +3,11 @@ import {
   AIMessage,
   AIMessageChunk,
   HumanMessage,
+  HumanMessage as HM,
   SystemMessage,
   ToolMessage,
 } from "@langchain/core/messages";
-import { buildReasoningMap, injectReasoningContent } from "../zai-chat-model.js";
+import { buildReasoningMap, injectReasoningContent, ZaiChatOpenAI } from "../zai-chat-model.js";
 import { vi } from "vitest";
 
 describe("buildReasoningMap", () => {
@@ -125,5 +126,117 @@ describe("injectReasoningContent", () => {
   it("handles missing request.messages gracefully", () => {
     const request: { messages?: unknown[] } = {};
     expect(() => injectReasoningContent(request, ["x"])).not.toThrow();
+  });
+});
+
+describe("ZaiChatOpenAI overrides", () => {
+  function makeStub() {
+    const received: unknown[] = [];
+    const model = new ZaiChatOpenAI({
+      model: "glm-4.7",
+      apiKey: "test-key",
+      configuration: { baseURL: "https://example.invalid" },
+    });
+    // The constructor has already patched model.completions.completionWithRetry
+    // to wrap _originalCompletionWithRetry. We replace the stored original with
+    // a stub so the patched wrapper runs (injecting reasoning_content), then
+    // hands off to our stub instead of making a real HTTP call.
+    const completions = (model as unknown as {
+      completions: {
+        _originalCompletionWithRetry: (req: unknown, opts?: unknown) => Promise<unknown>;
+      };
+    }).completions;
+    const originalRestore = completions._originalCompletionWithRetry;
+    completions._originalCompletionWithRetry = async function (req: unknown) {
+      received.push(req);
+      return {
+        id: "stub",
+        model: "glm-4.7",
+        choices: [
+          {
+            index: 0,
+            message: { role: "assistant", content: "ok" },
+            finish_reason: "stop",
+          },
+        ],
+        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+      };
+    };
+    const restore = () => {
+      completions._originalCompletionWithRetry = originalRestore;
+    };
+    return { model, received, restore };
+  }
+
+  it("injects reasoning_content on outbound assistant messages via _generate", async () => {
+    const { model, received, restore } = makeStub();
+    try {
+      const priorAI = new AIMessage({
+        content: "prior answer",
+        additional_kwargs: { reasoning_content: "prior thinking" },
+      });
+      await model.invoke([
+        new SystemMessage("sys"),
+        new HM("q1"),
+        priorAI,
+        new HM("q2"),
+      ]);
+      expect(received).toHaveLength(1);
+      const req = received[0] as {
+        messages: Array<{ role: string; reasoning_content?: string }>;
+      };
+      const assistants = req.messages.filter((m) => m.role === "assistant");
+      expect(assistants).toHaveLength(1);
+      expect(assistants[0].reasoning_content).toBe("prior thinking");
+    } finally {
+      restore();
+    }
+  });
+
+  it("isolates reasoning context between concurrent calls", async () => {
+    const { model, received, restore } = makeStub();
+    try {
+      const ai = (text: string) =>
+        new AIMessage({
+          content: "prior",
+          additional_kwargs: { reasoning_content: text },
+        });
+      await Promise.all([
+        model.invoke([new HM("a"), ai("alpha"), new HM("a2")]),
+        model.invoke([new HM("b"), ai("beta"), new HM("b2")]),
+      ]);
+      const reasonings = (
+        received as Array<{
+          messages: Array<{ role: string; reasoning_content?: string }>;
+        }>
+      )
+        .map(
+          (r) => r.messages.find((m) => m.role === "assistant")?.reasoning_content,
+        )
+        .sort();
+      expect(reasonings).toEqual(["alpha", "beta"]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("falls through when no reasoning context is active", async () => {
+    const { model, received, restore } = makeStub();
+    try {
+      const completions = (model as unknown as {
+        completions: {
+          completionWithRetry: (req: unknown, opts?: unknown) => Promise<unknown>;
+        };
+      }).completions;
+      const req = {
+        messages: [{ role: "assistant", content: "a" }],
+      };
+      await completions.completionWithRetry(req, {});
+      expect(received).toHaveLength(1);
+      const sent = received[0] as { messages: Array<Record<string, unknown>> };
+      expect(sent.messages[0]).not.toHaveProperty("reasoning_content");
+    } finally {
+      restore();
+    }
   });
 });

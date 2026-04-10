@@ -1,5 +1,7 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { BaseMessage } from "@langchain/core/messages";
 import { AIMessage, AIMessageChunk } from "@langchain/core/messages";
+import { ChatGenerationChunk } from "@langchain/core/outputs";
 import { ChatOpenAI, type ChatOpenAIFields } from "@langchain/openai";
 
 /**
@@ -69,8 +71,88 @@ export function injectReasoningContent(
   }
 }
 
+/**
+ * Per-call scope for the reasoning_content array built from LC messages on
+ * the way in. Populated by _generate / _streamResponseChunks, consumed by the
+ * patched completionWithRetry on the inner completions/responses instances.
+ */
+const reasoningCtx = new AsyncLocalStorage<(string | null)[]>();
+
+interface CompletionsLike {
+  completionWithRetry: (req: unknown, opts?: unknown) => Promise<unknown>;
+  _originalCompletionWithRetry?: (req: unknown, opts?: unknown) => Promise<unknown>;
+}
+
+/**
+ * ChatOpenAI in @langchain/openai is a facade that delegates _generate and
+ * _streamResponseChunks to inner `completions` and `responses` instances.
+ * `completionWithRetry` lives on those instances. We patch each instance
+ * method so that when the active AsyncLocalStorage has a reasoning map, we
+ * inject reasoning_content onto outbound assistant messages before the HTTP
+ * call. Tests stub the unpatched path via `_originalCompletionWithRetry`.
+ */
+function patchCompletionsForReasoning(target: CompletionsLike): void {
+  if (target._originalCompletionWithRetry) return;
+  const original = target.completionWithRetry.bind(target);
+  target._originalCompletionWithRetry = original;
+  target.completionWithRetry = async function (
+    this: CompletionsLike,
+    req: unknown,
+    opts?: unknown,
+  ) {
+    const map = reasoningCtx.getStore();
+    if (map) {
+      injectReasoningContent(req as RequestLike, map);
+    }
+    const fn = this._originalCompletionWithRetry ?? original;
+    return fn(req, opts);
+  };
+}
+
 export class ZaiChatOpenAI extends ChatOpenAI {
   constructor(fields?: ChatOpenAIFields) {
     super(fields);
+    patchCompletionsForReasoning(
+      (this as unknown as { completions: CompletionsLike }).completions,
+    );
+    patchCompletionsForReasoning(
+      (this as unknown as { responses: CompletionsLike }).responses,
+    );
+  }
+
+  async _generate(
+    messages: BaseMessage[],
+    options: this["ParsedCallOptions"],
+    runManager?: Parameters<ChatOpenAI["_generate"]>[2],
+  ): ReturnType<ChatOpenAI["_generate"]> {
+    const map = buildReasoningMap(messages);
+    return reasoningCtx.run(map, () =>
+      super._generate(messages, options, runManager),
+    );
+  }
+
+  async *_streamResponseChunks(
+    messages: BaseMessage[],
+    options: this["ParsedCallOptions"],
+    runManager?: Parameters<ChatOpenAI["_streamResponseChunks"]>[2],
+  ): ReturnType<ChatOpenAI["_streamResponseChunks"]> {
+    const map = buildReasoningMap(messages);
+    // Buffer inside reasoningCtx.run so the underlying completionWithRetry
+    // call (made during super's iteration) sees the store. yield* outside a
+    // run() can lose the ALS context on chunk iteration. Task 4 revisits this
+    // if streaming latency becomes a concern.
+    const buffered: unknown[] = [];
+    await reasoningCtx.run(map, async () => {
+      for await (const chunk of super._streamResponseChunks(
+        messages,
+        options,
+        runManager,
+      )) {
+        buffered.push(chunk);
+      }
+    });
+    for (const chunk of buffered) {
+      yield chunk as unknown as ChatGenerationChunk;
+    }
   }
 }
