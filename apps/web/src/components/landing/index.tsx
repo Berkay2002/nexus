@@ -2,11 +2,11 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { NexusLogo } from "./nexus-logo";
 import { NexusPrompt } from "./nexus-prompt";
+import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 
 interface LandingPageProps {
-  onSubmit: (text: string) => void;
+  onSubmit: (message: PromptInputMessage) => void;
   isLoading: boolean;
 }
 

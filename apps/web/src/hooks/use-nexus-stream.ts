@@ -6,16 +6,40 @@ import { useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { ensureToolCallsHaveResponses } from "@/lib/ensure-tool-responses";
 import type { Message } from "@langchain/langgraph-sdk";
+import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
+
+type HumanContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
+function buildHumanContent(
+  message: PromptInputMessage,
+): string | HumanContentPart[] {
+  const imageFiles = message.files.filter(
+    (f) => f.url && f.mediaType?.startsWith("image/"),
+  );
+  if (imageFiles.length === 0) return message.text;
+
+  const parts: HumanContentPart[] = [];
+  if (message.text.trim()) parts.push({ type: "text", text: message.text });
+  for (const file of imageFiles) {
+    parts.push({ type: "image_url", image_url: { url: file.url! } });
+  }
+  return parts;
+}
 
 export function useNexusStream() {
   const stream = useStreamContext();
 
   const submitPrompt = useCallback(
-    (text: string) => {
+    (input: string | PromptInputMessage) => {
+      const message: PromptInputMessage =
+        typeof input === "string" ? { text: input, files: [] } : input;
+
       const newMessage = {
         id: uuidv4(),
         type: "human" as const,
-        content: text,
+        content: buildHumanContent(message),
       };
 
       const toolMessages = ensureToolCallsHaveResponses(

@@ -110,14 +110,15 @@ Docs files are large. Always read headers first (`grep ^#{2,3} file.md`), then r
 
 ## Current State
 
-Plans 1-6 implemented. Scaffold research-agent removed. `langgraph.json` points to `nexus` graph.
+Plans 1-7 implemented. Scaffold research-agent removed. `langgraph.json` points to `nexus` graph.
 - **Plan 1:** AIO Sandbox backend, CompositeBackend, StoreBackend, DB schema
 - **Plan 2:** Meta-router (Flash classifier), ConfigurableModel middleware, orchestrator (DeepAgent), graph wiring
 - **Plan 3:** Custom tools — `tavily_search`, `tavily_extract`, `tavily_map`, `generate_image` in `tools/{name}/prompt.ts + tool.ts`
 - **Plan 4:** Sub-agents — research, code, creative, general-purpose in `agents/{name}/agent.ts + prompt.ts`
 - **Plan 5:** Skills — 5 orchestrator skills in `skills/{name}/SKILL.md + examples.md + templates/`, barrel export, `/skills/` StoreBackend route, skills seeding
 - **Plan 6:** Frontend landing page — deps upgraded to LangChain 1.x/zod 4/React 19.1/Next 15.5, StreamProvider refactored (no config form, `filterSubagentMessages`), dark mode, landing components (logo/tagline/prompt), `useNexusStream` hook, scaffold branding stripped
-- **Next:** Plans 7-8 (Execution View, Integration)
+- **Plan 7:** Frontend execution view — 30/70 split in `apps/web/src/components/execution/` (`execution-shell`, `todo-panel`, `agent-status-panel`, `subagent-card`, `synthesis-indicator`, `prompt-bar`, `message-feed`), landing↔execution switch via `hasMessages` in `app/page.tsx`, all wired through `useNexusStream`
+- **Next:** Plan 8 (End-to-End Integration & Polish)
 
 ## Workspace Convention
 
