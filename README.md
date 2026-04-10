@@ -194,6 +194,7 @@ MVP is done. What's next is less about shipping features and more about making t
 - Editable `AGENTS.md` for project-level instructions
 - Critic sub-agent that reviews drafts before synthesis
 - LangSmith trace integration in the UI
+- Context caching across providers (Anthropic, Gemini, OpenAI)
 
 **Later**
 - MCP support, both ways (agents call MCP tools; Nexus exposes itself as an MCP server)

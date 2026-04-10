@@ -30,6 +30,9 @@ A reviewer agent that reads the draft deliverable, writes a critique to `/shared
 ### LangSmith trace integration
 Click a run in the UI and see the full LangGraph trace inline, either embedded from LangSmith or linked out to a public trace URL. Depends on a LangSmith API key being configured.
 
+### Context caching
+The orchestrator re-sends a large system prompt, a pile of skill files, and full tool schemas on every turn. Enabling provider-side prompt caching cuts both cost and latency dramatically for multi-turn runs. Each provider exposes this differently — Anthropic wants explicit `cache_control` breakpoints in message content, Gemini wants a pre-created cached-content handle, OpenAI does it automatically above a token threshold — so the real work is a small abstraction in the model registry that each provider adapter can implement.
+
 ## Later
 
 ### MCP support, both ways
