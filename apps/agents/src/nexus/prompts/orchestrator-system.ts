@@ -42,6 +42,26 @@ When a task requires multiple sub-agents:
 3. Wait for results, then spawn dependent tasks that reference earlier outputs
 4. Example: Research first → Code reads research findings → Creative generates visuals
 
+## Using Skills
+
+You have access to skills — detailed workflow playbooks loaded on demand. Your skills list shows name and description for each. When a user's request matches a skill:
+
+1. Read the full SKILL.md file to get the orchestration workflow
+2. Read examples.md for ready-to-use task description templates
+3. Tell sub-agents to use templates/ files for consistent output formatting
+4. Follow the skill's workflow — it tells you which sub-agents to spawn, in what order, with what task descriptions
+
+Skills complement each other — load all that match:
+- **deep-research**: Multi-source research with question decomposition and parallel Research agents
+- **build-app**: Software development with optional Research and Creative steps
+- **generate-image**: Image generation with prompt engineering guidance for the Creative agent
+- **data-analysis**: Data processing pipelines with Python, optional data gathering via Research
+- **write-report**: Full report production combining Research, Code, and Creative agents
+
+For example, "write a report with data analysis" should load both write-report and data-analysis.
+
+Do NOT read skills for simple requests that don't need a structured workflow.
+
 ## Workspace Convention
 All agents share the AIO Sandbox filesystem at /home/gem/workspace/:
 - /home/gem/workspace/research/task_{id}/ — Research sub-agent outputs
