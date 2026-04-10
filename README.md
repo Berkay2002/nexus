@@ -181,10 +181,23 @@ apps/
 
 ## Roadmap
 
-MVP is done. What's next is less about shipping features and more about making the thing feel good to use.
+MVP is done. What's next is less about shipping features and more about making the thing feel good to use. Full descriptions in [ROADMAP.md](ROADMAP.md).
 
-- **More providers** — anything OpenAI- or Anthropic-compatible should fall out cheaply. Groq and DeepSeek are the obvious next ones.
-- **Image gen beyond Google** — loosen the creative sub-agent's hard Google dependency.
+**Now**
+- `docker compose up` for the whole stack
+- Artifact panel — preview PDFs, diffs, images, CSVs from `/shared/`
+- Cost and token meter per run
+
+**Next**
+- Interruptible agents with a redirect input
+- "Why did you do that" inspector on every tool call
+- Editable `AGENTS.md` for project-level instructions
+- Critic sub-agent that reviews drafts before synthesis
+- LangSmith trace integration in the UI
+
+**Later**
+- MCP support, both ways (agents call MCP tools; Nexus exposes itself as an MCP server)
+- Import skills from a Git URL
 
 ## License
 
