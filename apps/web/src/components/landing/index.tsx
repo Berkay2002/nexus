@@ -4,6 +4,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { NexusPrompt } from "./nexus-prompt";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
+import { SettingsButton } from "@/components/settings/settings-button";
 
 interface LandingPageProps {
   onSubmit: (message: PromptInputMessage) => void;
@@ -13,6 +14,9 @@ interface LandingPageProps {
 export function LandingPage({ onSubmit, isLoading }: LandingPageProps) {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center px-4">
+      <div className="absolute top-4 right-4 z-10">
+        <SettingsButton />
+      </div>
       <div className="flex flex-col items-center gap-8 w-full">
         {/* Tagline */}
         <motion.div
