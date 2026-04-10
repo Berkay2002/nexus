@@ -7,11 +7,17 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const skillsDir = resolve(__dirname, "../skills");
 
 function readSkill(name: string): string {
-  return readFileSync(resolve(skillsDir, name, "SKILL.md"), "utf-8");
+  return readFileSync(resolve(skillsDir, name, "SKILL.md"), "utf-8").replace(
+    /\r\n/g,
+    "\n",
+  );
 }
 
 function readFile(name: string, file: string): string {
-  return readFileSync(resolve(skillsDir, name, file), "utf-8");
+  return readFileSync(resolve(skillsDir, name, file), "utf-8").replace(
+    /\r\n/g,
+    "\n",
+  );
 }
 
 function fileExists(name: string, file: string): boolean {

@@ -16,7 +16,7 @@ export const SKILL_NAMES = [
 function createFileData(content: string): FileData {
   const now = new Date().toISOString();
   return {
-    content: content.split("\n"),
+    content: content.replace(/\r\n/g, "\n").split("\n"),
     created_at: now,
     modified_at: now,
   };
