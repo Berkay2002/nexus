@@ -419,27 +419,23 @@ export default function DemoPage() {
 
       {/* Main content */}
       <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0">
-        {isLargeScreen && (
-          <>
-            <ResizablePanel
-              defaultSize={30}
-              minSize={20}
-              maxSize={40}
-              className="flex flex-col"
-            >
-              <ScrollArea className="flex-1">
-                <div className="flex flex-col gap-6 p-4">
-                  <TodoPanel todos={todos} />
-                  <AgentStatusPanel subagents={subagentMap} />
-                </div>
-              </ScrollArea>
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-          </>
-        )}
+        <ResizablePanel
+          defaultSize={30}
+          minSize={20}
+          maxSize={40}
+          className="flex flex-col max-lg:hidden"
+        >
+          <ScrollArea className="flex-1">
+            <div className="flex flex-col gap-6 p-4">
+              <TodoPanel todos={todos} />
+              <AgentStatusPanel subagents={subagentMap} />
+            </div>
+          </ScrollArea>
+        </ResizablePanel>
+        <ResizableHandle withHandle className="max-lg:hidden" />
 
         <ResizablePanel
-          defaultSize={isLargeScreen ? 70 : 100}
+          defaultSize={70}
           minSize={50}
           className="flex flex-col"
         >

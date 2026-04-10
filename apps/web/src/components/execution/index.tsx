@@ -13,7 +13,6 @@ import { PromptBar } from "./prompt-bar";
 import { useNexusStream } from "@/hooks/use-nexus-stream";
 import type { NexusTodo } from "@/lib/subagent-utils";
 import { Conversation, ConversationContent } from "@/components/ai-elements/conversation";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 export function ExecutionView() {
   const {
@@ -28,7 +27,6 @@ export function ExecutionView() {
 
   const todos: NexusTodo[] = (values as any)?.todos ?? [];
   const allSubagents = subagents ? [...subagents.values()] : [];
-  const isLargeScreen = useMediaQuery("(min-width: 1024px)");
   const completedCount = allSubagents.filter((s) => s.status === "complete").length;
 
   return (
@@ -66,40 +64,36 @@ export function ExecutionView() {
 
       {/* Main content */}
       <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0">
-        {/* Left panel: Mission Control (30%) — hidden on mobile */}
-        {isLargeScreen && (
-          <>
-            <ResizablePanel
-              defaultSize={30}
-              minSize={20}
-              maxSize={40}
-              className="flex flex-col"
-            >
-              <ScrollArea className="flex-1">
-                <div className="flex flex-col gap-6 p-4">
-                  <TodoPanel todos={todos} />
-                  <AgentStatusPanel subagents={subagents} />
+        {/* Left panel: Mission Control (30%) — hidden on mobile via CSS */}
+        <ResizablePanel
+          defaultSize={30}
+          minSize={20}
+          maxSize={40}
+          className="flex flex-col max-lg:hidden"
+        >
+          <ScrollArea className="flex-1">
+            <div className="flex flex-col gap-6 p-4">
+              <TodoPanel todos={todos} />
+              <AgentStatusPanel subagents={subagents} />
 
-                  {/* Empty state */}
-                  {todos.length === 0 && allSubagents.length === 0 && (
-                    <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
-                      <p className="text-sm text-muted-foreground">
-                        {isLoading
-                          ? "Planning..."
-                          : "Waiting for agent activity..."}
-                      </p>
-                    </div>
-                  )}
+              {/* Empty state */}
+              {todos.length === 0 && allSubagents.length === 0 && (
+                <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    {isLoading
+                      ? "Planning..."
+                      : "Waiting for agent activity..."}
+                  </p>
                 </div>
-              </ScrollArea>
-            </ResizablePanel>
+              )}
+            </div>
+          </ScrollArea>
+        </ResizablePanel>
 
-            <ResizableHandle withHandle />
-          </>
-        )}
+        <ResizableHandle withHandle className="max-lg:hidden" />
 
         {/* Right panel: Execution Feed (70% on desktop, 100% on mobile) */}
-        <ResizablePanel defaultSize={isLargeScreen ? 70 : 100} minSize={50} className="flex flex-col">
+        <ResizablePanel defaultSize={70} minSize={50} className="flex flex-col">
           <Conversation className="flex-1">
             <ConversationContent className="gap-5 p-0">
               <MessageFeed
