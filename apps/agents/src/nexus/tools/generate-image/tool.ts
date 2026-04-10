@@ -1,7 +1,7 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod/v4";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { HumanMessage } from "@langchain/core/messages";
+import { createGoogleModel } from "../../models.js";
 import { TOOL_NAME, TOOL_DESCRIPTION } from "./prompt.js";
 
 export const generateImageSchema = z.object({
@@ -21,56 +21,35 @@ export type GenerateImageInput = z.infer<typeof generateImageSchema>;
 
 export const generateImage = tool(
   async ({ prompt, filename }) => {
-    const model = new ChatGoogleGenerativeAI({
-      model: "gemini-3.1-flash-image-preview",
+    const model = createGoogleModel("gemini-3.1-flash-image-preview", {
       temperature: 1,
-    });
+      responseModalities: ["IMAGE", "TEXT"],
+    } as any);
 
     const response = await model.invoke([
-      new HumanMessage({
-        content: [
-          {
-            type: "text",
-            text: `Generate an image: ${prompt}`,
-          },
-        ],
-      }),
+      new HumanMessage(`Generate an image: ${prompt}`),
     ]);
 
-    // Extract image data from response content blocks
-    const content = response.content;
-    if (typeof content === "string") {
-      return JSON.stringify({
-        success: false,
-        error: "Model returned text instead of an image",
-        text: content,
-      });
-    }
+    const blocks = (response as any).contentBlocks ?? [];
 
-    // Content is an array of blocks — find image blocks
-    const imageBlocks = Array.isArray(content)
-      ? content.filter(
-          (block): block is { type: "image_url"; image_url: { url: string } } =>
-            typeof block === "object" &&
-            block !== null &&
-            "type" in block &&
-            block.type === "image_url",
+    const imageBlocks = Array.isArray(blocks)
+      ? blocks.filter(
+          (block: any) =>
+            block &&
+            block.type === "file" &&
+            typeof block.data === "string" &&
+            typeof block.mimeType === "string" &&
+            block.mimeType.startsWith("image/"),
         )
       : [];
 
     if (imageBlocks.length === 0) {
-      const textContent = Array.isArray(content)
-        ? content
-            .filter(
-              (block): block is { type: "text"; text: string } =>
-                typeof block === "object" &&
-                block !== null &&
-                "type" in block &&
-                block.type === "text",
-            )
-            .map((block) => block.text)
+      const textContent = Array.isArray(blocks)
+        ? blocks
+            .filter((block: any) => block && block.type === "text")
+            .map((block: any) => block.text)
             .join("\n")
-        : String(content);
+        : String(response.content ?? "");
 
       return JSON.stringify({
         success: false,
@@ -85,11 +64,12 @@ export const generateImage = tool(
       filename,
       prompt,
       image_count: imageBlocks.length,
-      images: imageBlocks.map((block) => ({
-        data_url: block.image_url.url,
+      images: imageBlocks.map((block: any) => ({
+        base64: block.data,
+        mime_type: block.mimeType,
       })),
       instruction:
-        "Use write_file to save the image data to the workspace. The image data is base64 encoded in the data_url field.",
+        "Use write_file to save each image to the workspace. Image data is raw base64 (no data URL prefix) in the `base64` field; the MIME type is in `mime_type`. Pass the base64 string directly to write_file with binary mode.",
     });
   },
   {
