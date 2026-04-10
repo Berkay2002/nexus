@@ -240,3 +240,68 @@ describe("ZaiChatOpenAI overrides", () => {
     }
   });
 });
+
+describe("ZaiChatOpenAI streaming", () => {
+  it("injects reasoning_content when streaming", async () => {
+    const received: unknown[] = [];
+    const model = new ZaiChatOpenAI({
+      model: "glm-4.7",
+      apiKey: "test-key",
+      streaming: true,
+      configuration: { baseURL: "https://example.invalid" },
+    });
+    const completions = (model as unknown as {
+      completions: {
+        _originalCompletionWithRetry: (req: unknown, opts?: unknown) => Promise<unknown>;
+      };
+    }).completions;
+    const originalRestore = completions._originalCompletionWithRetry;
+    completions._originalCompletionWithRetry = async function (req: unknown) {
+      received.push(req);
+      // Return an async-iterable of one content delta + a done chunk, shaped
+      // like the OpenAI SDK streaming response.
+      return (async function* () {
+        yield {
+          id: "s1",
+          model: "glm-4.7",
+          choices: [
+            {
+              index: 0,
+              delta: { role: "assistant", content: "ok" },
+              finish_reason: null,
+            },
+          ],
+        };
+        yield {
+          id: "s1",
+          model: "glm-4.7",
+          choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+        };
+      })();
+    };
+    try {
+      const priorAI = new AIMessage({
+        content: "prior",
+        additional_kwargs: { reasoning_content: "stream thinking" },
+      });
+      const stream = await model.stream([
+        new HM("q1"),
+        priorAI,
+        new HM("q2"),
+      ]);
+      for await (const _ of stream) {
+        // drain
+      }
+      expect(received).toHaveLength(1);
+      const req = received[0] as {
+        messages: Array<{ role: string; reasoning_content?: string }>;
+      };
+      const assistants = req.messages.filter((m) => m.role === "assistant");
+      expect(assistants).toHaveLength(1);
+      expect(assistants[0].reasoning_content).toBe("stream thinking");
+    } finally {
+      completions._originalCompletionWithRetry = originalRestore;
+    }
+  });
+});
