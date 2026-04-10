@@ -8,6 +8,13 @@ import { getNexusSubagents } from "./agents/index.js";
 import { nexusSkillFiles } from "./skills/index.js";
 import type { NexusState } from "./state.js";
 
+interface NexusRunnableConfig {
+  configurable?: {
+    models?: Record<string, string>;
+    [key: string]: unknown;
+  };
+}
+
 /**
  * Creates the Nexus orchestrator DeepAgent.
  *
@@ -66,7 +73,7 @@ function getOrchestrator() {
  */
 export async function orchestratorNode(
   state: NexusState,
-  config?: { configurable?: Record<string, unknown> },
+  config?: NexusRunnableConfig,
 ): Promise<Partial<NexusState>> {
   const orchestrator = getOrchestrator();
 
@@ -77,9 +84,7 @@ export async function orchestratorNode(
     ? `${descriptor.provider}:${descriptor.id}`
     : undefined;
 
-  const modelsByRole = (config?.configurable as any)?.models as
-    | Record<string, string>
-    | undefined;
+  const modelsByRole = config?.configurable?.models;
 
   // Per-role override for the orchestrator wins over the classifier's complexity result
   const orchestratorOverride = modelsByRole?.["orchestrator"];

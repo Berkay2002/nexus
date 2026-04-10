@@ -79,7 +79,9 @@ export function createConfigurableModelMiddleware(agentName: string) {
 
       const model = resolveTier("default", override);
       if (!model) {
-        // Override unresolvable (unknown provider or id) — fall back to static model
+        console.warn(
+          `[ConfigurableModel:${agentName}] override "${override}" could not be resolved — falling back to the agent's static model. Set a provider API key (GEMINI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY) for the chosen model, or pick a different model.`,
+        );
         return handler(request);
       }
 

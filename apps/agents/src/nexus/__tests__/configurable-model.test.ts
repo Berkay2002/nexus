@@ -132,7 +132,9 @@ describe("createConfigurableModelMiddleware — per-role routing", () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "");
     vi.stubEnv("OPENAI_API_KEY", "");
 
-    const middleware = createConfigurableModelMiddleware("code");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const middleware = createConfigurableModelMiddleware("research");
 
     const originalModel = "static-model-instance" as any;
     let capturedModel: unknown = null;
@@ -142,7 +144,7 @@ describe("createConfigurableModelMiddleware — per-role routing", () => {
     });
 
     const request = makeRequest({
-      models: { code: "nonexistent:bad-model-id" },
+      models: { research: "nonexistent:bad-model-id" },
     });
     (request as any).model = originalModel;
 
@@ -151,6 +153,15 @@ describe("createConfigurableModelMiddleware — per-role routing", () => {
     expect(handler).toHaveBeenCalledOnce();
     // Should pass through with unmodified model since override is unresolvable
     expect(capturedModel).toBe(originalModel);
+    // Should have emitted a warning containing the agent name and the override string
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("research"),
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("nonexistent:bad-model-id"),
+    );
+
+    warnSpy.mockRestore();
   });
 
   it("no context is a no-op pass-through", async () => {
