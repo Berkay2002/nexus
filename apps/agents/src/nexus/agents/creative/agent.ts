@@ -1,5 +1,6 @@
 import type { SubAgent } from "deepagents";
 import { creativeTools } from "../../tools/index.js";
+import { createGoogleModel } from "../../models.js";
 import {
   CREATIVE_AGENT_NAME,
   CREATIVE_AGENT_DESCRIPTION,
@@ -11,5 +12,5 @@ export const creativeAgent: SubAgent = {
   description: CREATIVE_AGENT_DESCRIPTION,
   systemPrompt: CREATIVE_SYSTEM_PROMPT,
   tools: [...creativeTools],
-  model: "google-genai:gemini-3.1-flash-image-preview",
+  model: createGoogleModel("gemini-3.1-flash-image-preview"),
 };

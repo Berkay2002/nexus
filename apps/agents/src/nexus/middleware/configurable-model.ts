@@ -1,23 +1,28 @@
 import { createMiddleware } from "langchain";
-import { initChatModel } from "langchain/chat_models/universal";
 import { z } from "zod/v4";
+import { createGoogleModel } from "../models.js";
 
 /**
  * Context schema for model selection.
  * The `model` field is optional — when absent, the default model is used.
  */
 export const modelContextSchema = z.object({
-  model: z.string().optional().describe("Model name to use (e.g., 'google-genai:gemini-3-flash-preview')"),
+  model: z
+    .string()
+    .optional()
+    .describe("Gemini model name to use (e.g., 'gemini-3-flash-preview')"),
 });
 
 /**
  * ConfigurableModel middleware.
  *
- * Intercepts every model call and swaps the model if `runtime.context.model` is set.
- * Uses `initChatModel` from langchain to dynamically resolve the model by name.
+ * Intercepts every model call and swaps the model if `runtime.context.model`
+ * is set. Uses `createGoogleModel` so the resulting ChatGoogle picks up the
+ * same env-driven platform auto-detection (Vertex ADC vs AI Studio API key)
+ * used everywhere else in apps/agents.
  *
  * Usage: Pass as middleware to createDeepAgent, and invoke the agent with
- * `{ context: { model: "google-genai:gemini-3-flash-preview" } }` to override.
+ * `{ context: { model: "gemini-3-flash-preview" } }` to override.
  */
 export const configurableModelMiddleware = createMiddleware({
   name: "ConfigurableModel",
@@ -25,10 +30,9 @@ export const configurableModelMiddleware = createMiddleware({
   wrapModelCall: async (request, handler) => {
     const modelName = request.runtime.context?.model;
     if (!modelName) {
-      // No model override — use the default
       return handler(request);
     }
-    const model = await initChatModel(modelName);
+    const model = createGoogleModel(modelName);
     return handler({ ...request, model });
   },
 });

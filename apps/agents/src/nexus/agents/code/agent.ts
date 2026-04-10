@@ -1,5 +1,6 @@
 // apps/agents/src/nexus/agents/code/agent.ts
 import type { SubAgent } from "deepagents";
+import { createGoogleModel } from "../../models.js";
 import {
   CODE_AGENT_NAME,
   CODE_AGENT_DESCRIPTION,
@@ -18,5 +19,5 @@ export const codeAgent: SubAgent = {
   name: CODE_AGENT_NAME,
   description: CODE_AGENT_DESCRIPTION,
   systemPrompt: CODE_SYSTEM_PROMPT,
-  model: "google-genai:gemini-3.1-pro-preview",
+  model: createGoogleModel("gemini-3.1-pro-preview"),
 };

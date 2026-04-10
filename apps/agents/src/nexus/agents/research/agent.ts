@@ -1,5 +1,6 @@
 import type { SubAgent } from "deepagents";
 import { researchTools } from "../../tools/index.js";
+import { createGoogleModel } from "../../models.js";
 import {
   RESEARCH_AGENT_NAME,
   RESEARCH_AGENT_DESCRIPTION,
@@ -12,5 +13,5 @@ export const researchAgent: SubAgent = {
   description: RESEARCH_AGENT_DESCRIPTION,
   systemPrompt: RESEARCH_SYSTEM_PROMPT,
   tools: [...researchTools],
-  model: "google-genai:gemini-3.1-pro-preview",
+  model: createGoogleModel("gemini-3.1-pro-preview"),
 };

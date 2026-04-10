@@ -1,6 +1,6 @@
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { z } from "zod/v4";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { createGoogleModel } from "./models.js";
 import type { NexusState } from "./state.js";
 
 /**
@@ -43,8 +43,7 @@ Respond ONLY with the structured output. Do not include any other text.`;
 export async function metaRouter(
   state: NexusState,
 ): Promise<Pick<NexusState, "routerResult">> {
-  const model = new ChatGoogleGenerativeAI({
-    model: "gemini-3-flash-preview",
+  const model = createGoogleModel("gemini-3-flash-preview", {
     temperature: 0,
   });
 

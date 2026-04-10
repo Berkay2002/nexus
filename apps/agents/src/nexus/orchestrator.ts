@@ -2,6 +2,7 @@ import { createDeepAgent } from "deepagents";
 import { AIOSandboxBackend } from "./backend/aio-sandbox.js";
 import { createNexusBackend } from "./backend/composite.js";
 import { configurableModelMiddleware } from "./middleware/configurable-model.js";
+import { createGoogleModel } from "./models.js";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "./prompts/orchestrator-system.js";
 import { nexusSubagents } from "./agents/index.js";
 import { nexusSkillFiles } from "./skills/index.js";
@@ -27,7 +28,7 @@ export function createNexusOrchestrator(
 
   return createDeepAgent({
     name: "nexus-orchestrator",
-    model: "google-genai:gemini-3-flash-preview",
+    model: createGoogleModel("gemini-3-flash-preview"),
     systemPrompt: ORCHESTRATOR_SYSTEM_PROMPT,
     middleware: [configurableModelMiddleware] as const,
     backend,
@@ -60,11 +61,9 @@ export async function orchestratorNode(
 ): Promise<Partial<NexusState>> {
   const orchestrator = getOrchestrator();
 
-  // Build the model name with provider prefix for initChatModel
+  // Pass the bare Gemini model name; the ConfigurableModel middleware
+  // builds a ChatGoogle instance via the shared factory.
   const selectedModel = state.routerResult?.model;
-  const modelWithProvider = selectedModel
-    ? `google-genai:${selectedModel}`
-    : undefined;
 
   const result = await orchestrator.invoke(
     {
@@ -72,7 +71,7 @@ export async function orchestratorNode(
       files: nexusSkillFiles,
     },
     {
-      context: { model: modelWithProvider },
+      context: { model: selectedModel },
     },
   );
 
