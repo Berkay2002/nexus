@@ -240,7 +240,6 @@ export default function DemoPage() {
   const subagentList = state === "running" ? INITIAL_SUBAGENTS : COMPLETED_SUBAGENTS;
   const subagentMap = new Map(subagentList.map((s) => [s.id, s]));
   const allSubagents = [...subagentMap.values()];
-  const completedCount = allSubagents.filter((s) => s.status === "complete").length;
   const isLoading = state === "running" || state === "synthesizing";
 
   const messages = state === "complete"
@@ -287,25 +286,9 @@ export default function DemoPage() {
         )}
       </div>
 
-      {/* Progress bar */}
-      {allSubagents.length > 0 && (
-        <div className="px-4 py-2 border-b shrink-0">
-          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-            <span>Progress</span>
-            <span className="tabular-nums">{completedCount}/{allSubagents.length}</span>
-          </div>
-          <div className="h-1 rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
-              style={{ width: `${Math.round((completedCount / allSubagents.length) * 100)}%` }}
-            />
-          </div>
-        </div>
-      )}
-
       {/* Main content — always render both panels */}
       <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
-        <ResizablePanel defaultSize={30} minSize={20} maxSize={40} className="flex flex-col max-md:hidden">
+        <ResizablePanel defaultSize={30} minSize={20} maxSize={40} className="flex flex-col min-w-0 max-md:hidden">
           <div className="flex-1 min-h-0 overflow-y-auto">
             <div className="flex flex-col gap-6 p-4">
               <TodoPanel todos={todos} />
@@ -315,7 +298,7 @@ export default function DemoPage() {
         </ResizablePanel>
         <ResizableHandle withHandle className="max-md:hidden" />
 
-        <ResizablePanel defaultSize={70} minSize={50} className="flex flex-col">
+        <ResizablePanel defaultSize={70} minSize={50} className="flex flex-col min-w-0">
           <Conversation className="flex-1">
             <ConversationContent className="gap-5 p-0">
               <MessageFeed

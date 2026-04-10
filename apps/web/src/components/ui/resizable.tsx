@@ -4,13 +4,25 @@ import * as ResizablePrimitive from "react-resizable-panels"
 
 import { cn } from "@/lib/utils"
 
+type ResizablePanelGroupProps = Omit<
+  ResizablePrimitive.GroupProps,
+  "orientation"
+> & {
+  /** Back-compat alias for v3 `direction`. Maps to v4 `orientation`. */
+  direction?: "horizontal" | "vertical"
+  orientation?: "horizontal" | "vertical"
+}
+
 function ResizablePanelGroup({
   className,
+  direction,
+  orientation,
   ...props
-}: ResizablePrimitive.GroupProps) {
+}: ResizablePanelGroupProps) {
   return (
     <ResizablePrimitive.Group
       data-slot="resizable-panel-group"
+      orientation={orientation ?? direction ?? "horizontal"}
       className={cn(
         "flex h-full w-full aria-[orientation=vertical]:flex-col",
         className
@@ -20,8 +32,33 @@ function ResizablePanelGroup({
   )
 }
 
-function ResizablePanel({ ...props }: ResizablePrimitive.PanelProps) {
-  return <ResizablePrimitive.Panel data-slot="resizable-panel" {...props} />
+/**
+ * In `react-resizable-panels` v4, numeric sizes are treated as pixels, not
+ * percentages. v3 consumers passed numbers meaning percent — we preserve that
+ * behavior by converting bare numbers to percentage strings.
+ */
+function toPercent(value: number | string | undefined): string | undefined {
+  if (value === undefined) return undefined
+  return typeof value === "number" ? `${value}%` : value
+}
+
+function ResizablePanel({
+  defaultSize,
+  minSize,
+  maxSize,
+  collapsedSize,
+  ...props
+}: ResizablePrimitive.PanelProps) {
+  return (
+    <ResizablePrimitive.Panel
+      data-slot="resizable-panel"
+      defaultSize={toPercent(defaultSize)}
+      minSize={toPercent(minSize)}
+      maxSize={toPercent(maxSize)}
+      collapsedSize={toPercent(collapsedSize)}
+      {...props}
+    />
+  )
 }
 
 function ResizableHandle({
