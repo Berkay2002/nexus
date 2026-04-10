@@ -5,7 +5,10 @@ import React from "react";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { cn } from "@/lib/utils";
 
-const jetbrainsMono = JetBrains_Mono({subsets:['latin'],variable:'--font-mono'});
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+});
 
 const inter = Inter({
   subsets: ["latin"],
@@ -14,8 +17,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Agent Inbox",
-  description: "Agent Inbox UX by LangChain",
+  title: "Nexus",
+  description: "Everything AI can do, Nexus does for you.",
 };
 
 export default function RootLayout({
@@ -24,8 +27,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("font-mono", jetbrainsMono.variable)}>
-      <body className={inter.className}>
+    <html lang="en" className={cn("dark font-mono", jetbrainsMono.variable)}>
+      <body className={cn(inter.className, "antialiased bg-background text-foreground min-h-screen")}>
         <NuqsAdapter>{children}</NuqsAdapter>
       </body>
     </html>
