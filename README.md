@@ -32,12 +32,11 @@ work in parallel → assembled deliverable. Inspired by Perplexity Computer.
 
    **Option A — Vertex AI (recommended):**
    ```
-   GOOGLE_GENAI_USE_VERTEXAI=true
    GOOGLE_CLOUD_PROJECT="your-project-id"
    GOOGLE_CLOUD_LOCATION="us-central1"
    TAVILY_API_KEY="..."
    ```
-   Then run `gcloud auth application-default login` (one-time).
+   Then run `gcloud auth application-default login` (one-time). `@langchain/google` auto-selects Vertex AI whenever ADC is present and no `GOOGLE_API_KEY` is set.
 
    **Option B — API key:**
    ```
