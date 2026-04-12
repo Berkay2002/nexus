@@ -1,7 +1,12 @@
-# Machine-local Obsidian state (regenerated on vault open)
-.obsidian/workspace*
-.obsidian/cache/
-.obsidian/plugins-data/
+# Machine-local Obsidian state (regenerated on vault open).
+# Allowlist approach: ignore everything under .obsidian/ except the two
+# files wikillm's scaffold writes as shared vault config. This keeps
+# personal settings like appearance.json, graph.json, workspace*, and
+# plugin caches out of git automatically — no need to chase new files
+# each time Obsidian adds another state file.
+.obsidian/*
+!.obsidian/app.json
+!.obsidian/community-plugins.json
 
 # Churn-heavy index files (regeneratable via /wikillm:lint)
 wiki/_index/LOG.md
