@@ -6,13 +6,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Nexus is a local-first AI agent platform that takes a single user prompt, orchestrates multiple AI agents (research, code, creative) to work in parallel, and assembles a deliverable. Inspired by Perplexity Computer. Full TypeScript end-to-end. Turborepo monorepo scaffolded from `npx create-agent-chat-app`.
 
+## Knowledge Base — read this before doing anything else
+
+This project has a wikillm knowledge base at `.kb/`. **For ANY question — about libraries, APIs, architecture, conventions, design decisions, framework behavior, or "how does X work" — call `/wikillm:query` BEFORE grepping code, reading files, or answering from training-data memory.** The wiki is the project's compiled understanding of its third-party stack; re-deriving answers from raw sources defeats the entire compile step.
+
+**Anti-patterns (do not do these):**
+
+- **Do not grep or read `.kb/raw/` directly.** Raw sources are the INPUT to the wiki, not a reference. Go through `/wikillm:query`.
+- **Do not answer from training-data memory of LangChain, DeepAgents, AIO Sandbox, Tavily, or any library in the stack.** Your training-data memory is stale and underspecified; the wiki has the version-current API shapes and the Nexus-specific gotchas.
+- **Do not spelunk code when a wiki article exists.** Querying the wiki for "how does CompositeBackend route /memories/" is faster and more accurate than reading `backend/composite.ts` + its tests.
+- **Do not paste library docs into `CLAUDE.md` or `docs/`.** Reference material goes in `.kb/raw/` followed by `/wikillm:ingest`.
+
+**Scope.** The KB covers third-party reference material only. Nothing in `apps/` imports from `.kb/`, and the KB does NOT cover Nexus's own code — for project-specific wiring (function names, which file exports what), read the source directly. Human-authored specs and plans live in `docs/superpowers/` and are NOT part of the KB.
+
 ## Design Spec
 
 The comprehensive design specification lives at `docs/superpowers/specs/2026-04-10-nexus-design.md`. It covers architecture, technology choices, meta-router, orchestrator, sub-agents, workspace conventions, tools, skills, frontend, and an 8-plan implementation decomposition. **Consult this before making architectural decisions.**
-
-## Knowledge Base
-
-Third-party reference material (DeepAgents, LangChain, AIO Sandbox, Tavily, etc.) is compiled into a wikillm knowledge base at `.kb/`. Raw sources live in `.kb/raw/`; the cross-referenced wiki lives in `.kb/wiki/`. Use `/wikillm:query` to answer questions about the stack instead of grepping raw sources — the wiki has already done the synthesis. Drop new reference material into `.kb/raw/` and run `/wikillm:ingest`. The KB is dev-time tooling only — nothing in `apps/` imports from it. Human-authored specs and plans stay in `docs/superpowers/` and are NOT part of the KB.
 
 ## Three-Process Architecture
 
@@ -79,10 +88,6 @@ Key infrastructure files to **preserve** during UI rewrites:
 | Frontend streaming | `@langchain/react` `useStream` hook (subagent streaming, filterSubagentMessages) |
 | UI components | shadcn/ui + AI Elements (`@ai-elements/react`) |
 | Persistence | SQLite + Drizzle ORM via LangGraph StoreBackend |
-
-## Working with Documentation
-
-For questions about libraries, frameworks, APIs, or anything else in `.kb/raw/`, use `/wikillm:query` — don't grep raw sources by hand. See `.kb/CLAUDE.md` for vault conventions.
 
 ## Known Gotchas
 
