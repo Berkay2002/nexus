@@ -1,3 +1,40 @@
 # Sources
 
-Maps raw/ files to wiki articles.
+Maps `raw/` source files to the wiki articles compiled from each. Ingest uses this file to detect which sources have already been processed — if a raw file appears here, it will be skipped on the next `/wikillm:ingest` run.
+
+## Ingested
+
+- `raw/aio-sandbox/README.md` → [[aio-sandbox-overview]], [[aio-sandbox-docker]], [[aio-sandbox-features]], [[agent-infra-sandbox-sdk]]
+- `raw/aio-sandbox/deepagents-example/README.md` → [[aio-sandbox-deepagents-integration]]
+- `raw/custom/exa/search.md` → [[exa-overview]], [[exa-search-api]]
+- `raw/custom/tavily/extract.md` → [[tavily-extract-api]]
+- `raw/custom/tavily/map.md` → [[tavily-map-api]]
+- `raw/custom/tavily/search.md` → [[tavily-overview]], [[tavily-search-api]]
+- `raw/langchain/deepagents/agent-chat-ui.md` → [[agent-chat-ui]]
+- `raw/langchain/deepagents/async-subagents.md` → [[async-subagents]]
+- `raw/langchain/deepagents/backends.md` → [[backends]], [[backend-protocol]], [[composite-backend]], [[filesystem-backend]], [[local-shell-backend]], [[state-backend]], [[store-backend]]
+- `raw/langchain/deepagents/context-engineering.md` → [[context-engineering]], [[context-compression]], [[context-isolation]], [[input-context]]
+- `raw/langchain/deepagents/context.md` → [[context-overview]], [[config-runtime-context]], [[cross-conversation-context]], [[dynamic-runtime-context]]
+- `raw/langchain/deepagents/frontend/ai-elements.md` → [[ai-elements]], [[ai-elements-components]]
+- `raw/langchain/deepagents/frontend/overview.md` → [[deepagents-frontend-overview]]
+- `raw/langchain/deepagents/frontend/sandbox.md` → [[sandbox-ide]], [[frontend-sandbox-components]]
+- `raw/langchain/deepagents/frontend/subagent-streaming.md` → [[subagent-streaming]], [[use-stream-hook]], [[filter-subagent-messages]], [[get-subagents-by-message]]
+- `raw/langchain/deepagents/memory.md` → [[memory]], [[long-term-memory]]
+- `raw/langchain/deepagents/models.md` → [[deepagents-models]], [[init-chat-model]]
+- `raw/langchain/deepagents/overview.md` → [[deep-agents-overview]], [[harness-capabilities]], [[create-deep-agent]], [[todo-list-middleware]], [[filesystem-middleware]]
+- `raw/langchain/deepagents/sandbox.md` → [[deepagents-sandboxes]], [[base-sandbox-protocol]]
+- `raw/langchain/deepagents/skills.md` → [[skills]], [[skill-md-format]]
+- `raw/langchain/deepagents/streaming.md` → [[streaming]], [[stream-modes]], [[subgraph-streaming]]
+- `raw/langchain/deepagents/subagents.md` → [[subagents]], [[subagent-interface]], [[context-quarantine]], [[general-purpose-subagent]]
+- `raw/langchain/langchain/messages.md` → [[langchain-messages]], [[ai-message]], [[tool-message]], [[multimodal-content]]
+- `raw/langchain/langchain/models.md` → [[langchain-models]], [[chat-model-interface]], [[with-structured-output]], [[bind-tools]]
+- `raw/langchain/langchain/tools.md` → [[langchain-tools]], [[tool-decorator]], [[tool-call]], [[zod-tool-schemas]]
+- `raw/langchain/providers/anthropic/anthropic-chat.md` → [[chat-anthropic]]
+- `raw/langchain/providers/anthropic/anthropic.md` → [[anthropic-provider]]
+- `raw/langchain/providers/google/google-chat.md` → [[chat-google-generative-ai]]
+- `raw/langchain/providers/google/google.md` → [[google-provider]]
+- `raw/langchain/providers/openai/openai-chat.md` → [[chat-openai]]
+- `raw/langchain/providers/openai/openai.md` → [[openai-provider]]
+- `raw/references/deepagents-reference.md` → [[deepagents-typescript-reference]]
+- `raw/references/google-gen-ai-reference.md` → [[langchain-google-api-reference]]
+- `raw/what-is-computer.txt` → [[perplexity-computer]]
