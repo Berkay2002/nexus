@@ -10,16 +10,9 @@ Nexus is a local-first AI agent platform that takes a single user prompt, orches
 
 The comprehensive design specification lives at `docs/superpowers/specs/2026-04-10-nexus-design.md`. It covers architecture, technology choices, meta-router, orchestrator, sub-agents, workspace conventions, tools, skills, frontend, and an 8-plan implementation decomposition. **Consult this before making architectural decisions.**
 
-## Documentation
+## Knowledge Base
 
-Each documentation folder contains a `NEXUS.md` index file explaining what's relevant to Nexus and where to find it:
-
-- `docs/langchain/deepagents/` — DeepAgents framework docs (createDeepAgent, backends, subagents, streaming, skills, memory)
-- `docs/langchain/deepagents/frontend/` — Frontend patterns (useStream, AI Elements, subagent cards, sandbox IDE)
-- `docs/langchain/langchain/` — LangChain core (messages, models, tools)
-- `docs/aio-sandbox/` — AIO Sandbox docs and DeepAgents integration example
-- `docs/references/` — API references (deepagents TS package, ChatGoogleGenerativeAI)
-- `docs/custom/` — Tavily and Exa API specs (OpenAPI)
+Third-party reference material (DeepAgents, LangChain, AIO Sandbox, Tavily, etc.) is compiled into a wikillm knowledge base at `.kb/`. Raw sources live in `.kb/raw/`; the cross-referenced wiki lives in `.kb/wiki/`. Use `/wikillm:query` to answer questions about the stack instead of grepping raw sources — the wiki has already done the synthesis. Drop new reference material into `.kb/raw/` and run `/wikillm:ingest`. The KB is dev-time tooling only — nothing in `apps/` imports from it. Human-authored specs and plans stay in `docs/superpowers/` and are NOT part of the KB.
 
 ## Three-Process Architecture
 
@@ -89,7 +82,7 @@ Key infrastructure files to **preserve** during UI rewrites:
 
 ## Working with Documentation
 
-Docs files are large. Always read headers first (`grep ^#{2,3} file.md`), then read targeted chunks. Each docs folder has a NEXUS.md index — check it before diving into raw files.
+For questions about libraries, frameworks, APIs, or anything else in `.kb/raw/`, use `/wikillm:query` — don't grep raw sources by hand. See `.kb/CLAUDE.md` for vault conventions.
 
 ## Known Gotchas
 

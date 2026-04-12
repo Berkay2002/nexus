@@ -62,3 +62,9 @@ desktop.ini
 
 # Claude Code local
 .claude.local.md
+
+# wikillm KB noise (commit raw/, wiki/, and stable Obsidian config only)
+.kb/.obsidian/workspace*
+.kb/.obsidian/cache
+.kb/wiki/_index/LOG.md
+.kb/outputs/

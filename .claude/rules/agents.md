@@ -12,7 +12,7 @@ globs: apps/agents/**,skills/**,memories/**
 - **Parallel independent tasks** → `dispatching-parallel-agents` — e.g., building all 4 Tavily/Exa tools simultaneously
 
 ## Documentation References
-Before implementing agent features, check the relevant NEXUS.md index file in `docs/` for what we need and where to find it. The docs files are large — read headers first, then relevant chunks.
+Before implementing agent features, use `/wikillm:query` against the `.kb/` knowledge base for DeepAgents, LangChain, AIO Sandbox, and Tavily reference material. Don't grep `.kb/raw/` directly — the compiled wiki has already synthesized the sources.
 
 ## Workspace Convention
 All agents write to `/home/gem/workspace/` inside the AIO Sandbox:
