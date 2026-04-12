@@ -1,0 +1,13 @@
+# Machine-local Obsidian state (regenerated on vault open)
+.obsidian/workspace*
+.obsidian/cache/
+.obsidian/plugins-data/
+
+# Churn-heavy index files (regeneratable via /wikillm:lint)
+wiki/_index/LOG.md
+wiki/_index/RECENT.md
+
+# OS junk
+.DS_Store
+Thumbs.db
+*.tmp
