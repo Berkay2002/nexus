@@ -1,5 +1,8 @@
 {
   "defaultViewMode": "source",
   "showLineNumber": true,
-  "useMarkdownLinks": false
+  "useMarkdownLinks": false,
+  "userIgnoreFilters": [
+    "wiki/_index/"
+  ]
 }

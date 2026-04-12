@@ -63,8 +63,6 @@ desktop.ini
 # Claude Code local
 .claude.local.md
 
-# wikillm KB noise (commit raw/, wiki/, and stable Obsidian config only)
-.kb/.obsidian/workspace*
-.kb/.obsidian/cache
-.kb/wiki/_index/LOG.md
+# wikillm KB — per-machine noise (.kb/.gitignore handles Obsidian state;
+# _index/ churn is excluded from the Obsidian graph via userIgnoreFilters)
 .kb/outputs/

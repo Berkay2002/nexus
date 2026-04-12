@@ -8,10 +8,6 @@
 !.obsidian/app.json
 !.obsidian/community-plugins.json
 
-# Churn-heavy index files (regeneratable via /wikillm:lint)
-wiki/_index/LOG.md
-wiki/_index/RECENT.md
-
 # OS junk
 .DS_Store
 Thumbs.db
