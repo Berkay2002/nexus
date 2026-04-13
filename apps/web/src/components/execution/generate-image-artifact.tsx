@@ -84,13 +84,13 @@ export function GenerateImageArtifact({
   if (!parsed) {
     return (
       <Collapsible defaultOpen={defaultOpen}>
-        <Artifact className="mt-2 border-border/60 bg-card/40">
+        <Artifact className="mt-2 rounded-lg border bg-card/50 overflow-hidden">
           <CollapsibleTrigger asChild>
-            <ArtifactHeader className="group cursor-pointer">
+            <ArtifactHeader className="cursor-pointer">
               <ArtifactTitle>{title}</ArtifactTitle>
               <ChevronDown
                 className={cn(
-                  "size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180",
+                  "size-4 shrink-0 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180",
                 )}
               />
             </ArtifactHeader>
@@ -119,9 +119,9 @@ export function GenerateImageArtifact({
   if (imageFiles.length === 0) {
     return (
       <Collapsible defaultOpen={defaultOpen}>
-        <Artifact className="mt-2 border-border/60 bg-card/40">
+        <Artifact className="mt-2 rounded-lg border bg-card/50 overflow-hidden">
           <CollapsibleTrigger asChild>
-            <ArtifactHeader className="group cursor-pointer">
+            <ArtifactHeader className="cursor-pointer">
               <div>
                 <ArtifactTitle>{title}</ArtifactTitle>
                 {promptText ? (
@@ -132,7 +132,7 @@ export function GenerateImageArtifact({
               </div>
               <ChevronDown
                 className={cn(
-                  "size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180",
+                  "size-4 shrink-0 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180",
                 )}
               />
             </ArtifactHeader>
@@ -153,9 +153,9 @@ export function GenerateImageArtifact({
 
   return (
     <Collapsible defaultOpen={defaultOpen}>
-      <Artifact className="mt-2 border-border/60 bg-card/40">
+      <Artifact className="mt-2 rounded-lg border bg-card/50 overflow-hidden">
         <CollapsibleTrigger asChild>
-          <ArtifactHeader className="group cursor-pointer">
+          <ArtifactHeader className="cursor-pointer">
             <div className="min-w-0">
               <ArtifactTitle>{title}</ArtifactTitle>
               {promptText ? (
@@ -166,7 +166,7 @@ export function GenerateImageArtifact({
             </div>
             <ChevronDown
               className={cn(
-                "size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180",
+                "size-4 shrink-0 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180",
               )}
             />
           </ArtifactHeader>

@@ -152,6 +152,9 @@ function toolTitle(toolName: FilesystemToolName): string {
   return "Read file";
 }
 
+const WRAPPED_CODEBLOCK_CLASS =
+  "[&_pre]:whitespace-pre-wrap [&_pre]:break-words [&_code]:break-words";
+
 export function FilesystemToolArtifact({
   toolName,
   args,
@@ -188,9 +191,9 @@ export function FilesystemToolArtifact({
 
   return (
     <Collapsible defaultOpen={defaultOpen}>
-      <Artifact className="mt-2 border-border/60 bg-card/40">
+      <Artifact className="mt-2 rounded-lg border bg-card/50 overflow-hidden">
         <CollapsibleTrigger asChild>
-          <ArtifactHeader className="group cursor-pointer">
+          <ArtifactHeader className="cursor-pointer">
             <div className="min-w-0">
               <ArtifactTitle>{toolTitle(toolName)}</ArtifactTitle>
               <ArtifactDescription className="truncate text-xs">
@@ -199,7 +202,7 @@ export function FilesystemToolArtifact({
             </div>
             <ChevronDown
               className={cn(
-                "size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180",
+                "size-4 shrink-0 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180",
               )}
             />
           </ArtifactHeader>
@@ -208,6 +211,7 @@ export function FilesystemToolArtifact({
           <ArtifactContent className="space-y-2 p-3">
             {toolName !== "read_file" && writeOrEditPreview ? (
               <CodeBlock
+                className={WRAPPED_CODEBLOCK_CLASS}
                 code={writeOrEditPreview}
                 language={previewLanguage}
                 showLineNumbers={false}
@@ -215,6 +219,7 @@ export function FilesystemToolArtifact({
             ) : null}
             {toolName === "read_file" && normalizedReadPreview ? (
               <CodeBlock
+                className={WRAPPED_CODEBLOCK_CLASS}
                 code={normalizedReadPreview}
                 language={previewLanguage}
                 showLineNumbers={true}

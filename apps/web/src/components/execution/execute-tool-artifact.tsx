@@ -91,9 +91,9 @@ export function ExecuteToolArtifact({
 
   return (
     <Collapsible defaultOpen={defaultOpen ?? Boolean(isStreaming)}>
-      <Artifact className="mt-2 border-border/60 bg-card/40">
+      <Artifact className="mt-2 rounded-lg border bg-card/50 overflow-hidden">
         <CollapsibleTrigger asChild>
-          <ArtifactHeader className="group cursor-pointer">
+          <ArtifactHeader className="cursor-pointer">
             <div className="min-w-0">
               <ArtifactTitle>{title}</ArtifactTitle>
               {description ? (
@@ -104,7 +104,7 @@ export function ExecuteToolArtifact({
             </div>
             <ChevronDown
               className={cn(
-                "size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180",
+                "size-4 shrink-0 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180",
               )}
             />
           </ArtifactHeader>
