@@ -1,4 +1,5 @@
 import { createDeepAgent } from "deepagents";
+import { AIMessage, SystemMessage } from "@langchain/core/messages";
 import { AIOSandboxBackend } from "./backend/aio-sandbox.js";
 import { createNexusBackend } from "./backend/composite.js";
 import { getWorkspaceRootForThread } from "./backend/workspace.js";
@@ -22,6 +23,50 @@ interface NexusRunnableConfig {
     threadId?: string;
     [key: string]: unknown;
   };
+}
+
+interface OrchestratorBundle {
+  agent: ReturnType<typeof createNexusOrchestrator>;
+  allowedSubagentTypes: string[];
+}
+
+function buildSubagentAvailabilityMessage(
+  allowedSubagentTypes: string[],
+): SystemMessage {
+  const unique = Array.from(new Set(allowedSubagentTypes));
+  const quotedList = unique.map((name) => `"${name}"`).join(", ");
+  const lines = [
+    `Runtime sub-agent availability: call the task tool only with subagent_type in [${quotedList}].`,
+  ];
+  if (!unique.includes("creative")) {
+    lines.push(
+      'The "creative" sub-agent is unavailable in this runtime (no image-tier provider is configured). If the user requests images, explain this limitation and continue with available sub-agents. Do NOT call task with subagent_type "creative".',
+    );
+  }
+  return new SystemMessage(lines.join("\n"));
+}
+
+function parseAllowedTypesFromTaskError(error: unknown): string[] | null {
+  if (!(error instanceof Error)) return null;
+  const message = error.message;
+  if (
+    !/invoked agent of type/i.test(message) ||
+    !/only allowed types are/i.test(message)
+  ) {
+    return null;
+  }
+  const match = message.match(/only allowed types are\s*([\s\S]*)$/i);
+  if (!match) return null;
+  const cleaned = match[1]
+    .replace(/[`.]/g, "")
+    .replace(/["']/g, "")
+    .trim();
+  if (!cleaned) return null;
+  const parts = cleaned
+    .split(/,|\bor\b/i)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return parts.length > 0 ? parts : null;
 }
 
 /**
@@ -76,10 +121,7 @@ export function createNexusOrchestrator(
 }
 
 // Lazy cache — one orchestrator per thread workspace.
-const orchestratorByThread = new Map<
-  string,
-  ReturnType<typeof createNexusOrchestrator>
->();
+const orchestratorByThread = new Map<string, OrchestratorBundle>();
 
 function resolveThreadId(config?: NexusRunnableConfig): string | undefined {
   const raw = config?.configurable?.thread_id ?? config?.configurable?.threadId;
@@ -97,8 +139,12 @@ function getOrchestrator(threadId?: string) {
 
   const workspaceRoot = getWorkspaceRootForThread(threadId);
   const orchestrator = createNexusOrchestrator(undefined, workspaceRoot);
-  orchestratorByThread.set(key, orchestrator);
-  return orchestrator;
+  const allowedSubagentTypes = getNexusSubagents().map((subagent) =>
+    subagent.name.trim(),
+  );
+  const bundle = { agent: orchestrator, allowedSubagentTypes };
+  orchestratorByThread.set(key, bundle);
+  return bundle;
 }
 
 /**
@@ -114,7 +160,7 @@ export async function orchestratorNode(
   config?: NexusRunnableConfig,
 ): Promise<Partial<NexusState>> {
   const threadId = resolveThreadId(config);
-  const orchestrator = getOrchestrator(threadId);
+  const { agent: orchestrator, allowedSubagentTypes } = getOrchestrator(threadId);
 
   const tierForComplexity: Tier =
     state.routerResult?.complexity === "trivial" ? "classifier" : "default";
@@ -129,15 +175,50 @@ export async function orchestratorNode(
   const orchestratorOverride = modelsByRole?.["orchestrator"];
   const selectedModel = orchestratorOverride ?? classifierResolvedString;
 
-  const result = await orchestrator.invoke(
-    {
-      messages: state.messages,
-      files: nexusSkillFiles,
-    },
-    {
-      context: { model: selectedModel, models: modelsByRole, threadId },
-    },
+  const availabilityMessage = buildSubagentAvailabilityMessage(
+    allowedSubagentTypes,
   );
+  const baseMessages = [availabilityMessage, ...state.messages];
 
-  return { messages: result.messages };
+  const invokeInput = {
+    messages: baseMessages,
+    files: nexusSkillFiles,
+  };
+
+  const invokeConfig = {
+    context: { model: selectedModel, models: modelsByRole, threadId },
+  };
+
+  try {
+    const result = await orchestrator.invoke(invokeInput, invokeConfig);
+    return { messages: result.messages };
+  } catch (error) {
+    const allowedFromError = parseAllowedTypesFromTaskError(error);
+    if (!allowedFromError) {
+      throw error;
+    }
+
+    const retryConstraint = new SystemMessage(
+      `Your previous task call used an unavailable sub-agent type. Allowed sub-agent types for this run: ${allowedFromError.join(", ")}. Revise your plan and continue using only these types.`,
+    );
+
+    try {
+      const retryResult = await orchestrator.invoke(
+        {
+          messages: [availabilityMessage, retryConstraint, ...state.messages],
+          files: nexusSkillFiles,
+        },
+        invokeConfig,
+      );
+      return { messages: retryResult.messages };
+    } catch {
+      return {
+        messages: [
+          new AIMessage(
+            `Warning: creative/image delegation is unavailable in this runtime. Available sub-agents: ${allowedFromError.join(", ")}. I skipped the unavailable agent so the run does not fail hard.`,
+          ),
+        ],
+      };
+    }
+  }
 }
