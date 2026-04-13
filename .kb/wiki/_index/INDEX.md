@@ -10,6 +10,7 @@ Content catalog of the Nexus knowledge base, grouped by domain. Use `/wikillm:qu
 - [[deepagents-typescript-reference]] — The `deepagents` npm package surface (FileData V1/V2, exports)
 - [[todo-list-middleware]] — The `write_todos` planning tool
 - [[filesystem-middleware]] — The virtual filesystem tool surface
+- [[deepagents-human-in-the-loop]] — DeepAgents HITL via `interruptOn` (distinct from LangGraph `interrupt()`)
 
 ## DeepAgents — Subagents
 
@@ -64,12 +65,43 @@ Content catalog of the Nexus knowledge base, grouped by domain. Use `/wikillm:qu
 - [[ai-elements-components]] — AI Elements component catalog
 - [[agent-chat-ui]] — LangChain's Agent Chat UI scaffold
 
-## LangGraph Core
+## LangGraph — Core & Runtime
 
 - [[context-overview]] — LangGraph context mechanisms (config/state/store)
 - [[config-runtime-context]] — The `configurable` key at invoke time
 - [[dynamic-runtime-context]] — LangGraph state as short-term memory
 - [[cross-conversation-context]] — LangGraph Store for persistence
+- [[langgraph-runtime]] — The Pregel BSP runtime model (Plan/Execute/Update phases)
+- [[pregel]] — `Pregel` class API reference
+- [[actors-and-channels]] — PregelNode actors, LastValue / Topic / BinaryOperatorAggregate channels
+
+## LangGraph — Persistence
+
+- [[langgraph-persistence]] — Umbrella: why persistence matters; the four features it enables
+- [[checkpointer]] — `BaseCheckpointSaver`, `MemorySaver`, SQLite/Postgres/Mongo/Redis
+- [[threads]] — `thread_id` as persistent cursor
+- [[checkpoints]] — `StateSnapshot`, super-steps, pending writes
+- [[langgraph-store]] — Cross-thread Store primitive (distinct from DeepAgents `StoreBackend`)
+- [[durable-execution]] — Pause/resume model + determinism rules
+- [[durability-modes]] — `sync` / `async` / `exit` mode comparison
+
+## LangGraph — Interrupts & Human-in-the-Loop
+
+- [[langgraph-interrupts]] — `interrupt()` semantics and `__interrupt__` field
+- [[human-in-the-loop]] — LangGraph HITL pattern (approval, review-and-edit, multi-branch)
+- [[command-resume]] — `Command({ resume })` mechanism for resuming interrupts
+
+## LangGraph — Deployment & Tooling
+
+- [[langgraph-application-structure]] — Directory layout for deployable LangGraph apps
+- [[langgraph-config-file]] — `langgraph.json` schema reference
+- [[langgraph-local-server]] — Running the LangGraph dev server on `:2024`
+- [[langgraph-cli]] — `@langchain/langgraph-cli` commands
+- [[langgraph-testing]] — Custom-structure graph testing patterns
+
+## LangSmith
+
+- [[langsmith-studio]] — Visual debugger for local LangChain/LangGraph agents
 
 ## LangChain Core
 
@@ -85,6 +117,16 @@ Content catalog of the Nexus knowledge base, grouped by domain. Use `/wikillm:qu
 - [[tool-decorator]] — The `tool()` factory
 - [[tool-call]] — ToolCall round-trip
 - [[zod-tool-schemas]] — Zod schemas for tool args
+
+## LangChain — Testing & Evals
+
+- [[langchain-testing-overview]] — Umbrella for the three testing layers
+- [[langchain-unit-testing]] — Unit tests with `fakeModel` + in-memory persistence
+- [[fake-model]] — The `fakeModel` fixture reference
+- [[langchain-integration-testing]] — Real-API integration tests with vitest
+- [[agent-evals]] — Trajectory evaluation with the `agentevals` package
+- [[trajectory-match-evaluator]] — Deterministic trajectory matching (`strict` / `unordered` / `subset` / `superset`)
+- [[llm-as-judge-evaluator]] — Qualitative LLM-judge evaluation
 
 ## Providers
 

@@ -1,8 +1,8 @@
 ---
 created: 2026-04-12
-updated: 2026-04-12
+updated: 2026-04-13
 tags: [langgraph, context-engineering, persistence, memory]
-sources: [raw/langchain/deepagents/context.md]
+sources: [raw/langchain/deepagents/context.md, raw/langchain/langgraph/persistence.md]
 ---
 
 # Cross-Conversation Context
@@ -22,7 +22,9 @@ Data that must outlive an invocation belongs here:
 
 The Store is a key-value store with a namespace/key addressing scheme. Agents read from it to populate context at the start of a run and write to it to record new information. Unlike [[dynamic-runtime-context]] (state), writes to the Store are not rolled back if a run fails — they are committed immediately.
 
-In Nexus, the [[store-backend]] (SQLite-backed via Drizzle ORM) implements the Store interface. The `CompositeBackend` routes `/memories/` paths to the `StoreBackend` so the orchestrator's long-term memory is separate from the ephemeral AIO Sandbox workspace.
+For the full Store API — namespaces, `store.put`, `store.search`, semantic search, and cross-thread access patterns — see [[langgraph-store]].
+
+In Nexus, the [[store-backend]] (SQLite-backed via Drizzle ORM) implements the Store interface. The `CompositeBackend` routes `/memories/` paths to the `StoreBackend` so the orchestrator's long-term memory is separate from the ephemeral AIO Sandbox workspace. `StoreBackend` is the DeepAgents adapter wrapping the [[langgraph-store]] primitive.
 
 ## Contrast with Runtime Context
 
@@ -35,16 +37,17 @@ In Nexus, the [[store-backend]] (SQLite-backed via Drizzle ORM) implements the S
 
 ## Enabling Memory in LangGraph
 
-To persist state across runs (making the state object itself durable), configure a LangGraph checkpointer and pass a `thread_id` via [[config-runtime-context]]. This is distinct from the Store — the checkpointer snapshots the full state graph; the Store holds arbitrary named facts.
+To persist state across runs (making the state object itself durable), configure a [[checkpointer]] and pass a `thread_id` via [[config-runtime-context]]. This is distinct from the Store — the checkpointer snapshots the full state graph per [[threads|thread]]; the Store holds arbitrary named facts across threads. For the full persistence model, see [[langgraph-persistence]].
 
 ## Related
 
+- [[langgraph-persistence]]
+- [[langgraph-store]]
 - [[context-overview]]
 - [[config-runtime-context]]
-- [[dynamic-runtime-context]]
 - [[store-backend]]
-- [[memory]]
 
 ## Sources
 
 - `raw/langchain/deepagents/context.md` — Store as long-term memory, user profiles and persistent facts use case
+- `raw/langchain/langgraph/persistence.md` — LangGraph Store primitive, cross-thread access, checkpointer vs store distinction

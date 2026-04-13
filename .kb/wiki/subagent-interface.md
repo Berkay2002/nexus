@@ -1,8 +1,8 @@
 ---
 created: 2026-04-12
-updated: 2026-04-12
+updated: 2026-04-13
 tags: [deepagents, subagent, task-delegation, orchestration]
-sources: [raw/langchain/deepagents/subagents.md]
+sources: [raw/langchain/deepagents/subagents.md, raw/langchain/deepagents/customize.md]
 ---
 
 # SubAgent Interface
@@ -21,7 +21,7 @@ Defined by the `SubAgent` TypeScript type from `deepagents`. Fields:
 | `tools` | `Callable[]` | Yes | Tool list. **Does not inherit** from the main agent — specify exactly what this subagent needs. |
 | `model` | `string \| BaseChatModel` | No | Overrides the main agent's model. Accepts `"provider:model-id"` strings (e.g., `"openai:gpt-5"`) or a LangChain model instance. Defaults to main agent's model. |
 | `middleware` | `Middleware[]` | No | Additional middleware (logging, rate limiting, etc.). Does not inherit. |
-| `interrupt_on` | `dict<string, bool>` | No | Human-in-the-loop config per tool. Requires a checkpointer. Subagent value overrides the main agent's default. |
+| `interruptOn` | `Record<string, boolean \| InterruptOnConfig>` | No | Human-in-the-loop config per tool. Requires a checkpointer on the main agent. Subagent value overrides the main agent's default. See [[deepagents-human-in-the-loop]]. |
 | `skills` | `string[]` | No | Filesystem paths to skill directories (e.g., `["/skills/research/"]`). **Does not inherit** main agent's skills. Only the [[general-purpose-subagent]] auto-inherits skills. When set, the subagent runs its own isolated `SkillsMiddleware` instance — skill state is fully isolated in both directions. |
 
 ### Inheritance summary
@@ -32,7 +32,7 @@ Defined by the `SubAgent` TypeScript type from `deepagents`. Fields:
 | `tools` | No — must define explicitly |
 | `model` | Yes — inherits if omitted |
 | `middleware` | No |
-| `interrupt_on` | Yes — subagent overrides default |
+| `interruptOn` | Yes — subagent overrides default |
 | `skills` | No — only GP subagent inherits |
 
 ### Minimal example
@@ -105,3 +105,4 @@ When using the DeepAgents CLI, subagents can be defined as `AGENTS.md` files on 
 ## Sources
 
 - `raw/langchain/deepagents/subagents.md` — SubAgent and CompiledSubAgent field tables, code examples, inheritance notes
+- `raw/langchain/deepagents/customize.md` — corrected `interruptOn` TypeScript camelCase parameter name (was incorrectly `interrupt_on`)

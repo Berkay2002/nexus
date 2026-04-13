@@ -1,8 +1,8 @@
 ---
 created: 2026-04-12
-updated: 2026-04-12
+updated: 2026-04-13
 tags: [deepagents, agent-harness, orchestration, middleware]
-sources: [raw/langchain/deepagents/overview.md]
+sources: [raw/langchain/deepagents/overview.md, raw/langchain/deepagents/customize.md]
 ---
 
 # Harness Capabilities
@@ -71,17 +71,20 @@ Security and reproducibility rationale: agents run code in isolation, protecting
 
 ## 6. Human-in-the-Loop (HITL)
 
-Opt-in via the `interrupt_on` parameter on [[create-deep-agent]].
+Opt-in via the `interruptOn` parameter on [[create-deep-agent]]. Requires a `checkpointer`.
 
-- Map tool names to interrupt configurations, e.g., `interrupt_on: { edit_file: true }`
-- Agent pauses before executing the matched tool call
-- Human can approve, reject, or modify the tool inputs before execution resumes
+- Map tool names to `true` (approve/edit/reject), `false` (never interrupt), or `InterruptOnConfig` (restrict available decisions)
+- Agent pauses **before** executing the matched tool call
+- Human can approve, edit tool inputs, or reject the call; behaviour depends on `allowedDecisions`
 - Useful for: safety gates on destructive ops, verification before expensive API calls, interactive debugging
+
+See [[deepagents-human-in-the-loop]] for the full API surface and examples.
 
 ## Related
 
 - [[deep-agents-overview]]
 - [[create-deep-agent]]
+- [[deepagents-human-in-the-loop]]
 - [[todo-list-middleware]]
 - [[filesystem-middleware]]
 - [[subagents]]
@@ -89,3 +92,4 @@ Opt-in via the `interrupt_on` parameter on [[create-deep-agent]].
 ## Sources
 
 - `raw/langchain/deepagents/overview.md` — all six capability sections with feature bullets and how-it-works descriptions
+- `raw/langchain/deepagents/customize.md` — HITL section: interruptOn parameter name correction, allowedDecisions shape, checkpointer requirement

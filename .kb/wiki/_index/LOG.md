@@ -1,5 +1,45 @@
 # Log
 
+## [2026-04-13 18:00] ingest | LangGraph core + LangChain testing + LangSmith Studio — 13 sources → 26 new articles, 5 updated
+
+Parallel ingest dispatch with 13 `ingest-worker` subagents (Sonnet 4.6), one per source, with a concept assignment table to prevent duplicate article creation.
+
+**Sources processed:**
+- `raw/langchain/deepagents/customize.md` → 1 new + 4 existing articles updated
+- `raw/langchain/langchain/langsmith-studio.md` → [[langsmith-studio]]
+- `raw/langchain/langchain/test/overview.md` → [[langchain-testing-overview]]
+- `raw/langchain/langchain/test/unit-testing.md` → [[langchain-unit-testing]], [[fake-model]]
+- `raw/langchain/langchain/test/integration-testing.md` → [[langchain-integration-testing]]
+- `raw/langchain/langchain/test/agent-evals.md` → [[agent-evals]], [[trajectory-match-evaluator]], [[llm-as-judge-evaluator]]
+- `raw/langchain/langgraph/application-structure.md` → [[langgraph-application-structure]], [[langgraph-config-file]]
+- `raw/langchain/langgraph/local-server.md` → [[langgraph-local-server]], [[langgraph-cli]]
+- `raw/langchain/langgraph/persistence.md` → [[langgraph-persistence]], [[checkpointer]], [[threads]], [[checkpoints]], [[langgraph-store]] (+ update to [[cross-conversation-context]])
+- `raw/langchain/langgraph/durable-execution.md` → [[durable-execution]], [[durability-modes]]
+- `raw/langchain/langgraph/interrupts.md` → [[langgraph-interrupts]], [[human-in-the-loop]], [[command-resume]]
+- `raw/langchain/langgraph/runtime.md` → [[langgraph-runtime]], [[pregel]], [[actors-and-channels]]
+- `raw/langchain/langgraph/test.md` → [[langgraph-testing]]
+
+**Updated existing articles (from customize.md):**
+- [[create-deep-agent]] — parameter table rewrite; `interrupt_on` → `interruptOn` fix; middleware list expanded 4→9; WARNING callouts added
+- [[deepagents-models]] — added Connection Resilience section (`maxRetries`, `timeout`); WARNING about default=6
+- [[harness-capabilities]] — fixed HITL section (`interruptOn`, `allowedDecisions`, checkpointer requirement)
+- [[subagent-interface]] — fixed `interrupt_on` → `interruptOn` in SubAgent field table
+- [[cross-conversation-context]] — linked into new persistence cluster
+
+**Key gotchas surfaced:**
+- `interruptOn` (TypeScript) — two existing articles had the Python-style `interrupt_on`; corrected. Checkpointer is REQUIRED for HITL to function.
+- `maxRetries` defaults to **6**, not unlimited — important for long-running Nexus agents.
+- `thread_id` silently stateless if omitted — state will not persist, no error raised.
+- `fakeModel` throws (does not hang) if invoked more times than responses queued.
+- AgentEvals `subset` mode passes on **zero** tool calls (empty set is subset of any set).
+- LangGraph `test.md` is for custom StateGraph structures; `createAgent` users need [[langchain-unit-testing]].
+- Safari blocks LangSmith Studio `localhost` connections — use `--tunnel` flag.
+- Vitest does not reliably auto-load `.env` — use `source .env && export VAR_NAME` before integration runs.
+- Pregel runtime writes are invisible during the Execute phase; only visible after Update.
+- DeepAgents HITL (`interruptOn` / `HumanInTheLoopMiddleware`) is distinct from LangGraph `interrupt()` — cross-linked.
+
+**Reconciliation:** No duplicate articles detected. All 26 new files present in `wiki/`. Indices rebuilt (INDEX, TAGS, SOURCES, RECENT). Single batch commit.
+
 ## [2026-04-12 20:20] create | Knowledge base initialized
 Created nexus-kb knowledge base (project-solo mode).
 

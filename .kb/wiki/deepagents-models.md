@@ -1,8 +1,8 @@
 ---
 created: 2026-04-12
-updated: 2026-04-12
+updated: 2026-04-13
 tags: [deepagents, models, configurable-model, provider-agnostic, tier-routing]
-sources: [raw/langchain/deepagents/models.md]
+sources: [raw/langchain/deepagents/models.md, raw/langchain/deepagents/customize.md]
 ---
 
 # DeepAgents Model Configuration
@@ -95,6 +95,30 @@ The default model passed to `createDeepAgent` acts as a fallback when no `contex
 
 Each [[subagent-interface|SubAgent]] can carry its own model or inherit from the orchestrator. Because each subagent is constructed independently, you pass a different model string or instance to each `SubAgent` definition. Nexus uses this to assign tier-appropriate models: `deep-research` tier for the research subagent, `code` tier for the code subagent.
 
+### Connection Resilience
+
+LangChain chat models automatically retry failed API requests with exponential backoff. Default behaviour:
+
+- **6 retries** for network errors, rate limits (HTTP 429), and server errors (5xx)
+- **No retry** for client errors (401 unauthorized, 404 not found)
+
+For long-running agent tasks on unreliable networks, increase `maxRetries` and pair with a checkpointer to preserve progress across failures:
+
+```typescript
+import { ChatAnthropic } from "@langchain/anthropic";
+
+const agent = createDeepAgent({
+  model: new ChatAnthropic({
+    model: "claude-sonnet-4-6",
+    maxRetries: 10,       // default: 6; increase for flaky networks
+    timeout: 120_000,     // milliseconds; increase for slow connections
+  }),
+});
+```
+
+> [!WARNING]
+> `maxRetries` defaults to **6**, not unlimited. On unreliable networks or with expensive long-running tasks, you should explicitly increase this to 10–15 and add a checkpointer so partial progress is not lost on a hard failure.
+
 ### Provider-Agnostic Pattern
 
 The `provider:model` string format decouples code from provider SDKs — the same string can be swapped across deployments by changing config rather than code. Combined with the configurable-model middleware, you get a fully provider-agnostic pipeline: default model is set at agent construction, per-call override comes in through `context`, and [[init-chat-model]] handles instantiation in both cases.
@@ -110,3 +134,4 @@ The `provider:model` string format decouples code from provider SDKs — the sam
 ## Sources
 
 - `raw/langchain/deepagents/models.md` — provider:model string format, initChatModel usage, configurable-model middleware pattern, suggested models table
+- `raw/langchain/deepagents/customize.md` — connection resilience section: maxRetries default (6), timeout parameter, checkpointer pairing recommendation

@@ -2,23 +2,23 @@
 
 Last 20 wiki articles changed, most recent first.
 
-- [[agent-protocol]] — 2026-04-13 — created (stub for async-subagents transport layer)
-- [[async-subagents]] — 2026-04-13 — lint: resolved 3 broken wikilinks to `agent-protocol`
-- [[create-deep-agent]] — 2026-04-13 — lint: unlinked broken `configurable-model`; added `deepagents-typescript-reference` ref
-- [[ai-elements]] — 2026-04-13 — lint: unlinked broken `shadcn-ui` (now plain text)
-- [[deep-agents-overview]] — 2026-04-13 — lint: added refs to `deepagents-typescript-reference` and `perplexity-computer` to connect outliers
-- [[google-provider]] — 2026-04-13 — lint: added `langchain-google-api-reference` bridge
-- [[chat-google-generative-ai]] — 2026-04-13 — lint: added `langchain-google-api-reference` ref
-- [[tavily-search-api]] — 2026-04-13 — lint: added `exa-search-api`/`exa-overview` cross-links
-- [[use-stream-hook]] — 2026-04-13 — lint: bridged to core cluster (`streaming`, `stream-modes`, `langchain-messages`)
-- [[context-engineering]] — 2026-04-13 — lint: cross-link to `context-overview`
-- [[deepagents-frontend-overview]] — 2026-04-13 — lint: strengthened bridges (`ai-elements-components`, `deep-agents-overview`, `streaming`)
-- [[deep-agents-overview]] — 2026-04-12 — created (umbrella DeepAgents harness overview)
-- [[composite-backend]] — 2026-04-12 — created (Nexus's primary backend routing pattern)
-- [[subagents]] — 2026-04-12 — created (synchronous subagent delegation)
-- [[general-purpose-subagent]] — 2026-04-12 — created (GP subagent gotcha documented)
-- [[tavily-map-api]] — 2026-04-12 — created (with `results` vs `urls` gotcha)
-- [[filter-subagent-messages]] — 2026-04-12 — created (typing workaround gotcha)
-- [[deepagents-typescript-reference]] — 2026-04-12 — created (FileData V1/V2 gotcha)
-- [[aio-sandbox-overview]] — 2026-04-12 — created
-- [[perplexity-computer]] — 2026-04-12 — created (Nexus design inspiration)
+- [[langgraph-persistence]] — 2026-04-13 — created (umbrella: checkpointer, threads, checkpoints, store)
+- [[checkpointer]] — 2026-04-13 — created (BaseCheckpointSaver + library implementations)
+- [[langgraph-store]] — 2026-04-13 — created (cross-thread Store primitive; distinct from DeepAgents StoreBackend)
+- [[langgraph-interrupts]] — 2026-04-13 — created (`interrupt()`, `__interrupt__`, dynamic vs static)
+- [[human-in-the-loop]] — 2026-04-13 — created (LangGraph HITL pattern; distinct from DeepAgents `interruptOn`)
+- [[deepagents-human-in-the-loop]] — 2026-04-13 — created (DeepAgents HITL via `interruptOn`)
+- [[durable-execution]] — 2026-04-13 — created (pause/resume model + determinism rules)
+- [[durability-modes]] — 2026-04-13 — created (`sync` / `async` / `exit` comparison)
+- [[langgraph-runtime]] — 2026-04-13 — created (Pregel BSP model)
+- [[pregel]] — 2026-04-13 — created (Pregel class API reference)
+- [[actors-and-channels]] — 2026-04-13 — created (PregelNode, LastValue, Topic, BinaryOperatorAggregate)
+- [[langgraph-local-server]] — 2026-04-13 — created (dev server on :2024)
+- [[langgraph-cli]] — 2026-04-13 — created (`@langchain/langgraph-cli` commands)
+- [[langgraph-application-structure]] — 2026-04-13 — created (directory layout + deployment prep)
+- [[langgraph-config-file]] — 2026-04-13 — created (`langgraph.json` reference)
+- [[langsmith-studio]] — 2026-04-13 — created (visual agent debugger)
+- [[agent-evals]], [[trajectory-match-evaluator]], [[llm-as-judge-evaluator]] — 2026-04-13 — created (AgentEvals package)
+- [[langchain-testing-overview]], [[langchain-unit-testing]], [[fake-model]], [[langchain-integration-testing]], [[langgraph-testing]] — 2026-04-13 — created (testing stack)
+- [[create-deep-agent]] — 2026-04-13 — updated (param table rewrite, `interruptOn` fix, 9 middleware list)
+- [[cross-conversation-context]] — 2026-04-13 — updated (linked to new `langgraph-persistence` cluster)
