@@ -18,9 +18,18 @@ Auto-provisioned sandbox tools:
 - **Filesystem tools**: ls, read_file, write_file, edit_file, glob, grep
 
 Runtime API tools:
-- **sandbox_code_execute**: Execute Python/JavaScript snippets via /v1/code/execute
+- **sandbox_code_execute**: Execute Python/JavaScript snippets via /v1/code/execute (stateless)
+- **sandbox_code_info**: List supported runtimes and per-language version/timeout limits
+- **sandbox_nodejs_execute**: Execute Node.js scripts with optional stdin and helper-file injection
+- **sandbox_nodejs_info**: Inspect node/npm versions and runtime metadata
 - **sandbox_jupyter_create_session**: Create a persistent Jupyter kernel session
-- **sandbox_jupyter_execute**: Execute Python in Jupyter (optionally with session_id for stateful runs)
+- **sandbox_jupyter_execute**: Execute Python in Jupyter (pass session_id for stateful runs)
+- **sandbox_jupyter_info**: Inspect available kernels, active session count, and limits
+- **sandbox_jupyter_list_sessions**: Enumerate active Jupyter sessions to find one to reuse
+- **sandbox_jupyter_delete_session**: Tear down a single Jupyter session by id when finished
+- **sandbox_mcp_list_servers**: List MCP servers registered in the sandbox
+- **sandbox_mcp_list_tools**: List the tool manifest exposed by one MCP server
+- **sandbox_mcp_execute_tool**: Invoke an MCP tool by name (always check is_error in the response)
 
 ## Workflow
 1. Read any input files or context from the workspace paths provided in your task description
