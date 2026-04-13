@@ -4,6 +4,7 @@
 import { SubagentCard } from "./subagent-card";
 import { SynthesisIndicator } from "./synthesis-indicator";
 import { MarkdownText } from "@/components/thread/markdown-text";
+import { Terminal } from "@/components/ai-elements/terminal";
 import { DO_NOT_RENDER_ID_PREFIX } from "@/lib/ensure-tool-responses";
 import {
   ChainOfThought,
@@ -41,6 +42,22 @@ function getToolCalls(message: any): any[] {
   return message.tool_calls ?? message.additional_kwargs?.tool_calls ?? [];
 }
 
+function buildToolResultMap(messages: any[]): Map<string, string> {
+  const resultByCallId = new Map<string, string>();
+
+  for (const message of messages) {
+    const isTool = message?.type === "tool" || message?._getType?.() === "tool";
+    if (!isTool || !message?.tool_call_id) continue;
+
+    const content = getContentString(message?.content).trim();
+    if (content) {
+      resultByCallId.set(message.tool_call_id, content);
+    }
+  }
+
+  return resultByCallId;
+}
+
 /** Map tool names to display-friendly labels and icons */
 const TOOL_DISPLAY: Record<string, { label: string; icon: typeof WrenchIcon }> = {
   tavily_search: { label: "Searching the web", icon: SearchIcon },
@@ -51,6 +68,7 @@ const TOOL_DISPLAY: Record<string, { label: string; icon: typeof WrenchIcon }> =
   // DeepAgents dispatches sub-agents via the `task` tool (see
   // deepagents/dist/index.cjs:1932 and langgraph-sdk `DEFAULT_SUBAGENT_TOOL_NAMES`).
   task: { label: "Dispatching agent", icon: GitBranchIcon },
+  execute: { label: "Running code", icon: CodeIcon },
   execute_code: { label: "Running code", icon: CodeIcon },
 };
 
@@ -83,11 +101,13 @@ function OrchestratorMessage({
   subagents,
   isLastMessage,
   isLoading,
+  toolResultByCallId,
 }: {
   message: any;
   subagents: any[];
   isLastMessage: boolean;
   isLoading: boolean;
+  toolResultByCallId: Map<string, string>;
 }) {
   const content = getContentString(message.content);
   const toolCalls: any[] =
@@ -210,6 +230,8 @@ function OrchestratorMessage({
             // For other tools (search, extract, etc.)
             const description =
               tc.args?.query ?? tc.args?.url ?? tc.args?.description ?? undefined;
+            const isExecuteTool = toolName === "execute" || toolName === "execute_code";
+            const toolOutput = tc.id ? toolResultByCallId.get(tc.id) : undefined;
 
             return (
               <ChainOfThoughtStep
@@ -218,7 +240,13 @@ function OrchestratorMessage({
                 label={display.label}
                 description={typeof description === "string" ? description : undefined}
                 status={isActive && i === toolCalls.length - 1 ? "active" : "complete"}
-              />
+              >
+                {isExecuteTool && toolOutput ? (
+                  <div className="mt-1">
+                    <Terminal output={toolOutput} isStreaming={isActive && i === toolCalls.length - 1} />
+                  </div>
+                ) : null}
+              </ChainOfThoughtStep>
             );
           })}
 
@@ -280,6 +308,7 @@ export function MessageFeed({
   const filteredMessages = messages.filter(
     (m) => !m.id?.startsWith(DO_NOT_RENDER_ID_PREFIX),
   );
+  const toolResultByCallId = buildToolResultMap(filteredMessages);
 
   return (
     <div className="flex flex-col gap-5 py-6 px-4 w-full max-w-3xl mx-auto">
@@ -322,6 +351,7 @@ export function MessageFeed({
             subagents={subs}
             isLastMessage={index === filteredMessages.length - 1}
             isLoading={isLoading}
+            toolResultByCallId={toolResultByCallId}
           />
         );
       })}

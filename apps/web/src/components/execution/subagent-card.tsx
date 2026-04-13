@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { MarkdownText } from "@/components/thread/markdown-text";
+import { Terminal } from "@/components/ai-elements/terminal";
 
 function getContentString(content: unknown): string {
   if (typeof content === "string") return content;
@@ -59,6 +60,7 @@ const SUB_TOOL_DISPLAY: Record<
   generate_image: { label: "Generating image", icon: ImageIcon },
   write_todos: { label: "Writing plan", icon: ListTodoIcon },
   task: { label: "Dispatching agent", icon: GitBranchIcon },
+  execute: { label: "Running code", icon: CodeIcon },
   execute_code: { label: "Running code", icon: CodeIcon },
   ls: { label: "Listing files", icon: GlobeIcon },
   read_file: { label: "Reading file", icon: GlobeIcon },
@@ -174,6 +176,7 @@ type SubStep =
       name: string;
       args: any;
       done: boolean;
+      output?: string;
     };
 
 function parseJsonString(value: unknown): Record<string, unknown> | null {
@@ -275,9 +278,18 @@ function collectCreatedFiles(messages: any[]): string[] {
  */
 function buildSubagentSteps(messages: any[]): SubStep[] {
   const doneToolCallIds = new Set<string>();
+  const toolResultByCallId = new Map<string, string>();
+
   for (const m of messages) {
     const isTool = m?.type === "tool" || m?._getType?.() === "tool";
-    if (isTool && m.tool_call_id) doneToolCallIds.add(m.tool_call_id);
+    if (!isTool || !m.tool_call_id) continue;
+
+    doneToolCallIds.add(m.tool_call_id);
+    const contentText = getContentString(m.content) || extractText(m.content);
+    const normalized = contentText.trim();
+    if (normalized) {
+      toolResultByCallId.set(m.tool_call_id, normalized);
+    }
   }
 
   const steps: SubStep[] = [];
@@ -302,6 +314,7 @@ function buildSubagentSteps(messages: any[]): SubStep[] {
         name: tc.name ?? "tool",
         args: tc.args ?? tc.arguments ?? {},
         done: tc.id ? doneToolCallIds.has(tc.id) : false,
+        output: tc.id ? toolResultByCallId.get(tc.id) : undefined,
       });
     }
   });
@@ -443,6 +456,7 @@ function StepsList({
         const Icon = display.icon;
         const description = describeToolArgs(step.args);
         const stepActive = isLast && isRunning && !step.done;
+        const isExecuteTool = step.name === "execute" || step.name === "execute_code";
         return (
           <div
             key={step.key}
@@ -471,6 +485,11 @@ function StepsList({
                 <span className="text-muted-foreground/70 truncate">
                   {description}
                 </span>
+              )}
+              {isExecuteTool && step.output && (
+                <div className="mt-2">
+                  <Terminal output={step.output} isStreaming={stepActive} />
+                </div>
               )}
             </div>
           </div>
