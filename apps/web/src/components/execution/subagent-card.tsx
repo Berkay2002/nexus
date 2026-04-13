@@ -32,6 +32,7 @@ import {
 import { useEffect, useState } from "react";
 import { MarkdownText } from "@/components/thread/markdown-text";
 import { ExecuteToolArtifact } from "./execute-tool-artifact";
+import { GenerateImageArtifact } from "./generate-image-artifact";
 
 function getContentString(content: unknown): string {
   if (typeof content === "string") return content;
@@ -457,6 +458,7 @@ function StepsList({
         const description = describeToolArgs(step.args);
         const stepActive = isLast && isRunning && !step.done;
         const isExecuteTool = step.name === "execute" || step.name === "execute_code";
+        const isGenerateImageTool = step.name === "generate_image";
         return (
           <div
             key={step.key}
@@ -493,6 +495,13 @@ function StepsList({
                   isStreaming={stepActive}
                   output={step.output}
                   title="Subagent execution"
+                />
+              )}
+              {isGenerateImageTool && step.output && (
+                <GenerateImageArtifact
+                  output={step.output}
+                  prompt={typeof step.args?.prompt === "string" ? step.args.prompt : undefined}
+                  title="Subagent image output"
                 />
               )}
             </div>

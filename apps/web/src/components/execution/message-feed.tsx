@@ -3,6 +3,7 @@
 
 import { SubagentCard } from "./subagent-card";
 import { SynthesisIndicator } from "./synthesis-indicator";
+import { GenerateImageArtifact } from "./generate-image-artifact";
 import { MarkdownText } from "@/components/thread/markdown-text";
 import { ExecuteToolArtifact } from "./execute-tool-artifact";
 import { DO_NOT_RENDER_ID_PREFIX } from "@/lib/ensure-tool-responses";
@@ -231,6 +232,7 @@ function OrchestratorMessage({
             const description =
               tc.args?.query ?? tc.args?.url ?? tc.args?.description ?? undefined;
             const isExecuteTool = toolName === "execute" || toolName === "execute_code";
+            const isGenerateImageTool = toolName === "generate_image";
             const toolOutput = tc.id ? toolResultByCallId.get(tc.id) : undefined;
 
             return (
@@ -248,6 +250,13 @@ function OrchestratorMessage({
                     isStreaming={isActive && i === toolCalls.length - 1}
                     output={toolOutput}
                     title="Orchestrator execution"
+                  />
+                ) : null}
+                {isGenerateImageTool && toolOutput ? (
+                  <GenerateImageArtifact
+                    output={toolOutput}
+                    prompt={typeof tc.args?.prompt === "string" ? tc.args.prompt : undefined}
+                    title="Generated images"
                   />
                 ) : null}
               </ChainOfThoughtStep>
