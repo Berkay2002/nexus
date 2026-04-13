@@ -5,4 +5,5 @@ export const TOOL_DESCRIPTION =
   "Returns raw page content, optionally filtered by a query for relevance. " +
   "Use when you have specific URLs and need their content. " +
   "Supports 'advanced' extraction for tables and embedded content. " +
-  "Provide a query to rerank extracted chunks by relevance.";
+  "Provide a query to rerank extracted chunks by relevance. " +
+  "When setting chunks_per_source, keep it between 1 and 5.";

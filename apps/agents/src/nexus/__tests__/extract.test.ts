@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { tavilyExtract } from "../tools/extract/tool.js";
+import { tavilyExtract, tavilyExtractSchema } from "../tools/extract/tool.js";
 import { TOOL_NAME, TOOL_DESCRIPTION } from "../tools/extract/prompt.js";
 
 describe("extract prompt", () => {
@@ -23,5 +23,25 @@ describe("tavilyExtract tool", () => {
 
   it("should have a schema", () => {
     expect(tavilyExtract.schema).toBeDefined();
+  });
+
+  it("should clamp chunks_per_source into the supported range", () => {
+    const parsed = tavilyExtractSchema.parse({
+      urls: "https://example.com",
+      query: "test",
+      chunks_per_source: 10,
+    });
+
+    expect(parsed.chunks_per_source).toBe(5);
+  });
+
+  it("should default chunks_per_source when input is invalid", () => {
+    const parsed = tavilyExtractSchema.parse({
+      urls: "https://example.com",
+      query: "test",
+      chunks_per_source: "not-a-number",
+    });
+
+    expect(parsed.chunks_per_source).toBe(3);
   });
 });
