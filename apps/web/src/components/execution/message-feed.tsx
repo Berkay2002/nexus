@@ -16,16 +16,20 @@ import {
 } from "@/components/ai-elements/chain-of-thought";
 import {
   GitBranchIcon,
+  CheckCircle2,
+  Circle,
   ListTodoIcon,
+  Loader2,
   WrenchIcon,
   SearchIcon,
   GlobeIcon,
   ImageIcon,
   CodeIcon,
 } from "lucide-react";
-import { getAgentName } from "@/lib/subagent-utils";
 import {
+  getAgentName,
   isSubagentTerminalStatus,
+  normalizeTodos,
   normalizeSubagentStatus,
 } from "@/lib/subagent-utils";
 
@@ -67,6 +71,7 @@ const TOOL_DISPLAY: Record<string, { label: string; icon: typeof WrenchIcon }> =
   tavily_map: { label: "Mapping URLs", icon: GlobeIcon },
   generate_image: { label: "Generating image", icon: ImageIcon },
   write_todos: { label: "Creating plan", icon: ListTodoIcon },
+  write_todo: { label: "Updating plan", icon: ListTodoIcon },
   // DeepAgents dispatches sub-agents via the `task` tool (see
   // deepagents/dist/index.cjs:1932 and langgraph-sdk `DEFAULT_SUBAGENT_TOOL_NAMES`).
   task: { label: "Dispatching agent", icon: GitBranchIcon },
@@ -79,6 +84,16 @@ const TOOL_DISPLAY: Record<string, { label: string; icon: typeof WrenchIcon }> =
 
 function getToolDisplay(toolName: string) {
   return TOOL_DISPLAY[toolName] ?? { label: toolName.replace(/_/g, " "), icon: WrenchIcon };
+}
+
+function TodoInlineStatusIcon({ status }: { status: "pending" | "in_progress" | "completed" }) {
+  if (status === "completed") {
+    return <CheckCircle2 className="size-3.5 shrink-0 text-green-500" />;
+  }
+  if (status === "in_progress") {
+    return <Loader2 className="size-3.5 shrink-0 text-primary animate-spin" />;
+  }
+  return <Circle className="size-3.5 shrink-0 text-muted-foreground/50" />;
 }
 
 function HumanBubble({ content }: { content: string }) {
@@ -204,26 +219,32 @@ function OrchestratorMessage({
               );
             }
 
-            // For write_todos, show the plan items
-            if (toolName === "write_todos" && tc.args?.todos) {
-              const todos = tc.args.todos as any[];
+            // For write_todos/write_todo, show plan items with status.
+            if (toolName === "write_todos" || toolName === "write_todo") {
+              const args = tc.args ?? tc.arguments;
+              const payload =
+                args && typeof args === "object"
+                  ? (args as Record<string, unknown>).todos ??
+                    (args as Record<string, unknown>).todoList ??
+                    (args as Record<string, unknown>).todo_list ??
+                    (args as Record<string, unknown>).items
+                  : undefined;
+              const todos = normalizeTodos(payload);
+              if (todos.length === 0) return null;
+
               return (
                 <ChainOfThoughtStep
                   key={tc.id ?? i}
                   icon={ListTodoIcon}
-                  label="Creating plan"
+                  label={toolName === "write_todo" ? "Updating plan" : "Creating plan"}
                   status={isActive ? "active" : "complete"}
                 >
                   <div className="flex flex-col gap-1 mt-1">
-                    {todos.map((todo: any, j: number) => {
-                      const text =
-                        typeof todo === "string"
-                          ? todo
-                          : todo?.content ?? todo?.title ?? "";
+                    {todos.map((todo, j: number) => {
                       return (
                         <div key={j} className="text-xs text-muted-foreground flex items-center gap-1.5">
-                          <span className="text-muted-foreground/50">{"○"}</span>
-                          {text}
+                          <TodoInlineStatusIcon status={todo.status} />
+                          {todo.content}
                         </div>
                       );
                     })}

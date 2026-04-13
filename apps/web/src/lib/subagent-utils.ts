@@ -22,8 +22,12 @@ export function normalizeTodoStatus(status: unknown): NexusTodoStatus {
     return "completed";
   }
 
-  if (["in_progress", "in-progress", "running", "active", "working"].includes(raw)) {
+  if (["in_progress", "in-progress", "in progress", "running", "active", "working"].includes(raw)) {
     return "in_progress";
+  }
+
+  if (["not-started", "not_started", "not started", "pending", "todo"].includes(raw)) {
+    return "pending";
   }
 
   return "pending";
@@ -43,7 +47,8 @@ export function normalizeTodos(input: unknown): NexusTodo[] {
       if (!todo || typeof todo !== "object") return null;
       const value = todo as Record<string, unknown>;
       const contentCandidate =
-        value.content ?? value.title ?? value.text ?? value.task;
+        value.content ?? value.title ?? value.text ?? value.task ?? value.label;
+      const statusCandidate = value.status ?? value.state;
 
       if (typeof contentCandidate !== "string" || !contentCandidate.trim()) {
         return null;
@@ -51,10 +56,75 @@ export function normalizeTodos(input: unknown): NexusTodo[] {
 
       return {
         content: contentCandidate,
-        status: normalizeTodoStatus(value.status),
+        status: normalizeTodoStatus(statusCandidate),
       };
     })
     .filter((todo): todo is NexusTodo => todo !== null);
+}
+
+function extractTodosPayload(args: unknown): unknown {
+  if (!args) return undefined;
+
+  if (Array.isArray(args)) {
+    return args;
+  }
+
+  if (typeof args === "string") {
+    try {
+      return extractTodosPayload(JSON.parse(args));
+    } catch {
+      return undefined;
+    }
+  }
+
+  if (typeof args !== "object") return undefined;
+
+  const value = args as Record<string, unknown>;
+  return value.todos ?? value.todoList ?? value.todo_list ?? value.items;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+export function extractTodosFromValues(values: unknown): NexusTodo[] {
+  const root = asRecord(values);
+  if (!root) return [];
+
+  const state = asRecord(root.state);
+  const update = asRecord(root.update);
+  const output = asRecord(root.output);
+  const outputUpdate = asRecord(output?.update);
+  const nestedValues = asRecord(root.values);
+
+  const payloadCandidates: unknown[] = [
+    root.todos,
+    root.todoList,
+    root.todo_list,
+    state?.todos,
+    state?.todoList,
+    state?.todo_list,
+    update?.todos,
+    update?.todoList,
+    update?.todo_list,
+    output?.todos,
+    output?.todoList,
+    output?.todo_list,
+    outputUpdate?.todos,
+    outputUpdate?.todoList,
+    outputUpdate?.todo_list,
+    nestedValues?.todos,
+    nestedValues?.todoList,
+    nestedValues?.todo_list,
+  ];
+
+  for (const payload of payloadCandidates) {
+    const normalized = normalizeTodos(payload);
+    if (normalized.length > 0) return normalized;
+  }
+
+  return [];
 }
 
 export function extractLatestTodosFromMessages(messages: any[]): NexusTodo[] {
@@ -65,13 +135,11 @@ export function extractLatestTodosFromMessages(messages: any[]): NexusTodo[] {
 
     for (let j = toolCalls.length - 1; j >= 0; j--) {
       const toolCall = toolCalls[j];
-      if (toolCall?.name !== "write_todos") continue;
+      const toolName = toolCall?.name;
+      if (toolName !== "write_todos" && toolName !== "write_todo") continue;
 
       const args = toolCall?.args ?? toolCall?.arguments;
-      const todos =
-        args && typeof args === "object"
-          ? (args as Record<string, unknown>).todos
-          : undefined;
+      const todos = extractTodosPayload(args);
 
       const normalized = normalizeTodos(todos);
       if (normalized.length > 0) return normalized;

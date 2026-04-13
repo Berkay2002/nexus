@@ -3,8 +3,8 @@
 import { ExecutionShell } from "./execution-shell";
 import { useNexusStream } from "@/hooks/use-nexus-stream";
 import {
+  extractTodosFromValues,
   extractLatestTodosFromMessages,
-  normalizeTodos,
 } from "@/lib/subagent-utils";
 import { collectWorkspaceOutputPaths } from "@/lib/workspace-files";
 
@@ -20,10 +20,10 @@ export function ExecutionView() {
     error,
   } = useNexusStream();
 
-  const todosFromValues = normalizeTodos((values as any)?.todos);
+  const todosFromValues = extractTodosFromValues(values as any);
   const todosFromMessages = extractLatestTodosFromMessages(messages as any[]);
   const todos =
-    todosFromMessages.length > 0 ? todosFromMessages : todosFromValues;
+    todosFromValues.length > 0 ? todosFromValues : todosFromMessages;
   const allSubagents = subagents ? [...subagents.values()] : [];
   const outputPaths = collectWorkspaceOutputPaths(messages, allSubagents);
 
