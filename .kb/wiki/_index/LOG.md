@@ -1,5 +1,36 @@
 # Log
 
+## [2026-04-13 20:30] lint | Post-ingest health check (grep-based fallback) — 1 broken link unlinked, hub placement verified
+
+Ran after the AIO Sandbox OpenAPI ingest. Obsidian CLI was unavailable in the Bash sub-shell PATH on this run, so the lint used a Python/grep fallback (read all wiki/ articles, strip code blocks + inline code, regex-extract `[[wikilinks]]`, cross-reference against article filenames and `_index/` references).
+
+**Counts:**
+- 117 wiki articles total (was 107; +10 from this morning's ingest).
+- 0 articles missing frontmatter.
+- 0 missing required frontmatter fields.
+- 0 orphan articles (every wiki article has at least one inbound link from another article or an index file).
+
+**Unresolved wikilinks (wiki side):**
+- `[[orchestrator-system-prompt]]` — single reference in [[aio-sandbox-sandbox-context-api]] (introduced by the new ingest). Below 2-ref stub threshold, and "orchestrator-system-prompt" is a Nexus internal file (`apps/agents/src/nexus/prompts/orchestrator-system.ts`), not a third-party concept that belongs in the KB. Unlinked — replaced with a plain-text reference to the file path.
+- `[[vitest]]`, `[[shadcn-ui]]`, `[[configurable-model]]` — pre-existing, already addressed in earlier lint runs. Left as-is.
+- `[[subagents\]]`, `[[config-runtime-context\]]`, `[[memory\]]`, `[[subagent-interface\]]`, `[[tavily-search-api\]]` — false positives. These are Markdown-escaped wikilink examples inside articles documenting how the wiki link syntax works (e.g., in [[deepagents-typescript-reference]] and [[exa-overview]]). The grep regex caught them despite the leading backslash; an Obsidian-side scan would correctly skip them. No action needed.
+
+**Hub detection (backlink counts on this morning's 10 new articles):**
+- [[aio-sandbox-shell-api]] — 11 backlinks (load-bearing hub)
+- [[aio-sandbox-openapi-overview]] — 10 backlinks (load-bearing hub; pinned at the top of its INDEX category)
+- [[aio-sandbox-file-api]] — 8 backlinks
+- [[aio-sandbox-jupyter-api]] — 8 backlinks
+- [[aio-sandbox-code-execution-api]] — 8 backlinks
+- [[aio-sandbox-sandbox-context-api]] — 8 backlinks
+- [[aio-sandbox-browser-api]] — 6 backlinks
+- [[aio-sandbox-mcp-api]] — 6 backlinks
+- [[aio-sandbox-skills-api]] — 6 backlinks
+- [[aio-sandbox-util-api]] — 6 backlinks
+
+All 10 are above the 3-backlink hub threshold from their first appearance — the openapi-overview hub-and-spoke pattern is working as intended. No reorder needed: the new "AIO Sandbox — OpenAPI Surface" INDEX category lists the overview first, then the per-tag articles. Existing top-15 vault hubs ([[create-deep-agent]] 24, [[composite-backend]] 23, [[deep-agents-overview]] 21, [[aio-sandbox-overview]] 21, [[subagents]] 20, [[langchain-models]] 20, [[backends]] 19, [[langgraph-persistence]] 18, [[langchain-messages]] 18, [[deepagents-sandboxes]] 17, [[store-backend]] 17, [[context-engineering]] 17, [[use-stream-hook]] 16, [[langchain-tools]] 15, [[checkpointer]] 15) all still surface at the top of their categories.
+
+**No contradictions detected. No new stubs needed. 50-fix cap not reached.** Pages touched: [[aio-sandbox-sandbox-context-api]] only.
+
 ## [2026-04-13 20:00] ingest | AIO Sandbox OpenAPI spec — 1 source → 10 new articles
 
 Decomposed `raw/aio-sandbox/openapi.json` (6,947 lines, 41 endpoints, 133 schemas) into per-tag wiki articles. Single source, decomposed via 8 parallel `ingest-worker` subagents (one per substantive tag), with the orchestrator pre-extracting per-tag JSON slices into `C:\tmp\aio\<tag>.json` so workers wouldn't have to re-parse the 7000-line file. Sandbox-context-api and openapi-overview written by the orchestrator directly.

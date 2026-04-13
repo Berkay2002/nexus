@@ -60,7 +60,7 @@ All three are GET, take no parameters, and need no auth header at the protocol l
 }
 ```
 
-> **Note — `home_dir` is `/home/gem`.** The Nexus workspace convention assumes this. If a future image changes the user, `/home/gem/workspace/` paths in [[orchestrator-system-prompt]] and the sub-agent prompts must change in lockstep.
+> **Note — `home_dir` is `/home/gem`.** The Nexus workspace convention assumes this. If a future image changes the user, `/home/gem/workspace/` paths across the orchestrator and sub-agent prompts must change in lockstep.
 
 ### Field-by-field
 
@@ -170,6 +170,8 @@ Extends [[#Response]] with three required top-level fields:
 The Nexus orchestrator can hit `GET /v1/sandbox` once at startup and stash the result in [[long-term-memory]] (under `/memories/sandbox-context.json`) so sub-agents don't each re-fetch it. The [[#SandboxDetail]] payload is small and changes only across image upgrades, so caching it is safe for the lifetime of a thread.
 
 The `runtime.python` and `runtime.nodejs` lists are also the right place to look before the [[aio-sandbox-code-execution-api]] tries to call `python` or `node` — the alias arrays tell you exactly which names resolve to which binary.
+
+The Nexus orchestrator system prompt (`apps/agents/src/nexus/prompts/orchestrator-system.ts`) hard-codes `/home/gem/workspace/` paths matching this `home_dir` value. If a future image upgrade changes the user, that prompt must be updated in lockstep.
 
 ## Related
 
