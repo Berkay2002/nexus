@@ -11,7 +11,8 @@ import {
   getAgentName,
   getElapsedTime,
   getModelBadge,
-  getStatusColor,
+  normalizeSubagentStatus,
+  type SubagentStatus,
   useSubagentModelLabels,
 } from "@/lib/subagent-utils";
 import {
@@ -96,7 +97,7 @@ function describeToolArgs(args: any): string | undefined {
 function CardStatusIcon({
   status,
 }: {
-  status: "pending" | "running" | "complete" | "error";
+  status: SubagentStatus;
 }) {
   switch (status) {
     case "pending":
@@ -145,6 +146,17 @@ function extractText(value: unknown): string {
       .filter((c: any) => c?.type === "text")
       .map((c: any) => c.text ?? "")
       .join("");
+  }
+  return "";
+}
+
+function getLatestAiSummary(messages: any[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    const isAI = message?.type === "ai" || message?._getType?.() === "ai";
+    if (!isAI) continue;
+    const text = getContentString(message?.content).trim();
+    if (text) return text;
   }
   return "";
 }
@@ -307,12 +319,14 @@ function buildSubagentSteps(messages: any[]): SubStep[] {
 }
 
 function StreamingContent({ subagent }: { subagent: any }) {
-  const status: "pending" | "running" | "complete" | "error" =
-    subagent.status ?? "pending";
+  const status = normalizeSubagentStatus(subagent.status);
   const isRunning = status === "running";
   const messages: any[] = subagent.messages ?? [];
   const steps = buildSubagentSteps(messages);
   const createdFiles = collectCreatedFiles(messages);
+  const resultSummary = extractText(subagent.result).trim();
+  const latestSummary = getLatestAiSummary(messages);
+  const completionSummary = resultSummary || latestSummary;
 
   // Error: show whatever we have, plus the last raw content as an error line.
   if (status === "error") {
@@ -337,6 +351,22 @@ function StreamingContent({ subagent }: { subagent: any }) {
         <p className="text-sm text-muted-foreground italic">Waiting...</p>
       );
     }
+
+    if (status === "complete") {
+      return (
+        <div className="flex flex-col gap-2">
+          {createdFiles.length > 0 && <CreatedFilesList files={createdFiles} />}
+          {completionSummary ? (
+            <div className="text-sm text-foreground/90">
+              <MarkdownText>{completionSummary}</MarkdownText>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Completed.</p>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="flex items-center gap-1.5">
         <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
@@ -348,19 +378,16 @@ function StreamingContent({ subagent }: { subagent: any }) {
   // Complete without final prose but with a `result` blob — fall back to it so
   // we still show something useful even if the agent never streamed a summary.
   const hasAnyText = steps.some((s) => s.kind === "text");
-  if (status === "complete" && !hasAnyText && subagent.result) {
-    const resultText = extractText(subagent.result);
-    if (resultText) {
+  if (status === "complete" && !hasAnyText && completionSummary) {
       return (
         <div className="flex flex-col gap-2">
           <StepsList steps={steps} isRunning={false} />
           {createdFiles.length > 0 && <CreatedFilesList files={createdFiles} />}
           <div className="text-sm text-foreground/90">
-            <MarkdownText>{resultText}</MarkdownText>
+            <MarkdownText>{completionSummary}</MarkdownText>
           </div>
         </div>
       );
-    }
   }
 
   return (
@@ -453,7 +480,6 @@ function StepsList({
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function SubagentCard({
   subagent,
   defaultOpen = true,
@@ -469,7 +495,7 @@ export function SubagentCard({
       : rawDescription && typeof rawDescription === "object" && typeof rawDescription.content === "string"
         ? rawDescription.content
         : "";
-  const status = subagent.status ?? "pending";
+  const status = normalizeSubagentStatus(subagent.status);
   const labelBySubagent = useSubagentModelLabels();
 
   return (

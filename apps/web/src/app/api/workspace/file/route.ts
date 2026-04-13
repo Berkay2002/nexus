@@ -8,6 +8,10 @@ function isAllowedWorkspacePath(path: string): boolean {
   return path.startsWith(WORKSPACE_ROOT) && !path.includes("..");
 }
 
+function ensureDirectoryPath(path: string): string {
+  return path.endsWith("/") ? path : `${path}/`;
+}
+
 function guessMimeType(path: string): string {
   const lower = path.toLowerCase();
   if (lower.endsWith(".png")) return "image/png";
@@ -27,6 +31,118 @@ function extractName(path: string): string {
   return parts[parts.length - 1] ?? "file";
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function formatBytes(size: number | undefined): string {
+  if (typeof size !== "number" || !Number.isFinite(size)) return "";
+  if (size < 1024) return `${size} B`;
+  const kb = size / 1024;
+  if (kb < 1024) return `${kb.toFixed(1)} KB`;
+  const mb = kb / 1024;
+  return `${mb.toFixed(1)} MB`;
+}
+
+async function renderDirectoryListing(path: string): Promise<Response> {
+  const listUrl = new URL("/v1/file/list", SANDBOX_URL);
+
+  let sandboxResponse: Response;
+  try {
+    sandboxResponse = await fetch(listUrl.toString(), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        path,
+        include_size: true,
+        sort_by: "name",
+      }),
+    });
+  } catch {
+    return NextResponse.json(
+      { error: `Sandbox unreachable at ${SANDBOX_URL}.` },
+      { status: 502 },
+    );
+  }
+
+  const payload = await sandboxResponse.json().catch(() => null) as
+    | {
+        success?: boolean;
+        message?: string;
+        data?: {
+          path?: string;
+          files?: Array<{
+            name: string;
+            path: string;
+            is_directory: boolean;
+            size?: number;
+          }>;
+        };
+      }
+    | null;
+
+  if (!sandboxResponse.ok || !payload?.success) {
+    return NextResponse.json(
+      {
+        error: "Failed to list directory from sandbox.",
+        status: sandboxResponse.status,
+        details: payload?.message ?? "Unknown error",
+      },
+      { status: 502 },
+    );
+  }
+
+  const files = payload.data?.files ?? [];
+  const safePath = escapeHtml(path);
+  const rows = files
+    .map((entry) => {
+      const entryPath = entry.is_directory
+        ? ensureDirectoryPath(entry.path)
+        : entry.path;
+      const href = `/api/workspace/file?path=${encodeURIComponent(entryPath)}`;
+      const icon = entry.is_directory ? "[DIR]" : "[FILE]";
+      const size = entry.is_directory ? "" : formatBytes(entry.size);
+      return `<li><a href="${href}">${icon} ${escapeHtml(entry.name)}</a>${size ? ` <span>(${escapeHtml(size)})</span>` : ""}</li>`;
+    })
+    .join("\n");
+
+  const html = `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Workspace Directory</title>
+    <style>
+      body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; line-height: 1.4; }
+      h1 { margin: 0 0 8px; font-size: 18px; }
+      p { margin: 0 0 16px; color: #666; word-break: break-all; }
+      ul { margin: 0; padding-left: 20px; }
+      li { margin: 6px 0; }
+      a { color: #0b63ce; text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      span { color: #666; }
+    </style>
+  </head>
+  <body>
+    <h1>Directory Listing</h1>
+    <p>${safePath}</p>
+    <ul>
+      ${rows || "<li>(empty directory)</li>"}
+    </ul>
+  </body>
+</html>`;
+
+  return new Response(html, {
+    status: 200,
+    headers: { "content-type": "text/html; charset=utf-8" },
+  });
+}
+
 export async function GET(request: NextRequest) {
   const filePath = request.nextUrl.searchParams.get("path") ?? "";
   const download = request.nextUrl.searchParams.get("download") === "1";
@@ -36,6 +152,16 @@ export async function GET(request: NextRequest) {
       { error: "Invalid or disallowed workspace path." },
       { status: 400 },
     );
+  }
+
+  if (filePath.endsWith("/")) {
+    if (download) {
+      return NextResponse.json(
+        { error: "Cannot download a directory. Open it to browse files." },
+        { status: 400 },
+      );
+    }
+    return renderDirectoryListing(filePath);
   }
 
   const proxyUrl = new URL("/v1/file/download", SANDBOX_URL);
@@ -53,6 +179,16 @@ export async function GET(request: NextRequest) {
 
   if (!sandboxResponse.ok || !sandboxResponse.body) {
     const details = await sandboxResponse.text().catch(() => "");
+
+    // If the sandbox says this path is a directory, render it as a listing
+    // instead of surfacing a hard error.
+    if (
+      !download &&
+      details.includes("is not a file")
+    ) {
+      return renderDirectoryListing(ensureDirectoryPath(filePath));
+    }
+
     return NextResponse.json(
       {
         error: "Failed to read file from sandbox.",

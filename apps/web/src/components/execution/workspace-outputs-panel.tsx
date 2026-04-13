@@ -6,8 +6,17 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ExternalLink, Download, FileText } from "lucide-react";
 
 function baseName(filePath: string): string {
+  if (filePath.endsWith("/")) {
+    const trimmed = filePath.slice(0, -1);
+    const parts = trimmed.split("/").filter(Boolean);
+    return parts[parts.length - 1] ?? filePath;
+  }
   const parts = filePath.split("/").filter(Boolean);
   return parts[parts.length - 1] ?? filePath;
+}
+
+function isDirectoryPath(filePath: string): boolean {
+  return filePath.endsWith("/");
 }
 
 function buildFileHref(filePath: string, download = false): string {
@@ -57,16 +66,18 @@ export function WorkspaceOutputsPanel({
                   className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
                 >
                   <ExternalLink className="size-3" />
-                  Open
+                  {isDirectoryPath(path) ? "Browse" : "Open"}
                 </a>
-                <a
-                  href={buildFileHref(path, true)}
-                  download={baseName(path)}
-                  className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground hover:underline"
-                >
-                  <Download className="size-3" />
-                  Download
-                </a>
+                {!isDirectoryPath(path) && (
+                  <a
+                    href={buildFileHref(path, true)}
+                    download={baseName(path)}
+                    className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+                  >
+                    <Download className="size-3" />
+                    Download
+                  </a>
+                )}
               </div>
             </div>
           ))}

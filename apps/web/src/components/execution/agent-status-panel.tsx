@@ -7,6 +7,8 @@ import {
   getAgentName,
   getElapsedTime,
   getStatusColor,
+  normalizeSubagentStatus,
+  type SubagentStatus,
 } from "@/lib/subagent-utils";
 import { cn } from "@/lib/utils";
 import { Circle, Loader2, CheckCircle2, XCircle } from "lucide-react";
@@ -15,7 +17,7 @@ import { useEffect, useState } from "react";
 function AgentStatusIcon({
   status,
 }: {
-  status: "pending" | "running" | "complete" | "error";
+  status: SubagentStatus;
 }) {
   switch (status) {
     case "pending":
@@ -54,10 +56,9 @@ function ElapsedTimer({
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function AgentStatusItem({ subagent }: { subagent: any }) {
   const agentType = subagent.toolCall?.args?.subagent_type ?? "unknown";
-  const status = subagent.status ?? "pending";
+  const status = normalizeSubagentStatus(subagent.status);
 
   return (
     <div className="flex items-center gap-2.5 py-1.5">
@@ -87,8 +88,9 @@ export function AgentStatusPanel({
 
   if (agents.length === 0) return null;
 
-  const running = agents.filter((a) => a.status === "running").length;
-  const completed = agents.filter((a) => a.status === "complete").length;
+  const statuses = agents.map((a) => normalizeSubagentStatus(a.status));
+  const running = statuses.filter((s) => s === "running").length;
+  const completed = statuses.filter((s) => s === "complete").length;
 
   return (
     <div className="flex flex-col gap-2">

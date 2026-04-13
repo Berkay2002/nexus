@@ -13,6 +13,102 @@ export interface NexusTodo {
   status: "pending" | "in_progress" | "completed";
 }
 
+export type NexusTodoStatus = NexusTodo["status"];
+
+export function normalizeTodoStatus(status: unknown): NexusTodoStatus {
+  const raw = String(status ?? "").toLowerCase();
+
+  if (["completed", "complete", "done", "success", "succeeded", "finished"].includes(raw)) {
+    return "completed";
+  }
+
+  if (["in_progress", "in-progress", "running", "active", "working"].includes(raw)) {
+    return "in_progress";
+  }
+
+  return "pending";
+}
+
+export function normalizeTodos(input: unknown): NexusTodo[] {
+  if (!Array.isArray(input)) return [];
+
+  return input
+    .map((todo): NexusTodo | null => {
+      if (typeof todo === "string") {
+        const text = todo.trim();
+        if (!text) return null;
+        return { content: text, status: "pending" };
+      }
+
+      if (!todo || typeof todo !== "object") return null;
+      const value = todo as Record<string, unknown>;
+      const contentCandidate =
+        value.content ?? value.title ?? value.text ?? value.task;
+
+      if (typeof contentCandidate !== "string" || !contentCandidate.trim()) {
+        return null;
+      }
+
+      return {
+        content: contentCandidate,
+        status: normalizeTodoStatus(value.status),
+      };
+    })
+    .filter((todo): todo is NexusTodo => todo !== null);
+}
+
+export function extractLatestTodosFromMessages(messages: any[]): NexusTodo[] {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    const toolCalls: any[] =
+      message?.tool_calls ?? message?.additional_kwargs?.tool_calls ?? [];
+
+    for (let j = toolCalls.length - 1; j >= 0; j--) {
+      const toolCall = toolCalls[j];
+      if (toolCall?.name !== "write_todos") continue;
+
+      const args = toolCall?.args ?? toolCall?.arguments;
+      const todos =
+        args && typeof args === "object"
+          ? (args as Record<string, unknown>).todos
+          : undefined;
+
+      const normalized = normalizeTodos(todos);
+      if (normalized.length > 0) return normalized;
+    }
+  }
+
+  return [];
+}
+
+export type SubagentStatus = "pending" | "running" | "complete" | "error";
+
+/**
+ * Normalize runtime status values from stream providers into a stable UI enum.
+ */
+export function normalizeSubagentStatus(status: unknown): SubagentStatus {
+  const raw = String(status ?? "").toLowerCase();
+
+  if (["running", "in_progress", "in-progress", "active", "working"].includes(raw)) {
+    return "running";
+  }
+
+  if (["complete", "completed", "done", "success", "succeeded", "finished"].includes(raw)) {
+    return "complete";
+  }
+
+  if (["error", "failed", "failure", "cancelled", "canceled", "aborted"].includes(raw)) {
+    return "error";
+  }
+
+  return "pending";
+}
+
+export function isSubagentTerminalStatus(status: unknown): boolean {
+  const normalized = normalizeSubagentStatus(status);
+  return normalized === "complete" || normalized === "error";
+}
+
 /**
  * Pure function: look up a display label for a subagent type, given a
  * precomputed map. Falls back to the raw subagent type.
@@ -104,7 +200,7 @@ export function getElapsedTime(
 
 /** Get status color class for a subagent status */
 export function getStatusColor(
-  status: "pending" | "running" | "complete" | "error",
+  status: SubagentStatus,
 ): string {
   switch (status) {
     case "pending":

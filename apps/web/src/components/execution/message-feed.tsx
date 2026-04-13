@@ -13,16 +13,18 @@ import {
 } from "@/components/ai-elements/chain-of-thought";
 import {
   GitBranchIcon,
-  BrainIcon,
   ListTodoIcon,
   WrenchIcon,
   SearchIcon,
   GlobeIcon,
   ImageIcon,
   CodeIcon,
-  SparklesIcon,
 } from "lucide-react";
 import { getAgentName } from "@/lib/subagent-utils";
+import {
+  isSubagentTerminalStatus,
+  normalizeSubagentStatus,
+} from "@/lib/subagent-utils";
 
 function getContentString(content: unknown): string {
   if (typeof content === "string") return content;
@@ -156,9 +158,9 @@ function OrchestratorMessage({
                   icon={display.icon}
                   label={`Dispatching ${getAgentName(agentType)}`}
                   status={
-                    matchedSubagent.status === "complete" || matchedSubagent.status === "error"
+                    isSubagentTerminalStatus(matchedSubagent.status)
                       ? "complete"
-                      : matchedSubagent.status === "running"
+                      : normalizeSubagentStatus(matchedSubagent.status) === "running"
                         ? "active"
                         : "pending"
                   }
@@ -167,8 +169,8 @@ function OrchestratorMessage({
                     <SubagentCard
                       subagent={matchedSubagent}
                       defaultOpen={
-                        matchedSubagent.status === "running" ||
-                        matchedSubagent.status === "error" ||
+                        normalizeSubagentStatus(matchedSubagent.status) === "running" ||
+                        normalizeSubagentStatus(matchedSubagent.status) === "error" ||
                         subagents.length <= 3
                       }
                     />
@@ -233,9 +235,9 @@ function OrchestratorMessage({
                   label={`Dispatching ${getAgentName(agentType)}`}
                   description={typeof subDescription === "string" ? subDescription : undefined}
                   status={
-                    sub.status === "complete" || sub.status === "error"
+                    isSubagentTerminalStatus(sub.status)
                       ? "complete"
-                      : sub.status === "running"
+                      : normalizeSubagentStatus(sub.status) === "running"
                         ? "active"
                         : "pending"
                   }
@@ -244,8 +246,8 @@ function OrchestratorMessage({
                     <SubagentCard
                       subagent={sub}
                       defaultOpen={
-                        sub.status === "running" ||
-                        sub.status === "error" ||
+                        normalizeSubagentStatus(sub.status) === "running" ||
+                        normalizeSubagentStatus(sub.status) === "error" ||
                         subagents.length <= 3
                       }
                     />
@@ -272,9 +274,7 @@ export function MessageFeed({
 }) {
   const allSubagentsDone =
     allSubagents.length > 0 &&
-    allSubagents.every(
-      (s) => s.status === "complete" || s.status === "error",
-    );
+    allSubagents.every((s) => isSubagentTerminalStatus(s.status));
   const showSynthesis = allSubagentsDone && isLoading;
 
   const filteredMessages = messages.filter(
