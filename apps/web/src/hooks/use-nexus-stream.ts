@@ -50,7 +50,9 @@ export function useNexusStream() {
       stream.submit(
         { messages: [...toolMessages, newMessage] },
         {
-          streamMode: ["values"],
+          // `messages` mode is required for subagent stream metadata used by
+          // filterSubagentMessages/getSubagentsByMessage.
+          streamMode: ["messages", "values"],
           streamSubgraphs: true,
           config: {
             configurable: {

@@ -3,5 +3,6 @@ export const TOOL_NAME = "generate_image";
 export const TOOL_DESCRIPTION =
   "Generate an image using Gemini's image generation capability. " +
   "Provide a detailed prompt describing the desired image including style, content, composition, and mood. " +
-  "Returns image data that should be saved to the workspace using write_file. " +
+  "Writes generated image files directly to the sandbox workspace path provided in filename. " +
+  "Returns lightweight metadata (paths, mime types, approximate sizes) and does not return base64 image payloads. " +
   "Use for creating illustrations, diagrams, banners, logos, and other visual content.";

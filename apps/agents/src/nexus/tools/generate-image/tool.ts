@@ -1,6 +1,8 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod/v4";
 import { HumanMessage } from "@langchain/core/messages";
+import { SandboxClient } from "@agent-infra/sandbox";
+import { posix as pathPosix } from "node:path";
 import { resolveTier } from "../../models/index.js";
 import { TOOL_NAME, TOOL_DESCRIPTION } from "./prompt.js";
 
@@ -19,6 +21,42 @@ export const generateImageSchema = z.object({
 
 export type GenerateImageInput = z.infer<typeof generateImageSchema>;
 
+const SANDBOX_URL = process.env.SANDBOX_URL ?? "http://localhost:8080";
+
+const MIME_EXTENSION: Record<string, string> = {
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+};
+
+function hasExtension(filePath: string): boolean {
+  const parsed = pathPosix.parse(filePath);
+  return Boolean(parsed.ext);
+}
+
+function extensionForMime(mimeType: string): string {
+  return MIME_EXTENSION[mimeType] ?? ".png";
+}
+
+function buildOutputPath(
+  requestedPath: string,
+  mimeType: string,
+  imageIndex: number,
+  imageCount: number,
+): string {
+  const parsed = pathPosix.parse(requestedPath);
+  const ext = hasExtension(requestedPath)
+    ? parsed.ext
+    : extensionForMime(mimeType);
+
+  const baseName = hasExtension(requestedPath) ? parsed.name : parsed.base;
+  const indexedName =
+    imageCount > 1 ? `${baseName}-${imageIndex + 1}` : baseName;
+
+  return pathPosix.join(parsed.dir, `${indexedName}${ext}`);
+}
+
 export const generateImage = tool(
   async ({ prompt, filename }) => {
     const model = resolveTier("image", undefined, {
@@ -34,6 +72,7 @@ export const generateImage = tool(
     const response = await model.invoke([
       new HumanMessage(`Generate an image: ${prompt}`),
     ]);
+    const sandbox = new SandboxClient({ environment: SANDBOX_URL });
 
     // @langchain/google emits generated images as `inlineData` blocks:
     //   { type: "inlineData", inlineData: { mimeType, data } }
@@ -74,14 +113,65 @@ export const generateImage = tool(
       });
     }
 
+    const savedFiles: Array<{
+      path: string;
+      mime_type: string;
+      approx_bytes: number;
+    }> = [];
+
+    for (let i = 0; i < imageBlocks.length; i++) {
+      const image = imageBlocks[i]!;
+      const outputPath = buildOutputPath(
+        filename,
+        image.mime_type,
+        i,
+        imageBlocks.length,
+      );
+
+      const parentDir = pathPosix.dirname(outputPath);
+      if (parentDir && parentDir !== ".") {
+        const mkdirResponse = await sandbox.shell.execCommand({
+          command: `mkdir -p ${JSON.stringify(parentDir)}`,
+        });
+        if (!mkdirResponse.ok) {
+          return JSON.stringify({
+            success: false,
+            error: "Failed to prepare output directory in sandbox",
+            directory: parentDir,
+            details: mkdirResponse.error,
+          });
+        }
+      }
+
+      const writeResponse = await sandbox.file.writeFile({
+        file: outputPath,
+        content: image.base64,
+        encoding: "base64",
+      });
+
+      if (!writeResponse.ok) {
+        return JSON.stringify({
+          success: false,
+          error: "Failed to write generated image to sandbox",
+          filename: outputPath,
+          details: writeResponse.error,
+        });
+      }
+
+      savedFiles.push({
+        path: outputPath,
+        mime_type: image.mime_type,
+        approx_bytes: Math.floor((image.base64.length * 3) / 4),
+      });
+    }
+
     return JSON.stringify({
       success: true,
-      filename,
       prompt,
-      image_count: imageBlocks.length,
-      images: imageBlocks,
-      instruction:
-        "Use write_file to save each image to the workspace. Image data is raw base64 (no data URL prefix) in the `base64` field; the MIME type is in `mime_type`. Pass the base64 string directly to write_file with binary mode.",
+      image_count: savedFiles.length,
+      files: savedFiles,
+      note:
+        "Images were written directly to the sandbox filesystem. No base64 payload is returned to the model.",
     });
   },
   {

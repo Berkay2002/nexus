@@ -35,6 +35,10 @@ function getContentString(content: unknown): string {
   return "";
 }
 
+function getToolCalls(message: any): any[] {
+  return message.tool_calls ?? message.additional_kwargs?.tool_calls ?? [];
+}
+
 /** Map tool names to display-friendly labels and icons */
 const TOOL_DISPLAY: Record<string, { label: string; icon: typeof WrenchIcon }> = {
   tavily_search: { label: "Searching the web", icon: SearchIcon },
@@ -295,8 +299,22 @@ export function MessageFeed({
         // Skip standalone tool result messages — shown inside CoT
         if (isTool) return null;
 
-        // AI message — render as orchestrator CoT
-        const subs = getSubagentsByMessage?.(message.id) ?? [];
+        // AI message — render as orchestrator CoT.
+        // Fallback: if per-message matching is empty but we do have global
+        // subagent state, attach those cards to the latest `task` message.
+        const subagentsForMessage = getSubagentsByMessage?.(message.id) ?? [];
+        const toolCalls = getToolCalls(message);
+        const hasTaskCall = toolCalls.some((tc: any) => tc?.name === "task");
+        const isLatest = index === filteredMessages.length - 1;
+        const shouldUseFallbackSubagents =
+          subagentsForMessage.length === 0 &&
+          allSubagents.length > 0 &&
+          hasTaskCall &&
+          isLatest;
+        const subs = shouldUseFallbackSubagents
+          ? allSubagents
+          : subagentsForMessage;
+
         return (
           <OrchestratorMessage
             key={message.id || `msg-${index}`}
