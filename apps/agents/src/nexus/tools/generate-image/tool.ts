@@ -4,6 +4,10 @@ import { HumanMessage } from "@langchain/core/messages";
 import { SandboxClient } from "@agent-infra/sandbox";
 import { posix as pathPosix } from "node:path";
 import { resolveTier } from "../../models/index.js";
+import {
+  getWorkspaceRootForThread,
+  remapWorkspacePath,
+} from "../../backend/workspace.js";
 import { TOOL_NAME, TOOL_DESCRIPTION } from "./prompt.js";
 
 export const generateImageSchema = z.object({
@@ -57,8 +61,26 @@ function buildOutputPath(
   return pathPosix.join(parsed.dir, `${indexedName}${ext}`);
 }
 
+function resolveThreadIdFromConfig(config: unknown): string | undefined {
+  if (!config || typeof config !== "object") return undefined;
+  const cfg = config as { configurable?: Record<string, unknown> };
+  const value = cfg.configurable?.thread_id ?? cfg.configurable?.threadId;
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+export function resolveGenerateImageOutputPath(
+  filename: string,
+  config: unknown,
+): string {
+  const threadId = resolveThreadIdFromConfig(config);
+  const workspaceRoot = getWorkspaceRootForThread(threadId);
+  return remapWorkspacePath(filename, workspaceRoot);
+}
+
 export const generateImage = tool(
-  async ({ prompt, filename }) => {
+  async ({ prompt, filename }, config) => {
     const model = resolveTier("image", undefined, {
       temperature: 1,
       responseModalities: ["IMAGE", "TEXT"],
@@ -73,6 +95,7 @@ export const generateImage = tool(
       new HumanMessage(`Generate an image: ${prompt}`),
     ]);
     const sandbox = new SandboxClient({ environment: SANDBOX_URL });
+    const resolvedFilename = resolveGenerateImageOutputPath(filename, config);
 
     // @langchain/google emits generated images as `inlineData` blocks:
     //   { type: "inlineData", inlineData: { mimeType, data } }
@@ -109,7 +132,7 @@ export const generateImage = tool(
         success: false,
         error: "No image was generated",
         text: textContent,
-        filename,
+        filename: resolvedFilename,
       });
     }
 
@@ -122,7 +145,7 @@ export const generateImage = tool(
     for (let i = 0; i < imageBlocks.length; i++) {
       const image = imageBlocks[i]!;
       const outputPath = buildOutputPath(
-        filename,
+        resolvedFilename,
         image.mime_type,
         i,
         imageBlocks.length,

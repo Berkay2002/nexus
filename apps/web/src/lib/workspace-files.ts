@@ -7,6 +7,10 @@ import {
 
 const WORKSPACE_PATH_REGEX = /\/home\/gem\/workspace\/[\w./-]+/g;
 
+function isToolMessage(message: any): boolean {
+  return message?.type === "tool" || message?._getType?.() === "tool";
+}
+
 function extractText(content: unknown): string {
   if (typeof content === "string") return content;
   if (Array.isArray(content)) {
@@ -64,19 +68,16 @@ function collectFromUnknown(value: unknown, out: Set<string>) {
 }
 
 function collectFromMessage(message: any, out: Set<string>) {
+  if (!isToolMessage(message)) {
+    return;
+  }
+
   collectFromUnknown(extractText(message?.content), out);
   collectFromUnknown(message?.content, out);
   collectFromUnknown(message?.additional_kwargs, out);
   collectFromUnknown(message?.response_metadata, out);
   collectFromUnknown(message?.artifact, out);
   collectFromUnknown(message?.result, out);
-
-  const toolCalls: any[] =
-    message?.tool_calls ?? message?.additional_kwargs?.tool_calls ?? [];
-  for (const call of toolCalls) {
-    collectFromUnknown(call?.args, out);
-    collectFromUnknown(call?.arguments, out);
-  }
 }
 
 export function collectWorkspaceOutputPaths(
@@ -95,8 +96,6 @@ export function collectWorkspaceOutputPaths(
     for (const message of subMessages) {
       collectFromMessage(message, paths);
     }
-    collectFromUnknown(subagent?.result, paths);
-    collectFromUnknown(subagent?.toolCall?.args, paths);
   }
 
   const workspaceRoot = getWorkspaceRootForThread(threadId);
