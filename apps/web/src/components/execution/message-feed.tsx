@@ -4,7 +4,7 @@
 import { SubagentCard } from "./subagent-card";
 import { SynthesisIndicator } from "./synthesis-indicator";
 import { MarkdownText } from "@/components/thread/markdown-text";
-import { Terminal } from "@/components/ai-elements/terminal";
+import { ExecuteToolArtifact } from "./execute-tool-artifact";
 import { DO_NOT_RENDER_ID_PREFIX } from "@/lib/ensure-tool-responses";
 import {
   ChainOfThought,
@@ -242,9 +242,13 @@ function OrchestratorMessage({
                 status={isActive && i === toolCalls.length - 1 ? "active" : "complete"}
               >
                 {isExecuteTool && toolOutput ? (
-                  <div className="mt-1">
-                    <Terminal output={toolOutput} isStreaming={isActive && i === toolCalls.length - 1} />
-                  </div>
+                  <ExecuteToolArtifact
+                    command={typeof tc.args?.command === "string" ? tc.args.command : undefined}
+                    description={typeof description === "string" ? description : undefined}
+                    isStreaming={isActive && i === toolCalls.length - 1}
+                    output={toolOutput}
+                    title="Orchestrator execution"
+                  />
                 ) : null}
               </ChainOfThoughtStep>
             );

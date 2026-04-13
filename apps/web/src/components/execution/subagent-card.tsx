@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { MarkdownText } from "@/components/thread/markdown-text";
-import { Terminal } from "@/components/ai-elements/terminal";
+import { ExecuteToolArtifact } from "./execute-tool-artifact";
 
 function getContentString(content: unknown): string {
   if (typeof content === "string") return content;
@@ -487,9 +487,13 @@ function StepsList({
                 </span>
               )}
               {isExecuteTool && step.output && (
-                <div className="mt-2">
-                  <Terminal output={step.output} isStreaming={stepActive} />
-                </div>
+                <ExecuteToolArtifact
+                  command={typeof step.args?.command === "string" ? step.args.command : undefined}
+                  description={description}
+                  isStreaming={stepActive}
+                  output={step.output}
+                  title="Subagent execution"
+                />
               )}
             </div>
           </div>
