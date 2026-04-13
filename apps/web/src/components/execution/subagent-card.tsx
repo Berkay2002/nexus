@@ -164,6 +164,96 @@ type SubStep =
       done: boolean;
     };
 
+function parseJsonString(value: unknown): Record<string, unknown> | null {
+  if (typeof value !== "string") return null;
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    // Ignore parse errors — many tool results are plain text.
+  }
+  return null;
+}
+
+function toObjectRecord(value: unknown): Record<string, unknown> | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return null;
+}
+
+function extractFilePathFromToolMessage(message: any): string | undefined {
+  const contentRecord =
+    toObjectRecord(message?.content) ?? parseJsonString(message?.content);
+  const additionalRecord =
+    toObjectRecord(message?.additional_kwargs) ??
+    parseJsonString(message?.additional_kwargs);
+  const responseMetaRecord =
+    toObjectRecord(message?.response_metadata) ??
+    parseJsonString(message?.response_metadata);
+
+  const candidate =
+    (contentRecord?.file_path as unknown) ??
+    (contentRecord?.path as unknown) ??
+    (additionalRecord?.file_path as unknown) ??
+    (additionalRecord?.path as unknown) ??
+    (responseMetaRecord?.file_path as unknown) ??
+    (responseMetaRecord?.path as unknown);
+
+  return typeof candidate === "string" && candidate.trim()
+    ? candidate
+    : undefined;
+}
+
+function collectCreatedFiles(messages: any[]): string[] {
+  const files = new Set<string>();
+
+  // 1) Planned output paths from write_file tool-call arguments.
+  for (const m of messages) {
+    const isAI = m?.type === "ai" || m?._getType?.() === "ai";
+    if (!isAI) continue;
+
+    const toolCalls: any[] =
+      m.tool_calls ?? m.additional_kwargs?.tool_calls ?? [];
+    for (const tc of toolCalls) {
+      if (tc?.name !== "write_file") continue;
+      const args = tc?.args ?? tc?.arguments;
+
+      if (typeof args === "string") {
+        const parsed = parseJsonString(args);
+        const path =
+          (parsed?.file_path as string | undefined) ??
+          (parsed?.path as string | undefined);
+        if (typeof path === "string" && path.trim()) files.add(path);
+        continue;
+      }
+
+      if (args && typeof args === "object") {
+        const path =
+          (args as Record<string, unknown>).file_path ??
+          (args as Record<string, unknown>).path;
+        if (typeof path === "string" && path.trim()) files.add(path);
+      }
+    }
+  }
+
+  // 2) Actual result payloads from tool messages (if emitted by runtime).
+  for (const m of messages) {
+    const isTool = m?.type === "tool" || m?._getType?.() === "tool";
+    if (!isTool) continue;
+
+    const toolName = m?.name;
+    if (toolName && toolName !== "write_file") continue;
+
+    const path = extractFilePathFromToolMessage(m);
+    if (path) files.add(path);
+  }
+
+  return [...files];
+}
+
 /**
  * Flattens a subagent's message sequence into a chain-of-thought step list.
  * Each AI message contributes zero or more steps: one `text` step if it has
@@ -222,6 +312,7 @@ function StreamingContent({ subagent }: { subagent: any }) {
   const isRunning = status === "running";
   const messages: any[] = subagent.messages ?? [];
   const steps = buildSubagentSteps(messages);
+  const createdFiles = collectCreatedFiles(messages);
 
   // Error: show whatever we have, plus the last raw content as an error line.
   if (status === "error") {
@@ -233,6 +324,7 @@ function StreamingContent({ subagent }: { subagent: any }) {
     return (
       <div className="flex flex-col gap-2">
         {steps.length > 0 && <StepsList steps={steps} isRunning={false} />}
+        {createdFiles.length > 0 && <CreatedFilesList files={createdFiles} />}
         <p className="text-sm text-destructive">{errorText}</p>
       </div>
     );
@@ -262,6 +354,7 @@ function StreamingContent({ subagent }: { subagent: any }) {
       return (
         <div className="flex flex-col gap-2">
           <StepsList steps={steps} isRunning={false} />
+          {createdFiles.length > 0 && <CreatedFilesList files={createdFiles} />}
           <div className="text-sm text-foreground/90">
             <MarkdownText>{resultText}</MarkdownText>
           </div>
@@ -270,7 +363,32 @@ function StreamingContent({ subagent }: { subagent: any }) {
     }
   }
 
-  return <StepsList steps={steps} isRunning={isRunning} />;
+  return (
+    <div className="flex flex-col gap-2">
+      <StepsList steps={steps} isRunning={isRunning} />
+      {createdFiles.length > 0 && <CreatedFilesList files={createdFiles} />}
+    </div>
+  );
+}
+
+function CreatedFilesList({ files }: { files: string[] }) {
+  return (
+    <div className="rounded-md border border-border/60 bg-muted/20 px-2.5 py-2">
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">
+        Created files
+      </p>
+      <div className="flex flex-col gap-1">
+        {files.map((filePath) => (
+          <p
+            key={filePath}
+            className="text-xs text-muted-foreground font-mono break-all"
+          >
+            {filePath}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function StepsList({

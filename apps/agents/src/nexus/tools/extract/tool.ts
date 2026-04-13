@@ -11,14 +11,10 @@ function coerceBool<T>(v: T): T | boolean {
   return v;
 }
 
-const chunksPerSource = z.preprocess((value) => {
-  if (value === undefined || value === null) return 3;
-
-  const numeric = typeof value === "string" ? Number(value) : value;
-  if (typeof numeric !== "number" || !Number.isFinite(numeric)) return 3;
-
-  return Math.max(1, Math.min(5, Math.trunc(numeric)));
-}, z.number().int().min(1).max(5));
+export function normalizeChunksPerSource(value: number | undefined): number {
+  if (value === undefined || value === null || !Number.isFinite(value)) return 3;
+  return Math.max(1, Math.min(5, Math.trunc(value)));
+}
 
 export const tavilyExtractSchema = z.object({
   urls: z
@@ -30,9 +26,14 @@ export const tavilyExtractSchema = z.object({
     .describe(
       "User intent for reranking extracted content chunks. When provided, chunks are reranked by relevance to this query.",
     ),
-  chunks_per_source: chunksPerSource.describe(
-    "Max chunks per source (1-5). Values outside range are clamped. Only applies when query is provided.",
-  ),
+  chunks_per_source: z
+    .number()
+    .int()
+    .optional()
+    .default(3)
+    .describe(
+      "Max chunks per source. Recommended range is 1-5; values are clamped at runtime. Only applies when query is provided.",
+    ),
   extract_depth: z
     .enum(["basic", "advanced"])
     .optional()
@@ -58,6 +59,7 @@ export const tavilyExtract = tool(
     try {
       const normalized = {
         ...input,
+        chunks_per_source: normalizeChunksPerSource(input.chunks_per_source),
         include_images: coerceBool(input.include_images),
       };
 
