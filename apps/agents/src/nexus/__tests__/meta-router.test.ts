@@ -1,6 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { routerOutputSchema, metaRouter } from "../meta-router.js";
 import { z } from "zod/v4";
+import { HumanMessage } from "@langchain/core/messages";
+import * as modelRegistry from "../models/index.js";
 
 describe("routerOutputSchema", () => {
   it("should accept valid 'default' classification", () => {
@@ -37,7 +39,74 @@ describe("routerOutputSchema", () => {
 });
 
 describe("metaRouter", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("should be a function that accepts NexusState", () => {
     expect(typeof metaRouter).toBe("function");
+  });
+
+  it("recovers from structured-output parsing failure when model returns raw 'default'", async () => {
+    const parsingError = new Error(
+      `Failed to parse. Text: "default". Error: SyntaxError: Unexpected token 'd', "default" is not valid JSON Troubleshooting URL: https://docs.langchain.com/oss/javascript/langchain/errors/OUTPUT_PARSING_FAILURE/`,
+    );
+
+    const structuredInvoker = {
+      invoke: vi.fn().mockRejectedValue(parsingError),
+    };
+
+    const primaryModel = {
+      withStructuredOutput: vi.fn().mockReturnValue(structuredInvoker),
+      invoke: vi.fn().mockResolvedValue({ content: "default" }),
+    };
+
+    vi.spyOn(modelRegistry, "resolveTier").mockImplementation(
+      ((tier: string) =>
+        tier === "classifier" ? (primaryModel as any) : null) as any,
+    );
+    vi.spyOn(modelRegistry, "buildTierFallbacks").mockReturnValue([]);
+
+    const state = {
+      messages: [new HumanMessage("Build me a production-ready app")],
+      routerResult: null,
+    };
+
+    const result = await metaRouter(state as any);
+
+    expect(result.routerResult).not.toBeNull();
+    expect(result.routerResult!.complexity).toBe("default");
+    expect(result.routerResult!.reasoning).toContain(
+      "Recovered from non-JSON classifier output",
+    );
+    expect(structuredInvoker.invoke).toHaveBeenCalledTimes(1);
+    expect(primaryModel.invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it("rethrows non-parsing structured-output errors", async () => {
+    const nonParsingError = new Error("Provider call failed");
+
+    const structuredInvoker = {
+      invoke: vi.fn().mockRejectedValue(nonParsingError),
+    };
+
+    const primaryModel = {
+      withStructuredOutput: vi.fn().mockReturnValue(structuredInvoker),
+      invoke: vi.fn().mockResolvedValue({ content: "default" }),
+    };
+
+    vi.spyOn(modelRegistry, "resolveTier").mockImplementation(
+      ((tier: string) =>
+        tier === "classifier" ? (primaryModel as any) : null) as any,
+    );
+    vi.spyOn(modelRegistry, "buildTierFallbacks").mockReturnValue([]);
+
+    const state = {
+      messages: [new HumanMessage("Analyze this")],
+      routerResult: null,
+    };
+
+    await expect(metaRouter(state as any)).rejects.toThrow("Provider call failed");
+    expect(primaryModel.invoke).not.toHaveBeenCalled();
   });
 });

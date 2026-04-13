@@ -5,7 +5,8 @@ import { z } from "zod/v4";
 
 /**
  * Integration tests that hit a real model provider.
- * Requires GOOGLE_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY.
+ * Requires GOOGLE_API_KEY, GEMINI_API_KEY, GOOGLE_CLOUD_PROJECT,
+ * ANTHROPIC_API_KEY, OPENAI_API_KEY, or ZAI_API_KEY.
  * Skip with: npx vitest run --exclude "**\/integration*"
  */
 const hasProvider =
@@ -13,7 +14,8 @@ const hasProvider =
   !!process.env.GEMINI_API_KEY ||
   !!process.env.GOOGLE_CLOUD_PROJECT ||
   !!process.env.ANTHROPIC_API_KEY ||
-  !!process.env.OPENAI_API_KEY;
+  !!process.env.OPENAI_API_KEY ||
+  !!process.env.ZAI_API_KEY;
 
 describe.skipIf(!hasProvider)("Meta-Router Integration", () => {
   it("should classify a trivial question as Flash-Lite", async () => {

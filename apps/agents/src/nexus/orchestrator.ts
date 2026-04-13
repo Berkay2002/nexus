@@ -46,7 +46,7 @@ export function createNexusOrchestrator(
   const defaultModel = resolveTier("default");
   if (!defaultModel) {
     throw new Error(
-      "No default-tier model available — set GOOGLE_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY",
+      "No default-tier model available — set GOOGLE_API_KEY, GEMINI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, or ZAI_API_KEY",
     );
   }
 

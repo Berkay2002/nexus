@@ -21,6 +21,42 @@ export const routerOutputSchema = z.object({
 
 export type RouterOutput = z.infer<typeof routerOutputSchema>;
 
+type ComplexityLabel = RouterOutput["complexity"];
+
+function isOutputParsingFailure(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return /OUTPUT_PARSING_FAILURE|Failed to parse|not valid JSON/i.test(
+    error.message,
+  );
+}
+
+function extractText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    return value
+      .map((part) => {
+        if (typeof part === "string") return part;
+        if (
+          part &&
+          typeof part === "object" &&
+          "text" in part &&
+          typeof (part as { text?: unknown }).text === "string"
+        ) {
+          return (part as { text: string }).text;
+        }
+        return "";
+      })
+      .join("\n");
+  }
+  return "";
+}
+
+function parseComplexityLabel(text: string): ComplexityLabel {
+  const normalized = text.trim().toLowerCase();
+  if (/\btrivial\b/.test(normalized)) return "trivial";
+  return "default";
+}
+
 const ROUTER_SYSTEM_PROMPT = `You are a silent request classifier. Your job is to analyze the user's prompt and decide how complex it is so the system can pick an appropriately sized model for the orchestrator.
 
 Classification criteria:
@@ -55,7 +91,7 @@ export async function metaRouter(
     classifierPrimary ?? resolveTier("default", undefined, { temperature: 0 });
   if (!primary) {
     throw new Error(
-      "No model available for meta-router — set GOOGLE_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY",
+      "No model available for meta-router — set GOOGLE_API_KEY, GEMINI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, or ZAI_API_KEY",
     );
   }
   const fallbackModels = classifierPrimary
@@ -79,10 +115,38 @@ export async function metaRouter(
       ? lastMessage.content
       : JSON.stringify(lastMessage.content);
 
-  const result = await invoker.invoke([
-    new SystemMessage(ROUTER_SYSTEM_PROMPT),
-    new HumanMessage(userContent),
-  ]);
+  let result: RouterOutput;
+  try {
+    result = await invoker.invoke([
+      new SystemMessage(ROUTER_SYSTEM_PROMPT),
+      new HumanMessage(userContent),
+    ]);
+  } catch (error) {
+    if (!isOutputParsingFailure(error)) {
+      throw error;
+    }
+
+    const rawInvoker =
+      fallbackModels.length > 0
+        ? primary.withFallbacks({ fallbacks: fallbackModels })
+        : primary;
+    const rawResult = await rawInvoker.invoke([
+      new SystemMessage(
+        `${ROUTER_SYSTEM_PROMPT}\n\nIf strict JSON schema formatting fails, respond with only one token: trivial or default.`,
+      ),
+      new HumanMessage(userContent),
+    ]);
+
+    const rawText = extractText(rawResult.content);
+    const complexity = parseComplexityLabel(rawText);
+    result = {
+      complexity,
+      reasoning:
+        complexity === "trivial"
+          ? "Recovered from non-JSON classifier output; interpreted label as trivial."
+          : "Recovered from non-JSON classifier output; interpreted label as default.",
+    };
+  }
 
   return {
     routerResult: {
