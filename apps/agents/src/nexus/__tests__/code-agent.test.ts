@@ -67,7 +67,12 @@ describe("Code Agent factory", () => {
     expect(agent!.name).toBe("code");
     expect(agent!.description).toBeTruthy();
     expect(agent!.systemPrompt).toBeTruthy();
-    expect(agent!.tools).toBeUndefined();
+    expect(agent!.tools).toHaveLength(3);
+    expect(agent!.tools?.map((tool) => tool.name)).toEqual([
+      "sandbox_code_execute",
+      "sandbox_jupyter_create_session",
+      "sandbox_jupyter_execute",
+    ]);
     expect(agent!.model).toBeDefined();
   });
 });

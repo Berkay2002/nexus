@@ -70,13 +70,18 @@ describe("Orchestrator sub-agent wiring", () => {
     expect(research.tools).toHaveLength(3);
   });
 
-  it("should include code agent without custom tools", () => {
+  it("should include code agent with runtime tools", () => {
     const subagents = capturedParams!.subagents as Array<{
       name: string;
-      tools?: unknown[];
+      tools?: Array<{ name: string }>;
     }>;
     const code = subagents.find((a) => a.name === "code")!;
-    expect(code.tools).toBeUndefined();
+    expect(code.tools).toHaveLength(3);
+    expect(code.tools?.map((tool) => tool.name)).toEqual([
+      "sandbox_code_execute",
+      "sandbox_jupyter_create_session",
+      "sandbox_jupyter_execute",
+    ]);
   });
 
   it("should include creative agent with tools", () => {

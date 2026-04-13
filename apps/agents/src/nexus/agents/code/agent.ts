@@ -1,5 +1,6 @@
 // apps/agents/src/nexus/agents/code/agent.ts
 import type { SubAgent } from "deepagents";
+import { codeTools } from "../../tools/index.js";
 import { resolveTier, buildTierFallbacks } from "../../models/index.js";
 import { createConfigurableModelMiddleware } from "../../middleware/configurable-model.js";
 import { createModelFallbackMiddleware } from "../../middleware/model-fallback.js";
@@ -14,10 +15,9 @@ import {
  *
  * Returns `null` if no provider is available for the code tier.
  *
- * No custom tools — relies entirely on auto-provisioned sandbox tools:
- * execute (shell), ls, read_file, write_file, edit_file, glob, grep.
- * These are provided automatically because the orchestrator uses a
- * sandbox backend (AIOSandboxBackend via CompositeBackend).
+ * Includes runtime API tools (sandbox_code_execute, sandbox_jupyter_*),
+ * while still benefiting from auto-provisioned sandbox tools from the
+ * backend (execute shell + filesystem helpers).
  */
 export function createCodeAgent(): SubAgent | null {
   const model = resolveTier("code");
@@ -33,6 +33,7 @@ export function createCodeAgent(): SubAgent | null {
     name: CODE_AGENT_NAME,
     description: CODE_AGENT_DESCRIPTION,
     systemPrompt: CODE_SYSTEM_PROMPT,
+    tools: [...codeTools],
     model,
     middleware,
   };
