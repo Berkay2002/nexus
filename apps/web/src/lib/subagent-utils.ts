@@ -9,8 +9,7 @@ import type {
 } from "@/app/api/models/route";
 
 export interface NexusTodo {
-  id: string;
-  title: string;
+  content: string;
   status: "pending" | "in_progress" | "completed";
 }
 

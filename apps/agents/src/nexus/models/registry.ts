@@ -180,3 +180,26 @@ export function isTierAvailable(tier: Tier): boolean {
 export function getTierDefault(tier: Tier): ModelDescriptor | null {
   return findTierDescriptor(tier);
 }
+
+/**
+ * Build the ordered fallback list for a tier — one model per *other* available
+ * provider, in `TIER_PRIORITY[tier]` order, excluding whatever `resolveTier`
+ * would pick as the primary. Used by `modelFallbackMiddleware` and the
+ * meta-router's `withFallbacks` chain so that when the primary 429s we try
+ * the next provider instead of throwing.
+ */
+export function buildTierFallbacks(
+  tier: Tier,
+  options?: ModelBuildOptions,
+): BaseChatModel[] {
+  const models: BaseChatModel[] = [];
+  for (const provider of TIER_PRIORITY[tier]) {
+    if (!isProviderAvailable(provider)) continue;
+    const entry = MODEL_CATALOG.find(
+      (m) => m.provider === provider && m.tiers.includes(tier),
+    );
+    if (!entry) continue;
+    models.push(providerFactories[provider](entry.id, options));
+  }
+  return models.slice(1);
+}

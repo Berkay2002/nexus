@@ -1,7 +1,8 @@
 import type { SubAgent } from "deepagents";
 import { researchTools } from "../../tools/index.js";
-import { resolveTier } from "../../models/index.js";
+import { resolveTier, buildTierFallbacks } from "../../models/index.js";
 import { createConfigurableModelMiddleware } from "../../middleware/configurable-model.js";
+import { createModelFallbackMiddleware } from "../../middleware/model-fallback.js";
 import {
   RESEARCH_AGENT_NAME,
   RESEARCH_AGENT_DESCRIPTION,
@@ -17,12 +18,19 @@ import {
 export function createResearchAgent(): SubAgent | null {
   const model = resolveTier("deep-research");
   if (!model) return null;
+  const fallbacks = buildTierFallbacks("deep-research");
+  const middleware = [
+    createConfigurableModelMiddleware(RESEARCH_AGENT_NAME),
+    ...(fallbacks.length > 0
+      ? [createModelFallbackMiddleware(RESEARCH_AGENT_NAME, fallbacks)]
+      : []),
+  ];
   return {
     name: RESEARCH_AGENT_NAME,
     description: RESEARCH_AGENT_DESCRIPTION,
     systemPrompt: RESEARCH_SYSTEM_PROMPT,
     tools: [...researchTools],
     model,
-    middleware: [createConfigurableModelMiddleware(RESEARCH_AGENT_NAME)] as const,
+    middleware,
   };
 }

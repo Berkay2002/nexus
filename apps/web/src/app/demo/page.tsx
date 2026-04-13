@@ -9,21 +9,21 @@ import { RotateCcw, Play, FastForward } from "lucide-react";
 // ─── Mock Data ───────────────────────────────────────────────────────
 
 const MOCK_TODOS: NexusTodo[] = [
-  { id: "1", title: "Analyze user request and determine required agents", status: "completed" },
-  { id: "2", title: "Research current AI education landscape and K-12 adoption rates", status: "completed" },
-  { id: "3", title: "Generate comparison table of top AI tutoring platforms", status: "in_progress" },
-  { id: "4", title: "Create visualization of adoption trends (2020-2025)", status: "pending" },
-  { id: "5", title: "Write executive summary with key findings and recommendations", status: "pending" },
-  { id: "6", title: "Compile final deliverable with all sections", status: "pending" },
+  { content: "Analyze user request and determine required agents", status: "completed" },
+  { content: "Research current AI education landscape and K-12 adoption rates", status: "completed" },
+  { content: "Generate comparison table of top AI tutoring platforms", status: "in_progress" },
+  { content: "Create visualization of adoption trends (2020-2025)", status: "pending" },
+  { content: "Write executive summary with key findings and recommendations", status: "pending" },
+  { content: "Compile final deliverable with all sections", status: "pending" },
 ];
 
 const COMPLETED_TODOS: NexusTodo[] = [
-  { id: "1", title: "Analyze user request and determine required agents", status: "completed" },
-  { id: "2", title: "Research current AI education landscape", status: "completed" },
-  { id: "3", title: "Generate comparison table of AI platforms", status: "completed" },
-  { id: "4", title: "Create adoption trends visualization", status: "completed" },
-  { id: "5", title: "Write executive summary", status: "completed" },
-  { id: "6", title: "Compile final deliverable", status: "completed" },
+  { content: "Analyze user request and determine required agents", status: "completed" },
+  { content: "Research current AI education landscape", status: "completed" },
+  { content: "Generate comparison table of AI platforms", status: "completed" },
+  { content: "Create adoption trends visualization", status: "completed" },
+  { content: "Write executive summary", status: "completed" },
+  { content: "Compile final deliverable", status: "completed" },
 ];
 
 function createMockSubagent(
@@ -43,7 +43,7 @@ function createMockSubagent(
     messages: messages ?? [],
     toolCall: {
       id: `call_${id}`,
-      name: "create_subagent",
+      name: "task",
       args: { subagent_type: type, description },
     },
     startedAt,
@@ -205,9 +205,9 @@ const MOCK_MESSAGES_RUNNING = [
     content: "",
     // This message dispatches the subagents — tool_calls match the subagent IDs
     tool_calls: [
-      { id: "call_sa-1", name: "create_subagent", args: { subagent_type: "research", description: "Research current AI education landscape and K-12 adoption rates across the US" } },
-      { id: "call_sa-2", name: "create_subagent", args: { subagent_type: "code", description: "Generate comparison table of top AI tutoring platforms with features, pricing, and adoption metrics" } },
-      { id: "call_sa-3", name: "create_subagent", args: { subagent_type: "creative", description: "Create data visualization of AI adoption trends in education (2020-2025)" } },
+      { id: "call_sa-1", name: "task", args: { subagent_type: "research", description: "Research current AI education landscape and K-12 adoption rates across the US" } },
+      { id: "call_sa-2", name: "task", args: { subagent_type: "code", description: "Generate comparison table of top AI tutoring platforms with features, pricing, and adoption metrics" } },
+      { id: "call_sa-3", name: "task", args: { subagent_type: "creative", description: "Create data visualization of AI adoption trends in education (2020-2025)" } },
     ],
   },
 ];

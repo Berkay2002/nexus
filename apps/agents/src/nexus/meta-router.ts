@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { resolveTier } from "./models/index.js";
+import { resolveTier, buildTierFallbacks } from "./models/index.js";
 import type { NexusState } from "./state.js";
 
 /**
@@ -46,18 +46,32 @@ Respond ONLY with the structured output. Do not include any other text.`;
 export async function metaRouter(
   state: NexusState,
 ): Promise<Pick<NexusState, "routerResult">> {
-  const model =
-    resolveTier("classifier", undefined, { temperature: 0 }) ??
-    resolveTier("default", undefined, { temperature: 0 });
-  if (!model) {
+  // Prefer the classifier tier; fall through to default if no classifier is
+  // available. The fallback chain follows the tier we actually picked.
+  const classifierPrimary = resolveTier("classifier", undefined, {
+    temperature: 0,
+  });
+  const primary =
+    classifierPrimary ?? resolveTier("default", undefined, { temperature: 0 });
+  if (!primary) {
     throw new Error(
       "No model available for meta-router — set GOOGLE_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY",
     );
   }
+  const fallbackModels = classifierPrimary
+    ? buildTierFallbacks("classifier", { temperature: 0 })
+    : buildTierFallbacks("default", { temperature: 0 });
 
-  const structuredModel = model.withStructuredOutput(routerOutputSchema, {
+  const primaryStructured = primary.withStructuredOutput(routerOutputSchema, {
     name: "RouterOutput",
   });
+  const fallbackStructured = fallbackModels.map((m) =>
+    m.withStructuredOutput(routerOutputSchema, { name: "RouterOutput" }),
+  );
+  const invoker =
+    fallbackStructured.length > 0
+      ? primaryStructured.withFallbacks({ fallbacks: fallbackStructured })
+      : primaryStructured;
 
   const lastMessage = state.messages[state.messages.length - 1];
   const userContent =
@@ -65,7 +79,7 @@ export async function metaRouter(
       ? lastMessage.content
       : JSON.stringify(lastMessage.content);
 
-  const result = await structuredModel.invoke([
+  const result = await invoker.invoke([
     new SystemMessage(ROUTER_SYSTEM_PROMPT),
     new HumanMessage(userContent),
   ]);

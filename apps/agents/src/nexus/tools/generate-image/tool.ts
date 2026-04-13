@@ -35,26 +35,36 @@ export const generateImage = tool(
       new HumanMessage(`Generate an image: ${prompt}`),
     ]);
 
-    const blocks = (response as any).contentBlocks ?? [];
+    // @langchain/google emits generated images as `inlineData` blocks:
+    //   { type: "inlineData", inlineData: { mimeType, data } }
+    // (NOT the LangChain-core canonical `file` block shape). It also interleaves
+    // Gemini "thought" blocks: { type: "text", thought: true, text: "..." } —
+    // those are reasoning output and must not be surfaced as the agent's prose.
+    const rawContent = (response as any).content;
+    const blocks: any[] = Array.isArray(rawContent) ? rawContent : [];
 
-    const imageBlocks = Array.isArray(blocks)
-      ? blocks.filter(
-          (block: any) =>
-            block &&
-            block.type === "file" &&
-            typeof block.data === "string" &&
-            typeof block.mimeType === "string" &&
-            block.mimeType.startsWith("image/"),
-        )
-      : [];
+    const imageBlocks = blocks
+      .filter(
+        (block) =>
+          block &&
+          block.type === "inlineData" &&
+          block.inlineData &&
+          typeof block.inlineData.data === "string" &&
+          typeof block.inlineData.mimeType === "string" &&
+          block.inlineData.mimeType.startsWith("image/"),
+      )
+      .map((block) => ({
+        base64: block.inlineData.data as string,
+        mime_type: block.inlineData.mimeType as string,
+      }));
 
     if (imageBlocks.length === 0) {
-      const textContent = Array.isArray(blocks)
-        ? blocks
-            .filter((block: any) => block && block.type === "text")
-            .map((block: any) => block.text)
-            .join("\n")
-        : String(response.content ?? "");
+      const textContent = blocks
+        .filter(
+          (block) => block && block.type === "text" && block.thought !== true,
+        )
+        .map((block) => block.text ?? "")
+        .join("\n");
 
       return JSON.stringify({
         success: false,
@@ -69,10 +79,7 @@ export const generateImage = tool(
       filename,
       prompt,
       image_count: imageBlocks.length,
-      images: imageBlocks.map((block: any) => ({
-        base64: block.data,
-        mime_type: block.mimeType,
-      })),
+      images: imageBlocks,
       instruction:
         "Use write_file to save each image to the workspace. Image data is raw base64 (no data URL prefix) in the `base64` field; the MIME type is in `mime_type`. Pass the base64 string directly to write_file with binary mode.",
     });

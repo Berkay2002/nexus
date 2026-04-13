@@ -42,7 +42,9 @@ const TOOL_DISPLAY: Record<string, { label: string; icon: typeof WrenchIcon }> =
   tavily_map: { label: "Mapping URLs", icon: GlobeIcon },
   generate_image: { label: "Generating image", icon: ImageIcon },
   write_todos: { label: "Creating plan", icon: ListTodoIcon },
-  create_subagent: { label: "Dispatching agent", icon: GitBranchIcon },
+  // DeepAgents dispatches sub-agents via the `task` tool (see
+  // deepagents/dist/index.cjs:1932 and langgraph-sdk `DEFAULT_SUBAGENT_TOOL_NAMES`).
+  task: { label: "Dispatching agent", icon: GitBranchIcon },
   execute_code: { label: "Running code", icon: CodeIcon },
 };
 
@@ -65,7 +67,7 @@ function HumanBubble({ content }: { content: string }) {
  *
  * The orchestrator's AI messages contain:
  * - text content (reasoning / response prose)
- * - tool_calls (actions like create_subagent, write_todos, tavily_search)
+ * - tool_calls (actions like task [subagent dispatch], write_todos, tavily_search)
  *
  * We parse these into CoT steps. Subagent cards are embedded inside
  * the "Dispatching agent" steps.
@@ -141,8 +143,8 @@ function OrchestratorMessage({
               matchedToolCallIds.add(tc.id);
             }
 
-            // For create_subagent calls, embed the SubagentCard
-            if (toolName === "create_subagent" && matchedSubagent) {
+            // For `task` calls (DeepAgents' subagent dispatch), embed the SubagentCard
+            if (toolName === "task" && matchedSubagent) {
               const agentType = tc.args?.subagent_type ?? matchedSubagent.toolCall?.args?.subagent_type ?? "agent";
               return (
                 <ChainOfThoughtStep
@@ -182,12 +184,18 @@ function OrchestratorMessage({
                   status={isActive ? "active" : "complete"}
                 >
                   <div className="flex flex-col gap-1 mt-1">
-                    {todos.map((todo: any, j: number) => (
-                      <div key={j} className="text-xs text-muted-foreground flex items-center gap-1.5">
-                        <span className="text-muted-foreground/50">{"○"}</span>
-                        {todo.title ?? todo}
-                      </div>
-                    ))}
+                    {todos.map((todo: any, j: number) => {
+                      const text =
+                        typeof todo === "string"
+                          ? todo
+                          : todo?.content ?? todo?.title ?? "";
+                      return (
+                        <div key={j} className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <span className="text-muted-foreground/50">{"○"}</span>
+                          {text}
+                        </div>
+                      );
+                    })}
                   </div>
                 </ChainOfThoughtStep>
               );
@@ -213,12 +221,13 @@ function OrchestratorMessage({
             .filter((sub) => !matchedToolCallIds.has(sub.toolCall?.id))
             .map((sub) => {
               const agentType = sub.toolCall?.args?.subagent_type ?? "agent";
+              const subDescription = sub.toolCall?.args?.description;
               return (
                 <ChainOfThoughtStep
                   key={sub.id}
                   icon={GitBranchIcon}
                   label={`Dispatching ${getAgentName(agentType)}`}
-                  description={sub.toolCall?.args?.description}
+                  description={typeof subDescription === "string" ? subDescription : undefined}
                   status={
                     sub.status === "complete" || sub.status === "error"
                       ? "complete"
@@ -269,7 +278,7 @@ export function MessageFeed({
   );
 
   return (
-    <div className="flex flex-col gap-5 py-6 px-4 max-w-3xl mx-auto">
+    <div className="flex flex-col gap-5 py-6 px-4 w-full max-w-3xl mx-auto">
       {filteredMessages.map((message, index) => {
         const isHuman = message.type === "human";
         const isTool = message.type === "tool";

@@ -2,6 +2,15 @@ import { tool } from "@langchain/core/tools";
 import { z } from "zod/v4";
 import { TOOL_NAME, TOOL_DESCRIPTION } from "./prompt.js";
 
+const booleanLike = () =>
+  z.union([z.boolean(), z.enum(["true", "false"])]);
+
+function coerceBool<T>(v: T): T | boolean {
+  if (v === "true") return true;
+  if (v === "false") return false;
+  return v;
+}
+
 export const tavilySearchSchema = z.object({
   query: z.string().describe("The search query to execute"),
   search_depth: z
@@ -31,21 +40,20 @@ export const tavilySearchSchema = z.object({
     .optional()
     .describe("Filter results by recency"),
   include_answer: z
-    .union([z.boolean(), z.enum(["basic", "advanced"])])
+    .union([z.boolean(), z.enum(["basic", "advanced", "true", "false"])])
     .optional()
     .default(false)
     .describe(
       "Include an LLM-generated answer. true or 'basic' for a short answer, 'advanced' for detailed.",
     ),
   include_raw_content: z
-    .union([z.boolean(), z.enum(["markdown", "text"])])
+    .union([z.boolean(), z.enum(["markdown", "text", "true", "false"])])
     .optional()
     .default(false)
     .describe(
       "Include cleaned page content per result. true or 'markdown' for markdown, 'text' for plain text.",
     ),
-  include_images: z
-    .boolean()
+  include_images: booleanLike()
     .optional()
     .default(false)
     .describe("Include images in results"),
@@ -78,13 +86,20 @@ export const tavilySearch = tool(
     }
 
     try {
+      const normalized = {
+        ...input,
+        include_answer: coerceBool(input.include_answer),
+        include_raw_content: coerceBool(input.include_raw_content),
+        include_images: coerceBool(input.include_images),
+      };
+
       const response = await fetch("https://api.tavily.com/search", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify(input),
+        body: JSON.stringify(normalized),
       });
 
       if (!response.ok) {

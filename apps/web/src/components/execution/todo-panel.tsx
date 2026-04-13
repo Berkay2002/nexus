@@ -31,7 +31,7 @@ function TodoItem({ todo }: { todo: NexusTodo }) {
           todo.status === "pending" && "text-muted-foreground",
         )}
       >
-        {todo.title}
+        {todo.content}
       </span>
     </div>
   );
@@ -54,8 +54,8 @@ export function TodoPanel({ todos }: { todos: NexusTodo[] }) {
       </div>
       <ScrollArea className="max-h-[40vh]">
         <div className="flex flex-col gap-0.5">
-          {todos.map((todo) => (
-            <TodoItem key={todo.id} todo={todo} />
+          {todos.map((todo, i) => (
+            <TodoItem key={`${i}-${todo.content}`} todo={todo} />
           ))}
         </div>
       </ScrollArea>

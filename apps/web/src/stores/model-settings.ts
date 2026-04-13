@@ -43,15 +43,17 @@ function saveToStorage(value: ModelsByRole): void {
   }
 }
 
-// Module-level store with subscriber set.
-let state: ModelsByRole = {};
+const EMPTY_MODELS: ModelsByRole = Object.freeze({});
+
+let state: ModelsByRole = EMPTY_MODELS;
 let initialized = false;
 const listeners = new Set<() => void>();
 
 function ensureInitialized(): void {
   if (initialized) return;
   initialized = true;
-  state = loadFromStorage();
+  const loaded = loadFromStorage();
+  state = Object.keys(loaded).length === 0 ? EMPTY_MODELS : loaded;
 }
 
 function emit(): void {
@@ -71,7 +73,7 @@ function getSnapshot(): ModelsByRole {
 }
 
 function getServerSnapshot(): ModelsByRole {
-  return {};
+  return EMPTY_MODELS;
 }
 
 function setModelInternal(role: Role, fullId: string | undefined): void {

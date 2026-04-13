@@ -1,6 +1,16 @@
 // apps/agents/src/nexus/agents/general-purpose/agent.ts
 import type { SubAgent } from "deepagents";
+import { buildTierFallbacks } from "../../models/index.js";
 import { createConfigurableModelMiddleware } from "../../middleware/configurable-model.js";
+import { createModelFallbackMiddleware } from "../../middleware/model-fallback.js";
+
+const generalPurposeFallbacks = buildTierFallbacks("default");
+const generalPurposeMiddleware = [
+  createConfigurableModelMiddleware("general-purpose"),
+  ...(generalPurposeFallbacks.length > 0
+    ? [createModelFallbackMiddleware("general-purpose", generalPurposeFallbacks)]
+    : []),
+];
 
 /**
  * General-purpose subagent override.
@@ -15,7 +25,7 @@ import { createConfigurableModelMiddleware } from "../../middleware/configurable
  */
 export const generalPurposeAgent: SubAgent = {
   name: "general-purpose",
-  middleware: [createConfigurableModelMiddleware("general-purpose")] as const,
+  middleware: generalPurposeMiddleware,
   description:
     "General-purpose assistant for miscellaneous tasks that don't fit Research, Code, or Creative. " +
     "Use only when no specialized agent is appropriate. Prefer specialized agents for better results.",

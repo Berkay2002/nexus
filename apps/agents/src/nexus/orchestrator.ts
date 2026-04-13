@@ -2,7 +2,13 @@ import { createDeepAgent } from "deepagents";
 import { AIOSandboxBackend } from "./backend/aio-sandbox.js";
 import { createNexusBackend } from "./backend/composite.js";
 import { configurableModelMiddleware } from "./middleware/configurable-model.js";
-import { resolveTier, getTierDefault, type Tier } from "./models/index.js";
+import { createModelFallbackMiddleware } from "./middleware/model-fallback.js";
+import {
+  resolveTier,
+  getTierDefault,
+  buildTierFallbacks,
+  type Tier,
+} from "./models/index.js";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "./prompts/orchestrator-system.js";
 import { getNexusSubagents } from "./agents/index.js";
 import { nexusSkillFiles } from "./skills/index.js";
@@ -40,11 +46,24 @@ export function createNexusOrchestrator(
     );
   }
 
+  const orchestratorFallbacks = buildTierFallbacks("default");
+  const orchestratorMiddleware = [
+    configurableModelMiddleware,
+    ...(orchestratorFallbacks.length > 0
+      ? [
+          createModelFallbackMiddleware(
+            "nexus-orchestrator",
+            orchestratorFallbacks,
+          ),
+        ]
+      : []),
+  ];
+
   return createDeepAgent({
     name: "nexus-orchestrator",
     model: defaultModel,
     systemPrompt: ORCHESTRATOR_SYSTEM_PROMPT,
-    middleware: [configurableModelMiddleware] as const,
+    middleware: orchestratorMiddleware,
     backend,
     memory: ["/memories/AGENTS.md"],
     skills: ["/skills/"],
