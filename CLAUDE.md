@@ -17,11 +17,13 @@ This project has a wikillm knowledge base at `.kb/`. **For ANY question — abou
 - **Do not spelunk code when a wiki article exists.** Querying the wiki for "how does CompositeBackend route /memories/" is faster and more accurate than reading `backend/composite.ts` + its tests.
 - **Do not paste library docs into `CLAUDE.md` or `docs/`.** Reference material goes in `.kb/raw/` followed by `/wikillm:ingest`.
 
+**Obsidian desktop is always running on this machine.** For any direct vault operation (search, read, list tags, find orphans, write a note) use `/wikillm:obsidian-cli` — never Grep or Read on `.kb/wiki/` directly. Direct file access bypasses Obsidian's index and breaks backlinks on edits.
+
 **Scope.** The KB covers third-party reference material only. Nothing in `apps/` imports from `.kb/`, and the KB does NOT cover Nexus's own code — for project-specific wiring (function names, which file exports what), read the source directly. Human-authored specs and plans live in `docs/superpowers/` and are NOT part of the KB.
 
 ## Design Spec
 
-The comprehensive design specification lives at `docs/superpowers/specs/2026-04-10-nexus-design.md`. It covers architecture, technology choices, meta-router, orchestrator, sub-agents, workspace conventions, tools, skills, frontend, and an 8-plan implementation decomposition. **Consult this before making architectural decisions.**
+The comprehensive design specification lives at `docs/superpowers/specs/2026-04-10-nexus-design.md`. It covers architecture, technology choices, meta-router, orchestrator, sub-agents, workspace conventions, tools, skills, and frontend. **Consult this before making architectural decisions.**
 
 ## Three-Process Architecture
 
@@ -98,26 +100,12 @@ Key infrastructure files to **preserve** during UI rewrites:
 - `SubagentStreamInterface` has no `model` field — derive from `subagent_type` via static mapping
 - `stream.values` can be undefined initially — always use `stream.values?.todos` with optional chaining
 - DeepAgents always adds a general-purpose subagent alongside custom ones — must be addressed
-- CompositeBackend wrapping a sandbox as default route is untested in docs — verify early in Plan 1
 - Custom tools live in `tools/{name}/prompt.ts` (TOOL_NAME + TOOL_DESCRIPTION) + `tool.ts` (Zod schema + implementation). Short folder names: `search/`, `extract/`, `map/`, `generate-image/`
 - Tavily Map API returns `results` (array of URL strings) and `base_url`, NOT `urls` — check `docs/custom/` OpenAPI specs for actual response shapes
 - Vitest does not auto-load `.env` — for integration tests needing API keys: `source .env && export VAR_NAME` before running
 - `FileData` from `deepagents` is a union of `FileDataV1` (`content: string[]`) and `FileDataV2` (`content: string | Uint8Array`). Skills use V1 format (line array).
 - Skills are seeded via `orchestrator.invoke({ files: nexusSkillFiles })` — the barrel export at `skills/index.ts` recursively collects all skill files as a `FileData` map with virtual POSIX paths (`/skills/{name}/...`)
 - `apps/agents` has pre-existing TypeScript build errors (test files, db/index.ts) — use `npx next build` in `apps/web/` directly instead of `npm run build` from root
-
-## Current State
-
-Plans 1-7 implemented. Scaffold research-agent removed. `langgraph.json` points to `nexus` graph.
-- **Plan 1:** AIO Sandbox backend, CompositeBackend, StoreBackend, DB schema
-- **Plan 2:** Meta-router (Flash classifier), ConfigurableModel middleware, orchestrator (DeepAgent), graph wiring
-- **Plan 3:** Custom tools — `tavily_search`, `tavily_extract`, `tavily_map`, `generate_image` in `tools/{name}/prompt.ts + tool.ts`
-- **Plan 4:** Sub-agents — research, code, creative, general-purpose in `agents/{name}/agent.ts + prompt.ts`
-- **Plan 5:** Skills — 5 orchestrator skills in `skills/{name}/SKILL.md + examples.md + templates/`, barrel export, `/skills/` StoreBackend route, skills seeding
-- **Plan 6:** Frontend landing page — deps upgraded to LangChain 1.x/zod 4/React 19.1/Next 15.5, StreamProvider refactored (no config form, `filterSubagentMessages`), dark mode, landing components (logo/tagline/prompt), `useNexusStream` hook, scaffold branding stripped
-- **Plan 7:** Frontend execution view — 30/70 split in `apps/web/src/components/execution/` (`execution-shell`, `todo-panel`, `agent-status-panel`, `subagent-card`, `synthesis-indicator`, `prompt-bar`, `message-feed`), landing↔execution switch via `hasMessages` in `app/page.tsx`, all wired through `useNexusStream`
-- **Provider-agnostic refactor (feat/provider-agnostic-models)**: Model selection is now tier-based. Supports Google, Anthropic, and OpenAI auto-detected from env vars with per-role UI overrides. See `apps/agents/src/nexus/models/` and `docs/superpowers/specs/2026-04-10-nexus-design.md` plus the plan file.
-- **Next:** Plan 8 (End-to-End Integration & Polish)
 
 ## Workspace Convention
 

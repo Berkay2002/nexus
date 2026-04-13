@@ -25,6 +25,3 @@ Default route â†’ AIOSandboxBackend (ephemeral workspace). `/memories/` route â†
 
 ## Sub-Agents Are Self-Contained
 Custom sub-agents do NOT inherit tools, system prompts, or skills from the orchestrator. Each sub-agent must explicitly define its own tools and system prompt via the `SubAgent` interface.
-
-## Implementation Status
-Plans 1-7 are complete. The backend agent system is fully implemented (meta-router, orchestrator, 4 sub-agents, 4 tools, 5 skills, backends, middleware). The frontend has both the landing page and the execution view: 30/70 split layout with todo panel, agent status panel, subagent cards, synthesis indicator, message feed, and prompt bar (all in `apps/web/src/components/execution/`), wired via `useNexusStream` and switched from the landing page via `hasMessages` in `app/page.tsx`. Plan 8 (end-to-end integration testing, error handling, README) is next.
