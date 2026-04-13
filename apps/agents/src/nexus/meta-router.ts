@@ -57,6 +57,71 @@ function parseComplexityLabel(text: string): ComplexityLabel {
   return "default";
 }
 
+function coerceComplexity(value: unknown): ComplexityLabel {
+  if (typeof value === "string" && value.trim().toLowerCase() === "trivial") {
+    return "trivial";
+  }
+  return "default";
+}
+
+function tryParseJsonObject(text: string): Record<string, unknown> | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+
+  const withoutFence = trimmed
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
+  const candidates = [withoutFence];
+  const firstBrace = withoutFence.indexOf("{");
+  const lastBrace = withoutFence.lastIndexOf("}");
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    candidates.push(withoutFence.slice(firstBrace, lastBrace + 1));
+  }
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // ignore and try the next candidate
+    }
+  }
+
+  return null;
+}
+
+function recoverRouterOutput(rawText: string): RouterOutput {
+  const parsed = tryParseJsonObject(rawText);
+  if (parsed) {
+    const complexity = coerceComplexity(
+      parsed.complexity ?? parsed.classification,
+    );
+    const reasoningRaw = parsed.reasoning;
+    const reasoning =
+      typeof reasoningRaw === "string" && reasoningRaw.trim().length > 0
+        ? reasoningRaw
+        : `Recovered from non-JSON classifier shape; normalized ${
+            parsed.classification !== undefined && parsed.complexity === undefined
+              ? "classification"
+              : "complexity"
+          } to ${complexity}.`;
+    return { complexity, reasoning };
+  }
+
+  const complexity = parseComplexityLabel(rawText);
+  return {
+    complexity,
+    reasoning:
+      complexity === "trivial"
+        ? "Recovered from non-JSON classifier output; interpreted label as trivial."
+        : "Recovered from non-JSON classifier output; interpreted label as default.",
+  };
+}
+
 const ROUTER_SYSTEM_PROMPT = `You are a silent request classifier. Your job is to analyze the user's prompt and decide how complex it is so the system can pick an appropriately sized model for the orchestrator.
 
 Classification criteria:
@@ -138,14 +203,7 @@ export async function metaRouter(
     ]);
 
     const rawText = extractText(rawResult.content);
-    const complexity = parseComplexityLabel(rawText);
-    result = {
-      complexity,
-      reasoning:
-        complexity === "trivial"
-          ? "Recovered from non-JSON classifier output; interpreted label as trivial."
-          : "Recovered from non-JSON classifier output; interpreted label as default.",
-    };
+    result = recoverRouterOutput(rawText);
   }
 
   return {
