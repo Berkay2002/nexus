@@ -61,6 +61,7 @@ export function WorkspaceOutputsPanel({
                 </a>
                 <a
                   href={buildFileHref(path, true)}
+                  download={baseName(path)}
                   className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground hover:underline"
                 >
                   <Download className="size-3" />

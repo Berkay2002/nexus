@@ -64,8 +64,12 @@ export async function GET(request: NextRequest) {
   }
 
   const filename = extractName(filePath);
+  const sandboxContentType = sandboxResponse.headers.get("content-type");
+  const guessedContentType = guessMimeType(filePath);
   const contentType =
-    sandboxResponse.headers.get("content-type") ?? guessMimeType(filePath);
+    sandboxContentType && sandboxContentType !== "application/octet-stream"
+      ? sandboxContentType
+      : guessedContentType;
 
   const headers = new Headers();
   headers.set("content-type", contentType);
