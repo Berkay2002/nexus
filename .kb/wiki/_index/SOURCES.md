@@ -53,3 +53,5 @@ Maps `raw/` source files to the wiki articles compiled from each. Ingest uses th
 - `raw/references/deepagents-reference.md` → [[deepagents-typescript-reference]]
 - `raw/references/google-gen-ai-reference.md` → [[langchain-google-api-reference]]
 - `raw/what-is-computer.txt` → [[perplexity-computer]]
+- `raw/anthropic-blogs/code-exeuction-with-mcp.md` → [[code-execution-with-mcp]]
+- `raw/anthropic-blogs/mcp-tool-use.md` → [[anthropic-advanced-tool-use]], [[tool-search-tool]], [[programmatic-tool-calling]], [[tool-use-examples]]

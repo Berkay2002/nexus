@@ -1,5 +1,30 @@
 # Log
 
+## [2026-04-13 23:30] ingest | raw/anthropic-blogs/ — 2 sources → 5 new articles
+
+Sequential ingest of the two Anthropic engineering blog posts dropped into `raw/anthropic-blogs/`. Light workload (2 short posts), so no subagent dispatch — orchestrator wrote all articles directly.
+
+**Sources processed:**
+- `raw/anthropic-blogs/code-exeuction-with-mcp.md` (Nov 04 2025) → [[code-execution-with-mcp]]
+- `raw/anthropic-blogs/mcp-tool-use.md` (Nov 24 2025) → [[anthropic-advanced-tool-use]], [[tool-search-tool]], [[programmatic-tool-calling]], [[tool-use-examples]]
+
+**Concept assignment rationale:** The Nov 4 post is the general *pattern* (tools as a file tree, code-driven orchestration) and gets one article. The Nov 24 post introduces *three distinct API features* behind a single beta header — each is different enough in shape and reference surface to stand alone, so they split into three articles plus an umbrella for the shared beta header and layering guidance. One-concept-per-article maintained.
+
+**Key cross-domain braiding:**
+- [[code-execution-with-mcp]] positioned as the **provider-agnostic** version of the pattern that runs on [[aio-sandbox-overview|AIO Sandbox]] — the Nexus stack already has every ingredient (filesystem, code execution, MCP reach). Spelled out as an explicit design note under "Relevance to Nexus," marked `[unverified]` because Nexus has not yet adopted it.
+- [[programmatic-tool-calling]] contrasted against the filesystem pattern as the **Anthropic-hosted, provider-conditional** alternative. The cross-link goes both ways so a future session hits either article and finds the other.
+- All four beta-feature articles cross-link to [[chat-anthropic]] as the LangChain enable point (via the `betas` constructor param), and each carries a `[unverified]` callout about LangChain adapter coverage for the per-feature fields (`defer_loading`, `code_execution`, `allowed_callers`, `input_examples`) since neither blog documents `@langchain/anthropic` support.
+- Every new article links back to the Nexus-relevant MCP cluster: [[langchain-mcp-adapters]] (current direct-call path), [[aio-sandbox-mcp-api]] (the gateway), and the sandbox execution articles ([[aio-sandbox-code-execution-api]], [[aio-sandbox-jupyter-api]]) where the filesystem pattern would live.
+
+**Warning callouts emitted:**
+- Beta-ID date drift: header is `advanced-tool-use-2025-11-20` (Nov 20), blog posted Nov 24, search-tool type is `tool_search_tool_regex_20251119` (Nov 19) — three separate dates, use each verbatim.
+- Tool Search Tool footgun: **keep 3–5 hot tools always loaded**; deferring the hot path wipes out the savings by forcing a search turn per conversation.
+- PTC trade-offs: Python-only (language mismatch with Nexus's TS tool surface), Anthropic-hosted sandbox (can't target AIO Sandbox), lost mid-workflow observability.
+- Multi-provider caveat: all three beta features are Anthropic-specific; on a multi-provider stack like Nexus they need provider-conditional paths. The filesystem alternative in [[code-execution-with-mcp]] survives a provider swap.
+- `[unverified]` markers on LangChain coverage and on Nexus adoption status for both patterns.
+
+**Indices updated:** SOURCES.md (new rows under anthropic-blogs), INDEX.md (new "Anthropic Platform — Advanced Tool Use" section with 5 entries), TAGS.md (extended `anthropic`, `claude`, `mcp`, `tool-call`, `context-engineering`, `skill`, `zod`; new tags `code-execution`, `beta`, `privacy`), RECENT.md (prepended 5 entries).
+
 ## [2026-04-13 21:15] ingest | raw/langchain/langchain/mcp.md — 1 new article
 
 Single-source sequential ingest of the LangChain docs page on `@langchain/mcp-adapters`. Created [[langchain-mcp-adapters]] covering `MultiServerMCPClient`, the stdio / streamable-http transports, the stateless-by-default session behavior, `client.getTools()` aggregation across servers, and a note on the `@modelcontextprotocol/sdk` path for custom servers.

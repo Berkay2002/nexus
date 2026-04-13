@@ -140,6 +140,14 @@ Content catalog of the Nexus knowledge base, grouped by domain. Use `/wikillm:qu
 - [[openai-provider]] — `@langchain/openai` package
 - [[chat-openai]] — ChatOpenAI class (GPT / base for `ZaiChatOpenAI`)
 
+## Anthropic Platform — Advanced Tool Use
+
+- [[code-execution-with-mcp]] — Anthropic pattern: present MCP servers as a code API on a filesystem (150K → 2K token example)
+- [[anthropic-advanced-tool-use]] — Umbrella for the three Nov 2025 beta features (`advanced-tool-use-2025-11-20`)
+- [[tool-search-tool]] — On-demand tool discovery via `defer_loading: true` + `tool_search_tool_regex_20251119`
+- [[programmatic-tool-calling]] — Sandboxed Python orchestration of tools marked with `code_execution` + `allowed_callers`
+- [[tool-use-examples]] — `input_examples` field for showing Claude idiomatic usage patterns
+
 ## AIO Sandbox
 
 - [[aio-sandbox-overview]] — What AIO Sandbox is (Docker agent environment)

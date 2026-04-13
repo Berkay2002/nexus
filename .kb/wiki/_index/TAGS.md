@@ -32,7 +32,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## anthropic
 
-- [[anthropic-provider]], [[chat-anthropic]]
+- [[anthropic-provider]], [[chat-anthropic]], [[code-execution-with-mcp]], [[anthropic-advanced-tool-use]], [[tool-search-tool]], [[programmatic-tool-calling]], [[tool-use-examples]]
 
 ## async
 
@@ -60,7 +60,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## claude
 
-- [[anthropic-provider]], [[chat-anthropic]]
+- [[anthropic-provider]], [[chat-anthropic]], [[anthropic-advanced-tool-use]], [[tool-search-tool]], [[programmatic-tool-calling]], [[tool-use-examples]]
 
 ## components
 
@@ -84,7 +84,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## context-engineering
 
-- [[context-engineering]], [[context-overview]], [[context-compression]], [[context-isolation]], [[input-context]], [[config-runtime-context]], [[dynamic-runtime-context]], [[cross-conversation-context]], [[context-quarantine]], [[memory]], [[skills]], [[subagents]]
+- [[context-engineering]], [[context-overview]], [[context-compression]], [[context-isolation]], [[input-context]], [[config-runtime-context]], [[dynamic-runtime-context]], [[cross-conversation-context]], [[context-quarantine]], [[memory]], [[skills]], [[subagents]], [[code-execution-with-mcp]], [[anthropic-advanced-tool-use]], [[tool-search-tool]], [[programmatic-tool-calling]]
 
 ## context-isolation
 
@@ -284,7 +284,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## skill
 
-- [[skills]], [[skill-md-format]], [[input-context]], [[aio-sandbox-skills-api]]
+- [[skills]], [[skill-md-format]], [[input-context]], [[aio-sandbox-skills-api]], [[code-execution-with-mcp]]
 
 ## state
 
@@ -328,7 +328,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## tool-call
 
-- [[langchain-tools]], [[tool-decorator]], [[tool-call]], [[tool-message]], [[ai-message]], [[bind-tools]], [[with-structured-output]], [[chat-anthropic]], [[chat-google-generative-ai]], [[chat-openai]], [[tavily-search-api]], [[aio-sandbox-browser-api]], [[aio-sandbox-mcp-api]], [[aio-sandbox-util-api]], [[aio-sandbox-openapi-overview]], [[langchain-mcp-adapters]]
+- [[langchain-tools]], [[tool-decorator]], [[tool-call]], [[tool-message]], [[ai-message]], [[bind-tools]], [[with-structured-output]], [[chat-anthropic]], [[chat-google-generative-ai]], [[chat-openai]], [[tavily-search-api]], [[aio-sandbox-browser-api]], [[aio-sandbox-mcp-api]], [[aio-sandbox-util-api]], [[aio-sandbox-openapi-overview]], [[langchain-mcp-adapters]], [[code-execution-with-mcp]], [[anthropic-advanced-tool-use]], [[tool-search-tool]], [[programmatic-tool-calling]], [[tool-use-examples]]
 
 ## tools
 
@@ -384,7 +384,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## mcp
 
-- [[aio-sandbox-mcp-api]], [[langchain-mcp-adapters]]
+- [[aio-sandbox-mcp-api]], [[langchain-mcp-adapters]], [[code-execution-with-mcp]], [[anthropic-advanced-tool-use]], [[tool-search-tool]], [[programmatic-tool-calling]]
 
 ## zai
 
@@ -392,7 +392,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## zod
 
-- [[zod-tool-schemas]]
+- [[zod-tool-schemas]], [[tool-use-examples]]
 
 ## testing
 
@@ -473,3 +473,15 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 ## integration
 
 - [[langchain-integration-testing]]
+
+## code-execution
+
+- [[code-execution-with-mcp]], [[programmatic-tool-calling]], [[aio-sandbox-code-execution-api]], [[aio-sandbox-jupyter-api]]
+
+## beta
+
+- [[anthropic-advanced-tool-use]], [[tool-search-tool]], [[programmatic-tool-calling]], [[tool-use-examples]], [[async-subagents]]
+
+## privacy
+
+- [[code-execution-with-mcp]]

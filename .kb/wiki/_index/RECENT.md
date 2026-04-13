@@ -2,6 +2,11 @@
 
 Last 20 wiki articles changed, most recent first.
 
+- [[code-execution-with-mcp]] — 2026-04-13 — created (Anthropic Nov 4 pattern: file-tree of MCP tools, 150K→2K token example, provider-agnostic alternative to PTC)
+- [[anthropic-advanced-tool-use]] — 2026-04-13 — created (umbrella for Nov 24 beta features under `advanced-tool-use-2025-11-20`)
+- [[tool-search-tool]] — 2026-04-13 — created (`defer_loading: true` + `tool_search_tool_regex_20251119`; 72K→500 token savings)
+- [[programmatic-tool-calling]] — 2026-04-13 — created (sandboxed Python tool orchestration via `code_execution` + `allowed_callers`; budget-compliance 200KB→1KB example)
+- [[tool-use-examples]] — 2026-04-13 — created (`input_examples` for idiomatic usage patterns beyond JSON Schema)
 - [[langchain-mcp-adapters]] — 2026-04-13 — created (`MultiServerMCPClient`, stdio/http transports, Nexus path to sandbox's 60 MCP tools via `POST /mcp`)
 - [[aio-sandbox-openapi-overview]] — 2026-04-13 — created (catalog of all 41 endpoints / 11 tags / 133 schemas from openapi.json)
 - [[aio-sandbox-sandbox-context-api]] — 2026-04-13 — created (`/v1/sandbox/*` env introspection)
