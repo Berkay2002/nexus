@@ -2,6 +2,7 @@
 
 Last 20 wiki articles changed, most recent first.
 
+- [[langchain-mcp-adapters]] — 2026-04-13 — created (`MultiServerMCPClient`, stdio/http transports, Nexus path to sandbox's 60 MCP tools via `POST /mcp`)
 - [[aio-sandbox-openapi-overview]] — 2026-04-13 — created (catalog of all 41 endpoints / 11 tags / 133 schemas from openapi.json)
 - [[aio-sandbox-sandbox-context-api]] — 2026-04-13 — created (`/v1/sandbox/*` env introspection)
 - [[aio-sandbox-shell-api]] — 2026-04-13 — created (`/v1/shell/*` — 10 endpoints, SSE gotcha, session lifecycle)

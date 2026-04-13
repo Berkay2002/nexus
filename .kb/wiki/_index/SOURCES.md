@@ -31,6 +31,7 @@ Maps `raw/` source files to the wiki articles compiled from each. Ingest uses th
 - `raw/langchain/langchain/messages.md` → [[langchain-messages]], [[ai-message]], [[tool-message]], [[multimodal-content]]
 - `raw/langchain/langchain/models.md` → [[langchain-models]], [[chat-model-interface]], [[with-structured-output]], [[bind-tools]]
 - `raw/langchain/langchain/langsmith-studio.md` → [[langsmith-studio]]
+- `raw/langchain/langchain/mcp.md` → [[langchain-mcp-adapters]]
 - `raw/langchain/langchain/test/agent-evals.md` → [[agent-evals]], [[trajectory-match-evaluator]], [[llm-as-judge-evaluator]]
 - `raw/langchain/langchain/test/integration-testing.md` → [[langchain-integration-testing]]
 - `raw/langchain/langchain/test/overview.md` → [[langchain-testing-overview]]

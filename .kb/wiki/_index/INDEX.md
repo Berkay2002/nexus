@@ -118,6 +118,7 @@ Content catalog of the Nexus knowledge base, grouped by domain. Use `/wikillm:qu
 - [[tool-decorator]] — The `tool()` factory
 - [[tool-call]] — ToolCall round-trip
 - [[zod-tool-schemas]] — Zod schemas for tool args
+- [[langchain-mcp-adapters]] — `@langchain/mcp-adapters` / `MultiServerMCPClient` (path to the AIO Sandbox's 60 MCP tools via `POST /mcp`)
 
 ## LangChain — Testing & Evals
 

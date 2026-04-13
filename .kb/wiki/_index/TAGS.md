@@ -28,7 +28,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## aio-sandbox
 
-- [[aio-sandbox-overview]], [[aio-sandbox-docker]], [[aio-sandbox-features]], [[agent-infra-sandbox-sdk]], [[aio-sandbox-deepagents-integration]], [[aio-sandbox-openapi-overview]], [[aio-sandbox-sandbox-context-api]], [[aio-sandbox-shell-api]], [[aio-sandbox-file-api]], [[aio-sandbox-browser-api]], [[aio-sandbox-jupyter-api]], [[aio-sandbox-code-execution-api]], [[aio-sandbox-mcp-api]], [[aio-sandbox-skills-api]], [[aio-sandbox-util-api]]
+- [[aio-sandbox-overview]], [[aio-sandbox-docker]], [[aio-sandbox-features]], [[agent-infra-sandbox-sdk]], [[aio-sandbox-deepagents-integration]], [[aio-sandbox-openapi-overview]], [[aio-sandbox-sandbox-context-api]], [[aio-sandbox-shell-api]], [[aio-sandbox-file-api]], [[aio-sandbox-browser-api]], [[aio-sandbox-jupyter-api]], [[aio-sandbox-code-execution-api]], [[aio-sandbox-mcp-api]], [[aio-sandbox-skills-api]], [[aio-sandbox-util-api]], [[langchain-mcp-adapters]]
 
 ## anthropic
 
@@ -168,7 +168,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## langchain
 
-- [[deep-agents-overview]], [[create-deep-agent]], [[deepagents-typescript-reference]], [[init-chat-model]], [[langchain-messages]], [[ai-message]], [[tool-message]], [[multimodal-content]], [[langchain-models]], [[chat-model-interface]], [[with-structured-output]], [[bind-tools]], [[langchain-tools]], [[tool-decorator]], [[tool-call]], [[zod-tool-schemas]], [[anthropic-provider]], [[chat-anthropic]], [[google-provider]], [[chat-google-generative-ai]], [[langchain-google-api-reference]], [[openai-provider]], [[chat-openai]], [[agent-chat-ui]]
+- [[deep-agents-overview]], [[create-deep-agent]], [[deepagents-typescript-reference]], [[init-chat-model]], [[langchain-messages]], [[ai-message]], [[tool-message]], [[multimodal-content]], [[langchain-models]], [[chat-model-interface]], [[with-structured-output]], [[bind-tools]], [[langchain-tools]], [[tool-decorator]], [[tool-call]], [[zod-tool-schemas]], [[anthropic-provider]], [[chat-anthropic]], [[google-provider]], [[chat-google-generative-ai]], [[langchain-google-api-reference]], [[openai-provider]], [[chat-openai]], [[agent-chat-ui]], [[langchain-mcp-adapters]]
 
 ## langchain-core
 
@@ -328,7 +328,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## tool-call
 
-- [[langchain-tools]], [[tool-decorator]], [[tool-call]], [[tool-message]], [[ai-message]], [[bind-tools]], [[with-structured-output]], [[chat-anthropic]], [[chat-google-generative-ai]], [[chat-openai]], [[tavily-search-api]], [[aio-sandbox-browser-api]], [[aio-sandbox-mcp-api]], [[aio-sandbox-util-api]], [[aio-sandbox-openapi-overview]]
+- [[langchain-tools]], [[tool-decorator]], [[tool-call]], [[tool-message]], [[ai-message]], [[bind-tools]], [[with-structured-output]], [[chat-anthropic]], [[chat-google-generative-ai]], [[chat-openai]], [[tavily-search-api]], [[aio-sandbox-browser-api]], [[aio-sandbox-mcp-api]], [[aio-sandbox-util-api]], [[aio-sandbox-openapi-overview]], [[langchain-mcp-adapters]]
 
 ## tools
 
@@ -384,7 +384,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## mcp
 
-- [[aio-sandbox-mcp-api]]
+- [[aio-sandbox-mcp-api]], [[langchain-mcp-adapters]]
 
 ## zai
 

@@ -1,5 +1,19 @@
 # Log
 
+## [2026-04-13 21:15] ingest | raw/langchain/langchain/mcp.md — 1 new article
+
+Single-source sequential ingest of the LangChain docs page on `@langchain/mcp-adapters`. Created [[langchain-mcp-adapters]] covering `MultiServerMCPClient`, the stdio / streamable-http transports, the stateless-by-default session behavior, `client.getTools()` aggregation across servers, and a note on the `@modelcontextprotocol/sdk` path for custom servers.
+
+**Cross-domain integration:** the article's `## Use from Nexus` section braids the source doc together with the user's auto-memory `aio_sandbox_mcp.md` (2026-04-13 AIO Sandbox MCP surface verification). That memory established that `POST /mcp` on the sandbox exposes 60 tools (`chrome_devtools_*` 27 + `browser_*` 23 + `sandbox_*` 10) while the `/v1/mcp/*` JSON gateway is half-broken for stdio-backed servers. The new article documents `MultiServerMCPClient` with `transport: "http"` pointed at `http://localhost:8080/mcp` as the canonical Nexus integration path and contrasts it with [[aio-sandbox-mcp-api]] (the gateway article) via an explicit warning callout. This turns an implicit "don't use the JSON gateway" rule into a searchable wiki article the next session will hit on a skim.
+
+**Warning callouts emitted:**
+- Stateless-by-default session behavior (source explicitly flags this via a `<Note>`; lifted into a WARNING).
+- Do-not-use-the-JSON-gateway guidance (lifted from user memory + contrasts with [[aio-sandbox-mcp-api]]).
+- `"sse"` vs `"http"` transport-value discrepancy in the source doc marked `[unverified]`.
+- Historical-context note retiring the hand-rolled `mcp-list-servers` / `mcp-list-tools` / `mcp-execute-tool` tools in `apps/agents/src/nexus/tools/`.
+
+**Indices updated:** SOURCES.md (new row under langchain), INDEX.md (added under "LangChain Core"), TAGS.md (extended `mcp`, `tool-call`, `langchain`, `aio-sandbox` tags), RECENT.md (prepended).
+
 ## [2026-04-13 20:30] lint | Post-ingest health check (grep-based fallback) — 1 broken link unlinked, hub placement verified
 
 Ran after the AIO Sandbox OpenAPI ingest. Obsidian CLI was unavailable in the Bash sub-shell PATH on this run, so the lint used a Python/grep fallback (read all wiki/ articles, strip code blocks + inline code, regex-extract `[[wikilinks]]`, cross-reference against article filenames and `_index/` references).
