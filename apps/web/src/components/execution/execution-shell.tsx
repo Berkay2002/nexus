@@ -10,6 +10,7 @@ import { TodoPanel } from "./todo-panel";
 import { AgentStatusPanel } from "./agent-status-panel";
 import { MessageFeed } from "./message-feed";
 import { PromptBar } from "./prompt-bar";
+import { WorkspaceOutputsPanel } from "./workspace-outputs-panel";
 import type { NexusTodo } from "@/lib/subagent-utils";
 import {
   Conversation,
@@ -22,6 +23,7 @@ type ExecutionShellProps = {
   todos: NexusTodo[];
   subagents: Map<string, any> | undefined;
   allSubagents: any[];
+  outputPaths: string[];
   getSubagentsByMessage: ((messageId: string) => any[]) | undefined;
   isLoading: boolean;
   onSubmit: (text: string) => void;
@@ -35,6 +37,7 @@ export function ExecutionShell({
   todos,
   subagents,
   allSubagents,
+  outputPaths,
   getSubagentsByMessage,
   isLoading,
   onSubmit,
@@ -82,8 +85,9 @@ export function ExecutionShell({
             <div className="flex flex-col gap-6 p-4">
               <TodoPanel todos={todos} />
               <AgentStatusPanel subagents={subagents} />
+              <WorkspaceOutputsPanel paths={outputPaths} />
 
-              {todos.length === 0 && allSubagents.length === 0 && (
+              {todos.length === 0 && allSubagents.length === 0 && outputPaths.length === 0 && (
                 <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
                   <p className="text-sm text-muted-foreground">
                     {isLoading
