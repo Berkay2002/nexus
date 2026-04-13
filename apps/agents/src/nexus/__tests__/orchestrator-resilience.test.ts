@@ -66,6 +66,14 @@ describe("orchestratorNode resilience for unavailable sub-agents", () => {
     );
 
     expect(invokeMock).toHaveBeenCalledTimes(2);
+    const [firstInput, firstConfig] = invokeMock.mock.calls[0] as [
+      { messages: unknown[] },
+      { context: Record<string, unknown> },
+    ];
+    expect(firstInput.messages[0]).toBeInstanceOf(HumanMessage);
+    expect(String(firstConfig.context.runtimeInstructions)).toContain(
+      "Runtime sub-agent availability",
+    );
     expect((result.messages ?? [])[0]).toBeInstanceOf(AIMessage);
   });
 

@@ -1,10 +1,11 @@
 import { createDeepAgent } from "deepagents";
-import { AIMessage, SystemMessage } from "@langchain/core/messages";
+import { AIMessage } from "@langchain/core/messages";
 import { AIOSandboxBackend } from "./backend/aio-sandbox.js";
 import { createNexusBackend } from "./backend/composite.js";
 import { getWorkspaceRootForThread } from "./backend/workspace.js";
 import { configurableModelMiddleware } from "./middleware/configurable-model.js";
 import { createModelFallbackMiddleware } from "./middleware/model-fallback.js";
+import { createRuntimeInstructionsMiddleware } from "./middleware/runtime-instructions.js";
 import {
   resolveTier,
   getTierDefault,
@@ -32,7 +33,7 @@ interface OrchestratorBundle {
 
 function buildSubagentAvailabilityMessage(
   allowedSubagentTypes: string[],
-): SystemMessage {
+): string {
   const unique = Array.from(new Set(allowedSubagentTypes));
   const quotedList = unique.map((name) => `"${name}"`).join(", ");
   const lines = [
@@ -43,7 +44,7 @@ function buildSubagentAvailabilityMessage(
       'The "creative" sub-agent is unavailable in this runtime (no image-tier provider is configured). If the user requests images, explain this limitation and continue with available sub-agents. Do NOT call task with subagent_type "creative".',
     );
   }
-  return new SystemMessage(lines.join("\n"));
+  return lines.join("\n");
 }
 
 function parseAllowedTypesFromTaskError(error: unknown): string[] | null {
@@ -97,6 +98,7 @@ export function createNexusOrchestrator(
 
   const orchestratorFallbacks = buildTierFallbacks("default");
   const orchestratorMiddleware = [
+    createRuntimeInstructionsMiddleware("nexus-orchestrator"),
     configurableModelMiddleware,
     ...(orchestratorFallbacks.length > 0
       ? [
@@ -175,18 +177,22 @@ export async function orchestratorNode(
   const orchestratorOverride = modelsByRole?.["orchestrator"];
   const selectedModel = orchestratorOverride ?? classifierResolvedString;
 
-  const availabilityMessage = buildSubagentAvailabilityMessage(
+  const runtimeInstructions = buildSubagentAvailabilityMessage(
     allowedSubagentTypes,
   );
-  const baseMessages = [availabilityMessage, ...state.messages];
 
   const invokeInput = {
-    messages: baseMessages,
+    messages: state.messages,
     files: nexusSkillFiles,
   };
 
   const invokeConfig = {
-    context: { model: selectedModel, models: modelsByRole, threadId },
+    context: {
+      model: selectedModel,
+      models: modelsByRole,
+      threadId,
+      runtimeInstructions,
+    },
   };
 
   try {
@@ -198,17 +204,24 @@ export async function orchestratorNode(
       throw error;
     }
 
-    const retryConstraint = new SystemMessage(
-      `Your previous task call used an unavailable sub-agent type. Allowed sub-agent types for this run: ${allowedFromError.join(", ")}. Revise your plan and continue using only these types.`,
-    );
+    const retryInstructions =
+      `${runtimeInstructions}\n` +
+      `Your previous task call used an unavailable sub-agent type. Allowed sub-agent types for this run: ${allowedFromError.join(", ")}. Revise your plan and continue using only these types.`;
 
     try {
       const retryResult = await orchestrator.invoke(
         {
-          messages: [availabilityMessage, retryConstraint, ...state.messages],
+          messages: state.messages,
           files: nexusSkillFiles,
         },
-        invokeConfig,
+        {
+          context: {
+            model: selectedModel,
+            models: modelsByRole,
+            threadId,
+            runtimeInstructions: retryInstructions,
+          },
+        },
       );
       return { messages: retryResult.messages };
     } catch {
