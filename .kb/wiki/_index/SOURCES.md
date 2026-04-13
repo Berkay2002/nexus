@@ -55,3 +55,4 @@ Maps `raw/` source files to the wiki articles compiled from each. Ingest uses th
 - `raw/what-is-computer.txt` → [[perplexity-computer]]
 - `raw/anthropic-blogs/code-exeuction-with-mcp.md` → [[code-execution-with-mcp]]
 - `raw/anthropic-blogs/mcp-tool-use.md` → [[anthropic-advanced-tool-use]], [[tool-search-tool]], [[programmatic-tool-calling]], [[tool-use-examples]]
+- `raw/anthropic/tool-search-tool.md` → [[tool-search-tool]] (update: BM25 variant, Python-regex clarification, limits, error codes, custom client-side path, tool-use-examples incompatibility)

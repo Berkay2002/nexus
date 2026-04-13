@@ -1,5 +1,28 @@
 # Log
 
+## [2026-04-13 23:55] ingest | raw/anthropic/tool-search-tool.md — 0 new, 3 updated
+
+Single-source sequential ingest of the **official Anthropic Tool Search Tool docs** (distinct from the Nov 24 blog post ingested earlier this evening). No new articles — this is a major update to [[tool-search-tool]] from the full API reference, plus two companion updates.
+
+**Articles updated:**
+- [[tool-search-tool]] — near-total rewrite. Added the BM25 variant (`tool_search_tool_bm25_20251119`) that the blog post didn't mention; added the Python-`re.search()`-vs-natural-language warning that's easy to miss; added full limits table (10,000 tools / 200-char patterns / Sonnet 4.0+ and Opus 4.0+ only — **no Haiku**); added the full response format with `server_tool_use` / `tool_search_tool_result` / `tool_search_tool_search_result` / `tool_reference` block taxonomy; added prompt-caching preservation mechanism (deferred tools appended inline, prefix untouched); added error handling section (400 errors, error codes, common mistakes); added custom client-side implementation path via `tool_reference` blocks; added data retention / ZDR trade-off (server-side catalog indexed; client-side fully ZDR); added Bedrock invoke-API-only caveat; added streaming SSE event sequence; added `server_tool_use.tool_search_requests` usage metric; refined Nexus relevance section with the tier-resolution Haiku caveat.
+- [[tool-use-examples]] — added WARNING callout: mutually exclusive with [[tool-search-tool]]. This is not documented in the Nov 24 blog post; the official Tool Search Tool docs explicitly state the incompatibility. Users who want both features must pick one.
+- [[anthropic-advanced-tool-use]] — added BM25 variant, Sonnet/Opus model-support note, and the mutual-exclusion note to the Tool Search Tool bullet in the feature list.
+
+**Discrepancies reconciled:**
+- **Savings figure**: the Nov 24 blog cites "95% of context window preserved"; the official docs cite "~85% reduction." Both kept in the article with the different sources named — the actual ratio depends on catalog size and hot-set composition. Neither source is wrong; they're measuring slightly different things.
+- **BM25 variant**: net-new from the docs; the blog only covered the regex variant. This is the most important content gap the docs filled.
+
+**Key warning callouts emitted (all new):**
+- Regex variant uses **Python `re.search()` syntax**, NOT natural language. Case-sensitive by default; use `(?i)` for case-insensitive. 200-char max.
+- **No Haiku support** — matters for Nexus tier routing; any classifier tier on Haiku 4.5 cannot use this feature.
+- **Mutually exclusive with Tool Use Examples** — cross-updated into both articles so a query session hitting either finds the constraint.
+- **Server-side catalog is indexed and retained** — not fully ZDR-eligible; client-side custom implementation is fully ZDR.
+- **Bedrock: invoke API only, not converse API** — a real deployment gotcha on AWS.
+- **Tool search tool itself should never have `defer_loading: true`** — 400 error if all tools are deferred.
+
+**Indices updated:** SOURCES.md (added row for `raw/anthropic/tool-search-tool.md` → [[tool-search-tool]], noted as an update), RECENT.md (3 update entries prepended), LOG.md (this entry). INDEX.md and TAGS.md unchanged — no new articles or tags introduced.
+
 ## [2026-04-13 23:30] ingest | raw/anthropic-blogs/ — 2 sources → 5 new articles
 
 Sequential ingest of the two Anthropic engineering blog posts dropped into `raw/anthropic-blogs/`. Light workload (2 short posts), so no subagent dispatch — orchestrator wrote all articles directly.

@@ -2,6 +2,9 @@
 
 Last 20 wiki articles changed, most recent first.
 
+- [[tool-search-tool]] — 2026-04-13 — updated (major rewrite from official Anthropic docs: BM25 variant, Python-regex-not-natural-language warning, 10K/200-char/Sonnet+Opus-only limits, response format, custom client-side path, tool-use-examples incompatibility, Bedrock invoke-only)
+- [[tool-use-examples]] — 2026-04-13 — updated (added WARNING: mutually exclusive with Tool Search Tool)
+- [[anthropic-advanced-tool-use]] — 2026-04-13 — updated (BM25 variant + model support + mutual-exclusion note)
 - [[code-execution-with-mcp]] — 2026-04-13 — created (Anthropic Nov 4 pattern: file-tree of MCP tools, 150K→2K token example, provider-agnostic alternative to PTC)
 - [[anthropic-advanced-tool-use]] — 2026-04-13 — created (umbrella for Nov 24 beta features under `advanced-tool-use-2025-11-20`)
 - [[tool-search-tool]] — 2026-04-13 — created (`defer_loading: true` + `tool_search_tool_regex_20251119`; 72K→500 token savings)

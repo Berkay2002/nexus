@@ -58,11 +58,13 @@ One example carries all four of those conventions. Writing them out as prose in 
 
 Tool Use Examples are the odd feature in the Nov 24 release. [[tool-search-tool]] and [[programmatic-tool-calling]] both address the token cost of tool use at scale; Tool Use Examples addresses **quality** of tool use at any scale. You'd adopt it even with a single tool if that tool's happy-path call format is non-obvious.
 
-The three features compose cleanly:
+The three features compose cleanly in principle — each targets a different axis:
 
 - **Tool Search Tool** — decides *which* tools Claude sees
 - **Programmatic Tool Calling** — decides *how* Claude orchestrates them
 - **Tool Use Examples** — decides *how well* Claude fills their arguments
+
+> **WARNING — Tool Use Examples and [[tool-search-tool|Tool Search Tool]] are mutually exclusive.** The Tool Search Tool docs explicitly state: "The tool search tool is not compatible with tool use examples. If you need to provide examples of tool usage, use standard tool calling without tool search." You cannot adopt both features on the same tool set — even though they target different axes, they don't compose. Pick the one that addresses your bigger bottleneck: token bloat → Tool Search Tool; argument-format ambiguity → Tool Use Examples. [[programmatic-tool-calling|Programmatic Tool Calling]] has no documented incompatibility with either.
 
 ## Relevance to Nexus
 

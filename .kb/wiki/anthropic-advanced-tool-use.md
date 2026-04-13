@@ -11,7 +11,7 @@ On **November 24, 2025**, Anthropic shipped three beta features on the Claude De
 
 The three features:
 
-1. **[[tool-search-tool|Tool Search Tool]]** — Let Claude discover tools on demand instead of loading every definition upfront. Tools marked `defer_loading: true` stay out of the initial prompt; Claude searches for them when it needs them.
+1. **[[tool-search-tool|Tool Search Tool]]** — Let Claude discover tools on demand instead of loading every definition upfront. Tools marked `defer_loading: true` stay out of the initial prompt; Claude searches for them when it needs them. Ships in two variants: `tool_search_tool_regex_20251119` (Python regex queries) and `tool_search_tool_bm25_20251119` (natural language queries). Server-side; requires Sonnet 4.0+ or Opus 4.0+ (no Haiku). **Mutually exclusive with Tool Use Examples.**
 2. **[[programmatic-tool-calling|Programmatic Tool Calling (PTC)]]** — Let Claude orchestrate tools through Python code in a sandboxed environment instead of one-call-per-turn. Only the final summarized result enters the context window.
 3. **[[tool-use-examples|Tool Use Examples]]** — Attach concrete sample calls (`input_examples`) to tool definitions so Claude sees real usage patterns, not just JSON Schema.
 
