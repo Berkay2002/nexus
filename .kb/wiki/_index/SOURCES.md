@@ -11,7 +11,7 @@ Maps `raw/` source files to the wiki articles compiled from each. Ingest uses th
 - `raw/custom/tavily/map.md` → [[tavily-map-api]]
 - `raw/custom/tavily/search.md` → [[tavily-overview]], [[tavily-search-api]]
 - `raw/langchain/deepagents/agent-chat-ui.md` → [[agent-chat-ui]]
-- `raw/langchain/deepagents/async-subagents.md` → [[async-subagents]]
+- `raw/langchain/deepagents/async-subagents.md` → [[async-subagents]], [[agent-protocol]]
 - `raw/langchain/deepagents/backends.md` → [[backends]], [[backend-protocol]], [[composite-backend]], [[filesystem-backend]], [[local-shell-backend]], [[state-backend]], [[store-backend]]
 - `raw/langchain/deepagents/context-engineering.md` → [[context-engineering]], [[context-compression]], [[context-isolation]], [[input-context]]
 - `raw/langchain/deepagents/context.md` → [[context-overview]], [[config-runtime-context]], [[cross-conversation-context]], [[dynamic-runtime-context]]

@@ -118,6 +118,8 @@ In Nexus, the `tavily_search` tool in `apps/agents/src/nexus/tools/search/tool.t
 - [[tavily-overview]]
 - [[tavily-extract-api]]
 - [[tavily-map-api]]
+- [[exa-search-api]] — alternative search API (semantic/neural ranking) considered for research agent
+- [[exa-overview]] — product-level comparison of Exa vs Tavily
 
 ## Sources
 

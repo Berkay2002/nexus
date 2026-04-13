@@ -41,7 +41,7 @@ The documentation describes three distinct patterns built on this foundation:
 | Todo list | Real-time task list synced from agent state via `stream.values?.todos` |
 | [[sandbox-ide]] | IDE-like UI with file browser, code viewer, and diff panel backed by a sandbox |
 
-The [[ai-elements]] component library provides pre-built React components for these patterns. The [[agent-chat-ui]] scaffold provides a reference implementation with shadcn/ui base components that can be extended or replaced.
+The [[ai-elements]] component library provides pre-built React components for these patterns — see [[ai-elements-components]] for the full catalog. The [[agent-chat-ui]] scaffold provides a reference implementation with shadcn/ui base components that can be extended or replaced.
 
 ## Compatibility with LangChain Frontend Patterns
 
@@ -49,10 +49,13 @@ Because DeepAgents are built on the same LangGraph runtime, all standard LangCha
 
 ## Related
 
+- [[deep-agents-overview]] — the harness these UIs render
+- [[streaming]] — the four stream modes emitted to `useStream`
 - [[use-stream-hook]]
 - [[subagent-streaming]]
 - [[filter-subagent-messages]]
 - [[ai-elements]]
+- [[ai-elements-components]] — full component catalog
 - [[sandbox-ide]]
 
 ## Sources

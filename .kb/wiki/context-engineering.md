@@ -38,11 +38,13 @@ Context engineering is the practice of providing the right information and tools
 
 ## Related
 
+- [[context-overview]] — LangGraph's orthogonal 3-mechanism framework (static / dynamic runtime / cross-conversation)
 - [[input-context]]
 - [[context-compression]]
 - [[context-isolation]]
 - [[config-runtime-context]]
 - [[memory]]
+- [[skills]]
 
 ## Sources
 

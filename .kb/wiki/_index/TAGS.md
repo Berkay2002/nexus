@@ -20,7 +20,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## agent-protocol
 
-- [[async-subagents]]
+- [[async-subagents]], [[agent-protocol]]
 
 ## ai-elements
 
@@ -92,7 +92,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## deepagents
 
-- [[deep-agents-overview]], [[harness-capabilities]], [[create-deep-agent]], [[todo-list-middleware]], [[filesystem-middleware]], [[deepagents-typescript-reference]], [[subagents]], [[subagent-interface]], [[context-quarantine]], [[general-purpose-subagent]], [[async-subagents]], [[backends]], [[backend-protocol]], [[composite-backend]], [[filesystem-backend]], [[local-shell-backend]], [[state-backend]], [[store-backend]], [[deepagents-sandboxes]], [[base-sandbox-protocol]], [[context-engineering]], [[context-compression]], [[context-isolation]], [[input-context]], [[memory]], [[long-term-memory]], [[skills]], [[skill-md-format]], [[deepagents-models]], [[init-chat-model]], [[streaming]], [[stream-modes]], [[subgraph-streaming]], [[subagent-streaming]], [[use-stream-hook]], [[filter-subagent-messages]], [[get-subagents-by-message]], [[sandbox-ide]], [[frontend-sandbox-components]], [[deepagents-frontend-overview]], [[aio-sandbox-deepagents-integration]]
+- [[deep-agents-overview]], [[harness-capabilities]], [[create-deep-agent]], [[todo-list-middleware]], [[filesystem-middleware]], [[deepagents-typescript-reference]], [[subagents]], [[subagent-interface]], [[context-quarantine]], [[general-purpose-subagent]], [[async-subagents]], [[agent-protocol]], [[backends]], [[backend-protocol]], [[composite-backend]], [[filesystem-backend]], [[local-shell-backend]], [[state-backend]], [[store-backend]], [[deepagents-sandboxes]], [[base-sandbox-protocol]], [[context-engineering]], [[context-compression]], [[context-isolation]], [[input-context]], [[memory]], [[long-term-memory]], [[skills]], [[skill-md-format]], [[deepagents-models]], [[init-chat-model]], [[streaming]], [[stream-modes]], [[subgraph-streaming]], [[subagent-streaming]], [[use-stream-hook]], [[filter-subagent-messages]], [[get-subagents-by-message]], [[sandbox-ide]], [[frontend-sandbox-components]], [[deepagents-frontend-overview]], [[aio-sandbox-deepagents-integration]]
 
 ## design-inspiration
 
@@ -176,7 +176,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## langgraph
 
-- [[streaming]], [[stream-modes]], [[subgraph-streaming]], [[context-overview]], [[config-runtime-context]], [[dynamic-runtime-context]], [[cross-conversation-context]]
+- [[streaming]], [[stream-modes]], [[subgraph-streaming]], [[context-overview]], [[config-runtime-context]], [[dynamic-runtime-context]], [[cross-conversation-context]], [[agent-protocol]]
 
 ## long-term-memory
 
@@ -313,6 +313,10 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 ## task-delegation
 
 - [[subagents]], [[subagent-interface]], [[general-purpose-subagent]], [[async-subagents]]
+
+## stub
+
+- [[agent-protocol]]
 
 ## tavily
 

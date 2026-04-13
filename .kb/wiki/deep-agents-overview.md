@@ -9,7 +9,7 @@ sources: [raw/langchain/deepagents/overview.md]
 
 DeepAgents is a framework from LangChain for building long-running, multi-step AI agents. It provides an **agent harness** — a pre-assembled combination of capabilities that handles the hard parts of agentic work (planning, memory, file I/O, delegation, context budgeting, and safety gates) so you build the domain logic rather than the scaffolding.
 
-Nexus is built directly on top of `createDeepAgent` from the TypeScript package.
+Nexus is built directly on top of `createDeepAgent` from the TypeScript package. See [[deepagents-typescript-reference]] for the full `deepagents` npm package API surface, and [[perplexity-computer]] for the product Nexus takes as its primary design inspiration.
 
 ## What Is an Agent Harness?
 
@@ -50,6 +50,8 @@ The harness provides a default "general-purpose" subagent automatically. Custom 
 
 - [[harness-capabilities]]
 - [[create-deep-agent]]
+- [[deepagents-typescript-reference]] — npm package API reference
+- [[perplexity-computer]] — design inspiration for Nexus
 - [[todo-list-middleware]]
 - [[filesystem-middleware]]
 - [[subagents]]

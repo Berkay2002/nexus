@@ -18,6 +18,7 @@ Content catalog of the Nexus knowledge base, grouped by domain. Use `/wikillm:qu
 - [[context-quarantine]] — Why subagents exist: the context-bloat problem
 - [[general-purpose-subagent]] — The GP subagent added automatically (Nexus gotcha)
 - [[async-subagents]] — Preview-feature async subagents with lifecycle control
+- [[agent-protocol]] — HTTP/ASGI protocol that LangGraph servers speak; transport for async subagents
 
 ## DeepAgents — Backends & Filesystem
 

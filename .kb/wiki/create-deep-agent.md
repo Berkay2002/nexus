@@ -7,7 +7,7 @@ sources: [raw/langchain/deepagents/overview.md]
 
 # createDeepAgent
 
-`createDeepAgent()` is the TypeScript factory function that constructs a [[deep-agents-overview|DeepAgent]]. The Python equivalent is `create_deep_agent()`. It is the single entry point for configuring the full [[harness-capabilities|agent harness]] and returns a runnable LangGraph graph.
+`createDeepAgent()` is the TypeScript factory function that constructs a [[deep-agents-overview|DeepAgent]]. The Python equivalent is `create_deep_agent()`. It is the single entry point for configuring the full [[harness-capabilities|agent harness]] and returns a runnable LangGraph graph. Exported from the `deepagents` npm package — see [[deepagents-typescript-reference]] for the full type surface.
 
 ## Configuration Surface
 
@@ -39,7 +39,7 @@ In Nexus, `createDeepAgent` is called in `apps/agents/src/nexus/orchestrator.ts`
 - A [[composite-backend]] routing to [[deepagents-sandboxes|AIO Sandbox]] (default) and [[store-backend]] (`/memories/`, `/skills/`)
 - Four custom [[subagents]]: research, code, creative, and general-purpose override
 - Five [[skills]]: deep-research, build-app, generate-image, data-analysis, write-report
-- The [[configurable-model]] middleware for per-role runtime model swapping
+- A configurable-model middleware for per-role runtime model swapping (see [[init-chat-model]])
 
 ## General-Purpose Subagent Override
 

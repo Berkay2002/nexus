@@ -7,7 +7,7 @@ sources: [raw/langchain/providers/google/google.md]
 
 # Google Provider (`@langchain/google`)
 
-`@langchain/google` is the unified LangChain JavaScript package for Google AI Studio and Google Cloud Vertex AI. It replaces the older `@langchain/google-genai` and `@langchain/google-vertexai` packages, consolidating both backends under a single `ChatGoogle` class. In Nexus, this provider is auto-detected at startup and used for the `classifier`, `deep-research`, and `image` tiers.
+`@langchain/google` is the unified LangChain JavaScript package for Google AI Studio and Google Cloud Vertex AI. It replaces the older `@langchain/google-genai` and `@langchain/google-vertexai` packages, consolidating both backends under a single `ChatGoogle` class. In Nexus, this provider is auto-detected at startup and used for the `classifier`, `deep-research`, and `image` tiers. See [[langchain-google-api-reference]] for the complete class surface, constructor options, and method signatures.
 
 ## Content
 
@@ -89,6 +89,7 @@ If Google credentials are absent, the `image` tier is unavailable entirely. See 
 ## Related
 
 - [[chat-google-generative-ai]]
+- [[langchain-google-api-reference]] — full API reference for `@langchain/google`
 - [[deepagents-models]]
 - [[langchain-models]]
 - [[init-chat-model]]

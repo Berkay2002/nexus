@@ -121,6 +121,7 @@ import { ChatGoogle } from "@langchain/google";
 ## Related
 
 - [[google-provider]]
+- [[langchain-google-api-reference]] — complete `@langchain/google` API surface (constructors, methods, config shapes)
 - [[langchain-models]]
 - [[chat-model-interface]]
 - [[bind-tools]]

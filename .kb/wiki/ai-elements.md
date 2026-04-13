@@ -7,7 +7,7 @@ sources: [raw/langchain/deepagents/frontend/ai-elements.md]
 
 # AI Elements
 
-A composable, [[shadcn-ui]]-based component library purpose-built for AI chat interfaces. Components are designed to wire directly to `stream.messages` from the [[use-stream-hook]] with minimal glue code.
+A composable, shadcn/ui-based component library purpose-built for AI chat interfaces. Components are designed to wire directly to `stream.messages` from the [[use-stream-hook]] with minimal glue code.
 
 ## Philosophy: Editable Source Files
 

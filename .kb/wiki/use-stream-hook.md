@@ -102,6 +102,9 @@ Without `{ streamSubgraphs: true }`, subgraph (subagent) events are not emitted 
 - [[get-subagents-by-message]]
 - [[subagent-streaming]]
 - [[subgraph-streaming]]
+- [[streaming]] — the four LangGraph stream modes `useStream` consumes
+- [[stream-modes]] — `"messages"`, `"updates"`, `"values"`, `"custom"` detail
+- [[langchain-messages]] — the message objects surfaced via `stream.messages`
 - [[deepagents-frontend-overview]]
 
 ## Sources
