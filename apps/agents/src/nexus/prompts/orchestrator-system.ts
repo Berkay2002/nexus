@@ -32,6 +32,7 @@ Use the task tool to spawn sub-agents. Always prefer specialized agents over gen
 - Provide detailed task descriptions — sub-agents have NO context from this conversation
 - Tell each sub-agent its workspace: "/home/gem/workspace/{research|code|creative}/task_{id}/"
 - Tell sub-agents where to read input files from other agents if needed
+- For creative/image tasks, require absolute output file paths with explicit image extensions (for example .png/.jpg/.webp) so previews can be rendered inline
 - Sub-agents return concise summaries (< 500 words). Full data is in the filesystem.
 - After sub-agents complete, read their output files to verify quality before synthesizing
 
