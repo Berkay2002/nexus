@@ -147,6 +147,19 @@ Content catalog of the Nexus knowledge base, grouped by domain. Use `/wikillm:qu
 - [[agent-infra-sandbox-sdk]] — `@agent-infra/sandbox` TS SDK
 - [[aio-sandbox-deepagents-integration]] — Python BaseSandbox integration example
 
+## AIO Sandbox — OpenAPI Surface
+
+- [[aio-sandbox-openapi-overview]] — Catalog of all 41 endpoints across 11 tags (FastAPI :8080)
+- [[aio-sandbox-sandbox-context-api]] — `/v1/sandbox/*` — environment introspection (OS, runtime, packages)
+- [[aio-sandbox-shell-api]] — `/v1/shell/*` — persistent shell sessions, exec/view/wait/write/kill, SSE
+- [[aio-sandbox-file-api]] — `/v1/file/*` — read/write/replace/search/find/upload/download/list/str_replace_editor
+- [[aio-sandbox-browser-api]] — `/v1/browser/*` — Chromium-via-CDP automation + 15 action types
+- [[aio-sandbox-jupyter-api]] — `/v1/jupyter/*` — stateful Python kernel sessions
+- [[aio-sandbox-code-execution-api]] — `/v1/code/*` + `/v1/nodejs/*` — one-shot code execution
+- [[aio-sandbox-mcp-api]] — `/v1/mcp/*` — MCP server gateway (list/exec tools)
+- [[aio-sandbox-skills-api]] — `/v1/skills/*` — server-side skills registry
+- [[aio-sandbox-util-api]] — `/v1/util/convert_to_markdown` — document → markdown
+
 ## Search APIs
 
 - [[tavily-overview]] — Tavily as an LLM-native search provider

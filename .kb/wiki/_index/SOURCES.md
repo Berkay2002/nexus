@@ -6,6 +6,7 @@ Maps `raw/` source files to the wiki articles compiled from each. Ingest uses th
 
 - `raw/aio-sandbox/README.md` → [[aio-sandbox-overview]], [[aio-sandbox-docker]], [[aio-sandbox-features]], [[agent-infra-sandbox-sdk]]
 - `raw/aio-sandbox/deepagents-example/README.md` → [[aio-sandbox-deepagents-integration]]
+- `raw/aio-sandbox/openapi.json` → [[aio-sandbox-openapi-overview]], [[aio-sandbox-sandbox-context-api]], [[aio-sandbox-shell-api]], [[aio-sandbox-file-api]], [[aio-sandbox-browser-api]], [[aio-sandbox-jupyter-api]], [[aio-sandbox-code-execution-api]], [[aio-sandbox-mcp-api]], [[aio-sandbox-skills-api]], [[aio-sandbox-util-api]]
 - `raw/custom/exa/search.md` → [[exa-overview]], [[exa-search-api]]
 - `raw/custom/tavily/extract.md` → [[tavily-extract-api]]
 - `raw/custom/tavily/map.md` → [[tavily-map-api]]

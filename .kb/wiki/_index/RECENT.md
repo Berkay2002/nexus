@@ -2,6 +2,16 @@
 
 Last 20 wiki articles changed, most recent first.
 
+- [[aio-sandbox-openapi-overview]] — 2026-04-13 — created (catalog of all 41 endpoints / 11 tags / 133 schemas from openapi.json)
+- [[aio-sandbox-sandbox-context-api]] — 2026-04-13 — created (`/v1/sandbox/*` env introspection)
+- [[aio-sandbox-shell-api]] — 2026-04-13 — created (`/v1/shell/*` — 10 endpoints, SSE gotcha, session lifecycle)
+- [[aio-sandbox-file-api]] — 2026-04-13 — created (`/v1/file/*` — 9 endpoints, str_replace_editor, find vs search)
+- [[aio-sandbox-browser-api]] — 2026-04-13 — created (`/v1/browser/*` — CDP, 15 action types, MoveTo vs MoveRel)
+- [[aio-sandbox-jupyter-api]] — 2026-04-13 — created (`/v1/jupyter/*` — stateful kernel sessions)
+- [[aio-sandbox-code-execution-api]] — 2026-04-13 — created (`/v1/code/*` + `/v1/nodejs/*` — one-shot stateless)
+- [[aio-sandbox-mcp-api]] — 2026-04-13 — created (`/v1/mcp/*` — MCP gateway, isError on 200 OK)
+- [[aio-sandbox-skills-api]] — 2026-04-13 — created (`/v1/skills/*` — HTTP skills registry, distinct from DeepAgents pattern)
+- [[aio-sandbox-util-api]] — 2026-04-13 — created (`/v1/util/convert_to_markdown` — URI-only, no upload)
 - [[langgraph-functional-api]] — 2026-04-13 — lint: created stub (referenced 2x from [[durable-execution]])
 - [[langgraph-testing]] — 2026-04-13 — lint: unlinked broken `[[vitest]]` to plain text
 - [[langgraph-persistence]] — 2026-04-13 — created (umbrella: checkpointer, threads, checkpoints, store)

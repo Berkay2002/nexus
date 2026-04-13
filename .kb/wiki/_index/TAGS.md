@@ -28,7 +28,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## aio-sandbox
 
-- [[aio-sandbox-overview]], [[aio-sandbox-docker]], [[aio-sandbox-features]], [[agent-infra-sandbox-sdk]], [[aio-sandbox-deepagents-integration]]
+- [[aio-sandbox-overview]], [[aio-sandbox-docker]], [[aio-sandbox-features]], [[agent-infra-sandbox-sdk]], [[aio-sandbox-deepagents-integration]], [[aio-sandbox-openapi-overview]], [[aio-sandbox-sandbox-context-api]], [[aio-sandbox-shell-api]], [[aio-sandbox-file-api]], [[aio-sandbox-browser-api]], [[aio-sandbox-jupyter-api]], [[aio-sandbox-code-execution-api]], [[aio-sandbox-mcp-api]], [[aio-sandbox-skills-api]], [[aio-sandbox-util-api]]
 
 ## anthropic
 
@@ -116,7 +116,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## filesystem
 
-- [[backends]], [[backend-protocol]], [[composite-backend]], [[filesystem-backend]], [[local-shell-backend]], [[state-backend]], [[filesystem-middleware]], [[aio-sandbox-features]]
+- [[backends]], [[backend-protocol]], [[composite-backend]], [[filesystem-backend]], [[local-shell-backend]], [[state-backend]], [[filesystem-middleware]], [[aio-sandbox-features]], [[aio-sandbox-file-api]]
 
 ## filter-subagent-messages
 
@@ -236,7 +236,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## persistence
 
-- [[composite-backend]], [[store-backend]], [[memory]], [[long-term-memory]], [[context-overview]], [[cross-conversation-context]], [[langgraph-persistence]], [[checkpointer]], [[threads]], [[checkpoints]], [[langgraph-store]], [[durable-execution]], [[durability-modes]]
+- [[composite-backend]], [[store-backend]], [[memory]], [[long-term-memory]], [[context-overview]], [[cross-conversation-context]], [[langgraph-persistence]], [[checkpointer]], [[threads]], [[checkpoints]], [[langgraph-store]], [[durable-execution]], [[durability-modes]], [[aio-sandbox-skills-api]]
 
 ## preview
 
@@ -272,7 +272,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## sandbox
 
-- [[aio-sandbox-overview]], [[aio-sandbox-deepagents-integration]], [[deepagents-sandboxes]], [[base-sandbox-protocol]], [[sandbox-ide]], [[frontend-sandbox-components]]
+- [[aio-sandbox-overview]], [[aio-sandbox-deepagents-integration]], [[deepagents-sandboxes]], [[base-sandbox-protocol]], [[sandbox-ide]], [[frontend-sandbox-components]], [[aio-sandbox-sandbox-context-api]]
 
 ## search
 
@@ -284,7 +284,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## skill
 
-- [[skills]], [[skill-md-format]], [[input-context]]
+- [[skills]], [[skill-md-format]], [[input-context]], [[aio-sandbox-skills-api]]
 
 ## state
 
@@ -328,7 +328,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## tool-call
 
-- [[langchain-tools]], [[tool-decorator]], [[tool-call]], [[tool-message]], [[ai-message]], [[bind-tools]], [[with-structured-output]], [[chat-anthropic]], [[chat-google-generative-ai]], [[chat-openai]], [[tavily-search-api]]
+- [[langchain-tools]], [[tool-decorator]], [[tool-call]], [[tool-message]], [[ai-message]], [[bind-tools]], [[with-structured-output]], [[chat-anthropic]], [[chat-google-generative-ai]], [[chat-openai]], [[tavily-search-api]], [[aio-sandbox-browser-api]], [[aio-sandbox-mcp-api]], [[aio-sandbox-util-api]], [[aio-sandbox-openapi-overview]]
 
 ## tools
 
@@ -364,7 +364,27 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## workspace
 
-- [[filesystem-middleware]]
+- [[filesystem-middleware]], [[aio-sandbox-shell-api]], [[aio-sandbox-file-api]], [[aio-sandbox-openapi-overview]]
+
+## shell
+
+- [[aio-sandbox-shell-api]]
+
+## browser
+
+- [[aio-sandbox-browser-api]]
+
+## jupyter
+
+- [[aio-sandbox-jupyter-api]]
+
+## code
+
+- [[aio-sandbox-code-execution-api]], [[aio-sandbox-jupyter-api]]
+
+## mcp
+
+- [[aio-sandbox-mcp-api]]
 
 ## zai
 
