@@ -1,6 +1,7 @@
 import { createDeepAgent } from "deepagents";
 import { AIOSandboxBackend } from "./backend/aio-sandbox.js";
 import { createNexusBackend } from "./backend/composite.js";
+import { getWorkspaceRootForThread } from "./backend/workspace.js";
 import { configurableModelMiddleware } from "./middleware/configurable-model.js";
 import { createModelFallbackMiddleware } from "./middleware/model-fallback.js";
 import {
@@ -17,6 +18,8 @@ import type { NexusState } from "./state.js";
 interface NexusRunnableConfig {
   configurable?: {
     models?: Record<string, string>;
+    thread_id?: string;
+    threadId?: string;
     [key: string]: unknown;
   };
 }
@@ -35,8 +38,9 @@ interface NexusRunnableConfig {
  */
 export function createNexusOrchestrator(
   sandboxUrl = process.env.SANDBOX_URL ?? "http://localhost:8080",
+  workspaceRoot = getWorkspaceRootForThread(),
 ) {
-  const sandbox = new AIOSandboxBackend(sandboxUrl);
+  const sandbox = new AIOSandboxBackend(sandboxUrl, workspaceRoot);
   const backend = createNexusBackend(sandbox);
 
   const defaultModel = resolveTier("default");
@@ -71,15 +75,30 @@ export function createNexusOrchestrator(
   });
 }
 
-// Lazy singleton — initialized on first invocation
-let orchestratorInstance: ReturnType<typeof createNexusOrchestrator> | null =
-  null;
+// Lazy cache — one orchestrator per thread workspace.
+const orchestratorByThread = new Map<
+  string,
+  ReturnType<typeof createNexusOrchestrator>
+>();
 
-function getOrchestrator() {
-  if (!orchestratorInstance) {
-    orchestratorInstance = createNexusOrchestrator();
+function resolveThreadId(config?: NexusRunnableConfig): string | undefined {
+  const raw = config?.configurable?.thread_id ?? config?.configurable?.threadId;
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function getOrchestrator(threadId?: string) {
+  const key = threadId ?? "__default__";
+  const cached = orchestratorByThread.get(key);
+  if (cached) {
+    return cached;
   }
-  return orchestratorInstance;
+
+  const workspaceRoot = getWorkspaceRootForThread(threadId);
+  const orchestrator = createNexusOrchestrator(undefined, workspaceRoot);
+  orchestratorByThread.set(key, orchestrator);
+  return orchestrator;
 }
 
 /**
@@ -94,7 +113,8 @@ export async function orchestratorNode(
   state: NexusState,
   config?: NexusRunnableConfig,
 ): Promise<Partial<NexusState>> {
-  const orchestrator = getOrchestrator();
+  const threadId = resolveThreadId(config);
+  const orchestrator = getOrchestrator(threadId);
 
   const tierForComplexity: Tier =
     state.routerResult?.complexity === "trivial" ? "classifier" : "default";
@@ -115,7 +135,7 @@ export async function orchestratorNode(
       files: nexusSkillFiles,
     },
     {
-      context: { model: selectedModel, models: modelsByRole },
+      context: { model: selectedModel, models: modelsByRole, threadId },
     },
   );
 

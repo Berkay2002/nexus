@@ -5,6 +5,12 @@ import {
   type FileDownloadResponse,
 } from "deepagents";
 import { SandboxClient } from "@agent-infra/sandbox";
+import {
+  DEFAULT_WORKSPACE_ROOT,
+  normalizeWorkspaceRoot,
+  remapWorkspaceCommand,
+  remapWorkspacePath,
+} from "./workspace.js";
 
 /**
  * AIO Sandbox backend for DeepAgents.
@@ -21,11 +27,16 @@ export class AIOSandboxBackend extends BaseSandbox {
   readonly id = "aio-sandbox";
   private client: SandboxClient;
   private baseURL: string;
+  private workspaceRoot: string;
 
-  constructor(baseURL: string = "http://localhost:8080") {
+  constructor(
+    baseURL: string = "http://localhost:8080",
+    workspaceRoot: string = DEFAULT_WORKSPACE_ROOT,
+  ) {
     super();
     this.baseURL = baseURL;
     this.client = new SandboxClient({ environment: baseURL });
+    this.workspaceRoot = normalizeWorkspaceRoot(workspaceRoot);
   }
 
   private unreachableMessage(): string {
@@ -36,9 +47,15 @@ export class AIOSandboxBackend extends BaseSandbox {
   }
 
   async execute(command: string): Promise<ExecuteResponse> {
+    const remappedCommand = remapWorkspaceCommand(command, this.workspaceRoot);
+    const commandToRun =
+      this.workspaceRoot === DEFAULT_WORKSPACE_ROOT
+        ? remappedCommand
+        : `mkdir -p ${this.workspaceRoot} && ${remappedCommand}`;
+
     let response;
     try {
-      response = await this.client.shell.execCommand({ command });
+      response = await this.client.shell.execCommand({ command: commandToRun });
     } catch {
       return {
         output: this.unreachableMessage(),
@@ -71,29 +88,30 @@ export class AIOSandboxBackend extends BaseSandbox {
     files: Array<[string, Uint8Array]>,
   ): Promise<FileUploadResponse[]> {
     const results: FileUploadResponse[] = [];
-    for (const [filePath, content] of files) {
+    for (const [originalPath, content] of files) {
+      const remappedPath = remapWorkspacePath(originalPath, this.workspaceRoot);
       try {
         // Encode binary content as base64 for the sandbox file API
         const base64Content = Buffer.from(content).toString("base64");
         await this.client.file.writeFile({
-          file: filePath,
+          file: remappedPath,
           content: base64Content,
           encoding: "base64",
         });
-        results.push({ path: filePath, error: null });
+        results.push({ path: originalPath, error: null });
       } catch (err) {
         // Map generic errors to the closest FileOperationError code
         const message =
           err instanceof Error ? err.message : String(err);
         if (message.includes("not found") || message.includes("No such file")) {
-          results.push({ path: filePath, error: "file_not_found" });
+          results.push({ path: originalPath, error: "file_not_found" });
         } else if (
           message.includes("permission") ||
           message.includes("Permission")
         ) {
-          results.push({ path: filePath, error: "permission_denied" });
+          results.push({ path: originalPath, error: "permission_denied" });
         } else {
-          results.push({ path: filePath, error: "invalid_path" });
+          results.push({ path: originalPath, error: "invalid_path" });
         }
       }
     }
@@ -102,12 +120,13 @@ export class AIOSandboxBackend extends BaseSandbox {
 
   async downloadFiles(paths: string[]): Promise<FileDownloadResponse[]> {
     const results: FileDownloadResponse[] = [];
-    for (const filePath of paths) {
+    for (const originalPath of paths) {
+      const remappedPath = remapWorkspacePath(originalPath, this.workspaceRoot);
       try {
-        const response = await this.client.file.readFile({ file: filePath });
+        const response = await this.client.file.readFile({ file: remappedPath });
         if (!response.ok) {
           results.push({
-            path: filePath,
+            path: originalPath,
             content: null,
             error: "file_not_found",
           });
@@ -115,23 +134,27 @@ export class AIOSandboxBackend extends BaseSandbox {
         }
         const fileContent = response.body.data?.content ?? "";
         const content = new TextEncoder().encode(fileContent);
-        results.push({ path: filePath, content, error: null });
+        results.push({ path: originalPath, content, error: null });
       } catch (err) {
         const message =
           err instanceof Error ? err.message : String(err);
         if (message.includes("not found") || message.includes("No such file")) {
-          results.push({ path: filePath, content: null, error: "file_not_found" });
+          results.push({
+            path: originalPath,
+            content: null,
+            error: "file_not_found",
+          });
         } else if (
           message.includes("permission") ||
           message.includes("Permission")
         ) {
           results.push({
-            path: filePath,
+            path: originalPath,
             content: null,
             error: "permission_denied",
           });
         } else {
-          results.push({ path: filePath, content: null, error: "invalid_path" });
+          results.push({ path: originalPath, content: null, error: "invalid_path" });
         }
       }
     }
