@@ -7,7 +7,7 @@
 
 ## Problem
 
-The AIO Sandbox container at `localhost:8080` exposes an MCP gateway with **60 native tools** in a flat namespace across three internal servers: `chrome_devtools_*` (27), `browser_*` (23), and `sandbox_*` (10). Verified live on `ghcr.io/agent-infra/sandbox:latest` on 2026-04-13 (see `.kb/wiki/aio-sandbox-mcp-api.md`).
+The AIO Sandbox container at `localhost:8080` exposes an MCP gateway with **60 native tools** in a flat namespace across three internal servers: `chrome_devtools_*` (27), `browser_*` (23), and `sandbox_*` (10). Verified live on `ghcr.io/agent-infra/sandbox:latest` on 2026-04-13 — the 27/23/10 breakdown is recorded in memory note `aio_sandbox_mcp.md` (lines 13, 23-25); see also `.kb/wiki/aio-sandbox-mcp-api.md` for the broader sandbox MCP gateway documentation.
 
 Today, three hand-rolled wrapper tools live under `apps/agents/src/nexus/tools/mcp-{list-servers,list-tools,execute-tool}/` and target the sandbox's `/v1/mcp/*` JSON gateway. The wiki confirms (`.kb/wiki/langchain-mcp-adapters.md` lines 148-150) that this gateway is **half-broken**: it works for streamable-http MCP servers (`browser`, `sandbox`) but fails on stdio servers (`chrome_devtools`) with `MCP server 'chrome_devtools' not found in configuration`. The 27 `chrome_devtools_*` tools are unreachable through the current code path. Even the tools that do reach the gateway are exposed to the model as **three generic dispatch tools** (list-servers, list-tools, execute-tool) instead of 60 statically-named tools with real schemas — a strictly worse shape.
 
@@ -71,10 +71,10 @@ Two layers, one mental model.
                           │   sandbox_nodejs_execute
                           ▼
 ┌──────────────────────────────────────────────────────────────┐
-│  COLD LAYER — Files in /home/gem/workspace/servers/           │
+│  COLD LAYER — Files in /home/gem/nexus-servers/               │
 │  Schemas live on disk; only what the agent reads costs tokens │
 │                                                                │
-│  servers/                                                     │
+│  nexus-servers/                                               │
 │  ├── package.json                  (just @modelcontextprotocol/sdk)│
 │  ├── tsconfig.json                                            │
 │  ├── node_modules/                 (installed once at bootstrap)│
@@ -96,7 +96,7 @@ Two layers, one mental model.
 
 | Anthropic productized feature | Custom Nexus equivalent |
 |---|---|
-| **Tool Search Tool** (server-side regex/BM25 over deferred catalog; returns `tool_reference` blocks the API expands inline) | **`mcp_tool_search` custom LangChain tool** + `using-mcp-tools` SKILL.md. Greps over `/home/gem/workspace/servers/` (file names + JSDoc descriptions), returns a ranked shortlist of paths + summaries. The agent then `read_file`s the wrappers it wants. |
+| **Tool Search Tool** (server-side regex/BM25 over deferred catalog; returns `tool_reference` blocks the API expands inline) | **`mcp_tool_search` custom LangChain tool** + `using-mcp-tools` SKILL.md. Greps over `/home/gem/nexus-servers/` (file names + JSDoc descriptions), returns a ranked shortlist of paths + summaries. The agent then `read_file`s the wrappers it wants. |
 | **`defer_loading: true`** | The wrapper TS files are on disk in the sandbox, not bound LangChain tools. They're "deferred" by being files instead of prompt-resident schemas. Zero tokens until the agent reads one. |
 | **`tool_reference` auto-expansion** | The agent reads a wrapper file with the existing `read_file` filesystem helper. The file content (TypeScript types + JSDoc + import statement) IS the expanded reference. |
 | **Programmatic Tool Calling** (Python in Anthropic-hosted sandbox; only summary returns) | Agent writes a Node script, runs via `sandbox_nodejs_execute` in our sandbox. Only stdout returns to the model. |
@@ -130,22 +130,25 @@ Committed to git. Contents written by the generator, plus three hand-maintained 
 
 The 60 generated wrapper files live under `chrome_devtools/`, `browser/`, `sandbox/`. Each is a fully self-contained TypeScript file: imports `callMCPTool` from `../_client/callMCPTool.js`, defines its own input/output interfaces, exports one async function. Approximately 20-40 lines per file.
 
+**Runtime artifact layout inside the sandbox.** After bootstrap, `/home/gem/nexus-servers/` contains the committed tree above plus a `node_modules/` directory created by `npm install` and a `.bootstrap-marker` file written as the final step. This directory is intentionally self-contained and ephemeral: it is not under source control, no human should hand-edit files there, it persists only for the lifetime of the sandbox container, and it is recreated from the committed `apps/agents/sandbox-files/servers/` host tree on every fresh container start. Anyone debugging the sandbox who finds files under `/home/gem/nexus-servers/` should treat them as generated output — the canonical source is the host tree.
+
 ### 3. Sandbox bootstrap — `apps/agents/src/nexus/backend/sandbox-bootstrap.ts`
 
-New module. Exports `ensureSandboxFilesystem(sandbox: AIOSandboxBackend, workspaceRoot: string): Promise<boolean>`. Called once from `createNexusOrchestrator()` after the backend is constructed.
+New module. Exports `ensureSandboxFilesystem(sandbox: AIOSandboxBackend): Promise<boolean>`. Called once from `createNexusOrchestrator()` after the backend is constructed.
+
+**Why the bootstrap target lives outside `/home/gem/workspace/`.** Nexus does per-thread workspace scoping: `backend/workspace.ts:31-58` rewrites any path starting with `/home/gem/workspace/` to `/home/gem/workspace/threads/{sanitizedThreadId}/...` when a thread ID is in play (via `getWorkspaceRootForThread` and `remapWorkspacePath`). If the wrapper tree lived at `/home/gem/workspace/servers/`, every thread would get its own remapped copy, its own bootstrap, and its own 10-30s cold-start cost — the singleton-promise dedupe only holds for a single target. Moving the tree to `/home/gem/nexus-servers/` (under the `gem` user's home but outside the workspace tree) sidesteps the remapper entirely: the path never matches the `/home/gem/workspace/` prefix, so all threads share one physical location on disk, and one per-process bootstrap seeds it for every thread that will ever run in this LangGraph server process.
+
+**AIOSandboxBackend API surface.** `BaseSandbox` (from `deepagents`, extended by `AIOSandboxBackend`) exposes exactly three methods: `execute(command: string): Promise<ExecuteResponse>`, `uploadFiles(files: Array<[string, Uint8Array]>): Promise<FileUploadResponse[]>`, and `downloadFiles(paths: string[]): Promise<FileDownloadResponse[]>`. No `read` / `write` / `executeBash` helpers — everything filesystem-ish either goes through `uploadFiles` / `downloadFiles` (binary-safe batched I/O) or through `execute` with a shell idiom. The bootstrap steps below are expressed in those three methods.
 
 **State machine:**
 
-1. Check whether `/home/gem/workspace/servers/.bootstrap-marker` exists in the sandbox.
-2. If yes, return `true` immediately (fast path — skips all subsequent steps).
-3. If no:
-   - Walk the static `apps/agents/sandbox-files/servers/` tree at module load time using Node `fs.readdir` + `fs.readFile`. (This runs in the agents process, not the sandbox.)
-   - For each file, call the filesystem backend's write API to copy it into the sandbox at `/home/gem/workspace/servers/<relative-path>`.
-   - Issue `cd /home/gem/workspace/servers && npm install` via `executeBash` against the sandbox to install `@modelcontextprotocol/sdk` into `servers/node_modules/`.
-   - Touch `.bootstrap-marker` with a timestamp so subsequent startups skip the bootstrap entirely.
-4. Return `true` on success, `false` on any failure (with the failure logged to stderr).
+1. **Marker check.** Call `sandbox.execute("test -f /home/gem/nexus-servers/.bootstrap-marker && echo exists")`. If stdout contains `exists` and exit code is zero, return `true` immediately (fast path — skips all subsequent steps).
+2. **Batched wrapper upload.** Walk the static `apps/agents/sandbox-files/servers/` tree in the agents process using Node `fs.readdir` + `fs.readFile`, building the full file list in memory: the three hand-written files (`package.json`, `tsconfig.json`, `_client/callMCPTool.ts`) plus the 60 generated wrapper files. Then issue a **single** `sandbox.uploadFiles([[<target1>, <bytes1>], [<target2>, <bytes2>], ...])` call with all ~63 entries, each target path rooted at `/home/gem/nexus-servers/<relative-path>`. This replaces the previous draft's "60 sequential writes" with one batched call — meaningfully faster on the cold start.
+3. **Install dependencies.** Issue `sandbox.execute("cd /home/gem/nexus-servers && npm install 2>&1")` to install `@modelcontextprotocol/sdk` into `nexus-servers/node_modules/`. The `2>&1` is deliberate: it folds stderr into the same output stream so Failure 3's "log the captured stderr" requirement is trivially satisfied by inspecting `ExecuteResponse.output`.
+4. **Touch the marker.** Issue `sandbox.execute("date -u +%Y-%m-%dT%H:%M:%SZ > /home/gem/nexus-servers/.bootstrap-marker")` as the final step. Keeping the marker as its own `execute` call (rather than bundling it into the Step 2 upload) preserves the transactional property that the marker appears **only** after `npm install` succeeds.
+5. Return `true` on success, `false` on any failure (with the failure logged to stderr).
 
-**Concurrency:** A process-level singleton promise dedupes concurrent calls. The first caller starts the bootstrap; subsequent callers `await` the same promise. If it rejects, all waiters see the failure together — no half-bootstrapped state.
+**Concurrency:** A process-level singleton promise dedupes concurrent calls. The first caller starts the bootstrap; subsequent callers `await` the same promise. If it rejects, all waiters see the failure together — no half-bootstrapped state. **Because the target lives outside `/home/gem/workspace/`, the singleton is keyed on nothing at all — one bootstrap per process, not per thread.** All threads in the same LangGraph server process share the single `/home/gem/nexus-servers/` tree and the single bootstrap promise.
 
 **Failure mode:** If any step fails, log the error loudly with the failing path or the captured stderr, set a process-level flag `mcpFilesystemReady = false`, return `false` without throwing. The orchestrator construction continues. The marker is written **only** after every step succeeds, so a partial-write retry is automatic on the next orchestrator construction.
 
@@ -171,18 +174,22 @@ const schema = z.object({
 ```
 
 **Implementation:**
-- Reads the wrapper files from the sandbox via the AIO filesystem backend (the same code path the agent would use).
+- Reads the wrapper files **directly from the committed host-side source tree** at `apps/agents/sandbox-files/servers/`, using Node's `fs.readdir` + `fs.readFile` in the `apps/agents` process. It does **not** round-trip through the sandbox via `downloadFiles` — the canonical catalog is the committed tree on the host, and the sandbox copy is a bootstrapped mirror of it. The path returned to the model in each result entry is still the sandbox-side path `/home/gem/nexus-servers/{chrome_devtools,browser,sandbox}/<file>.ts`, so the agent uses the existing `read_file` helper (which routes through `BaseSandbox.execute("cat ...")`, per Data Flow C) to open it — the agent-visible filesystem layout is unchanged.
+- The host source path is resolved from the tool module's location. Use `path.resolve(import.meta.dirname, "../../../sandbox-files/servers")` (or whichever relative hop matches the existing `tools/{name}/tool.ts` layout — cross-check against sibling tool modules that already read sibling files on the host, such as those consuming the OpenAPI specs referenced in CLAUDE.md's "Tavily Map API" gotcha). The hop is validated in the unit test below.
+- **Why this direction and not `sandbox.downloadFiles`.** Reading from the host source tree (a) avoids an HTTP round-trip on first search, (b) works even when the sandbox isn't running yet (useful for unit tests and local dev without a container), (c) makes "the canonical catalog is what's committed to git" the literal truth at the code level rather than an aspirational comment, and (d) keeps the index builder synchronous and easy to mock. The tradeoff is that "same code path the agent would use" (the appealing framing) is false — the agent reads via the sandbox, the index builder reads via the host — but that divergence is acceptable because the host tree is already the source of truth that the bootstrap uploads to the sandbox in Component 3.
 - Lazy-builds an in-process index on first call, cached for the lifetime of the orchestrator instance.
 - Ranks by: (1) exact name substring match (highest weight), (2) description keyword match (medium weight), (3) argument name/description keyword match (low weight).
-- Returns a JSON array of `{ path, name, summary }` objects, top N by score. The summary is the first sentence of the wrapper file's JSDoc.
-- Calls `isMcpFilesystemReady()` from `sandbox-bootstrap.ts` at the start of every invocation. If it returns `false`, short-circuits with a structured error: `{ error: "MCP tool catalog is unavailable in this run. The sandbox bootstrap failed; check stderr for details. Continue with built-in tools." }` — without touching the filesystem backend.
+- Returns a JSON array of `{ path, name, summary }` objects, top N by score. The summary is the first sentence of the wrapper file's JSDoc. The `path` field is always the sandbox-side absolute path (`/home/gem/nexus-servers/...`), never the host-side source path — the model must not see `apps/agents/sandbox-files/servers/...` or it will try to `read_file` a path that doesn't exist inside the sandbox.
+- Calls `isMcpFilesystemReady()` from `sandbox-bootstrap.ts` at the start of every invocation. If it returns `false`, short-circuits with a structured error: `{ error: "MCP tool catalog is unavailable in this run. The sandbox bootstrap failed; check stderr for details. Continue with built-in tools." }` — without touching the filesystem at all. The rationale for this short-circuit is unchanged by the host-read decision: we still refuse to return search results when the bootstrap failed, because the catalog describes tools the agent cannot actually execute (the wrapper scripts need `/home/gem/nexus-servers/node_modules/` to be populated, which only happens after successful bootstrap).
 - If the search returns zero hits, returns a structured-not-empty response: `{ results: [], note: "No MCP tools matched '<query>'. The catalog covers browser automation (chrome_devtools/, browser/) and sandbox introspection (sandbox/). See using-mcp-tools skill for what's available." }`.
 
 **`prompt.ts`** exports `MCP_TOOL_SEARCH_NAME` (`"mcp_tool_search"`) and `MCP_TOOL_SEARCH_DESCRIPTION` matching the existing convention.
 
 Approximately 80 lines of implementation. **Bound to both research and code sub-agents.**
 
-### 5. Wiring updates — `apps/agents/src/nexus/tools/index.ts`
+### 5. Wiring updates — `apps/agents/src/nexus/tools/index.ts` and `apps/agents/src/nexus/skills/index.ts`
+
+**`tools/index.ts`:**
 
 - **Delete** all three exports + imports for `sandboxMcpListServers`, `sandboxMcpListTools`, `sandboxMcpExecuteTool`. Delete the `mcpTools` const entirely.
 - **Add** `mcpToolSearch` export and import.
@@ -192,19 +199,23 @@ Approximately 80 lines of implementation. **Bound to both research and code sub-
 
 **Delete** the three folders: `apps/agents/src/nexus/tools/mcp-list-servers/`, `mcp-list-tools/`, `mcp-execute-tool/`.
 
+**`skills/index.ts`:**
+
+- Append `"using-mcp-tools"` to the `SKILL_NAMES` tuple (currently a hardcoded list of five entries at `skills/index.ts:8-14`). Without this line, `nexusSkillFiles` — which builds its `FileData` map by iterating `SKILL_NAMES` — will not pick up the new skill directory at runtime, even though the files exist on disk.
+
 ### 6. Skill — `apps/agents/src/nexus/skills/using-mcp-tools/`
 
 Three files following the existing skill convention (see `skills/deep-research/`, `skills/build-app/`, etc.):
 
-- **`SKILL.md`** — Frontmatter (name, description under 1024 chars) + a body explaining the pattern: when to reach for MCP tools, how to use `mcp_tool_search`, how to read wrapper files, how to write a Node script that imports them, how to run via `sandbox_nodejs_execute`. Includes the explicit advice "print only what you need — script output is what reaches the conversation, not the raw tool result." Includes a section on reading script errors with three example failure modes (wrong args, MCP tool error, stale wrapper) and the recovery action for each.
-- **`examples.md`** — Three worked examples: (a) take a screenshot via `chrome_devtools/take_screenshot`, (b) inspect network requests on a page, (c) execute Python via `sandbox/execute_code` from a Node script (showing nested capability).
-- **`templates/screenshot-script.ts`** — A copy-pasteable script template the agent can adapt.
+- **`SKILL.md`** — Frontmatter (name, description under 1024 chars) + a body explaining the pattern: when to reach for MCP tools, how to use `mcp_tool_search`, how to read wrapper files, how to write a Node script that imports them via **absolute filesystem paths** rooted at `/home/gem/nexus-servers/`, how to run via `sandbox_nodejs_execute`. Calls out the two Node ESM facts the agent needs to trust: (a) `import` statements accept absolute paths directly with no `file://` prefix, and (b) `node_modules` resolution walks up from the importing wrapper's directory, so imports of `@modelcontextprotocol/sdk` inside the wrappers resolve to `/home/gem/nexus-servers/node_modules/` regardless of the Node process cwd — which is why `sandbox_nodejs_execute` has no `cwd` field and doesn't need one. Includes the explicit advice "print only what you need — script output is what reaches the conversation, not the raw tool result." Includes a section on reading script errors with three example failure modes (wrong args, MCP tool error, stale wrapper) and the recovery action for each.
+- **`examples.md`** — Three worked examples: (a) take a screenshot via `chrome_devtools/take_screenshot`, (b) inspect network requests on a page, (c) execute Python via `sandbox/execute_code` from a Node script (showing nested capability). All three examples import wrapper modules via absolute paths (e.g. `import { takeScreenshot } from "/home/gem/nexus-servers/chrome_devtools/take_screenshot.js"`) — never relative imports.
+- **`templates/screenshot-script.ts`** — A copy-pasteable script template the agent can adapt. Uses absolute-path imports rooted at `/home/gem/nexus-servers/`, matching the pattern the SKILL.md establishes.
 
-Seeded into the orchestrator filesystem at startup via the existing `nexusSkillFiles` barrel export in `skills/index.ts` — same as every other skill. Zero new wiring.
+Seeded into the orchestrator filesystem at startup via the existing `nexusSkillFiles` barrel export in `skills/index.ts` — same as every other skill. The only wiring change is appending `"using-mcp-tools"` to the `SKILL_NAMES` tuple in `skills/index.ts`, described alongside the `tools/index.ts` edits in Component 5; the barrel export iterates that tuple, so the new skill is not auto-discovered from disk alone.
 
 ### 7. System prompt updates — three files
 
-- **`apps/agents/src/nexus/agents/research/prompt.ts`** — Add a "Discovering additional capabilities" section pointing at `mcp_tool_search` and `/home/gem/workspace/servers/`. Keep the existing tool descriptions for the hot-layer 8 tools intact.
+- **`apps/agents/src/nexus/agents/research/prompt.ts`** — Add a "Discovering additional capabilities" section pointing at `mcp_tool_search` and `/home/gem/nexus-servers/`. Keep the existing tool descriptions for the hot-layer 8 tools intact.
 - **`apps/agents/src/nexus/agents/code/prompt.ts`** — Same addition. Plus: remove any existing references to the three deleted MCP wrappers if mentioned by name.
 - **`apps/agents/src/nexus/prompts/orchestrator-system.ts`** — Replace the long "research" and "code" bullets at lines 28-29 (which we just rewrote in the previous task to enumerate ~20 tools) with shorter capability-flavored descriptions. The hot-layer tools get a brief mention; the cold layer gets one sentence: *"plus a deferred catalog of ~60 MCP tools (browser automation, devtools, sandbox introspection) accessible via `mcp_tool_search` and `sandbox_nodejs_execute` — see `using-mcp-tools` skill."* Do not enumerate the 60.
 
@@ -263,22 +274,34 @@ orchestratorNode() → getOrchestrator(threadId) → cache miss
 createNexusOrchestrator(undefined, workspaceRoot)
     │  1. construct AIOSandboxBackend
     │  2. construct CompositeBackend
-    │  3. ◄── NEW: await ensureSandboxFilesystem(sandbox, workspaceRoot)
+    │  3. ◄── NEW: await ensureSandboxFilesystem(sandbox)
+    │          (no workspaceRoot arg — the bootstrap target lives at
+    │           /home/gem/nexus-servers/, outside the per-thread workspace,
+    │           so thread scoping doesn't apply)
     │
     ▼
 ensureSandboxFilesystem
     │
-    │  Step 1: sandbox.read("/home/gem/workspace/servers/.bootstrap-marker")
-    │          - exists? → return true (fast path)
-    │          - missing? → continue
+    │  Step 1: sandbox.execute(
+    │              "test -f /home/gem/nexus-servers/.bootstrap-marker && echo exists"
+    │          )
+    │          - stdout contains "exists" → return true (fast path)
+    │          - otherwise → continue
     │
-    │  Step 2: walk apps/agents/sandbox-files/servers/ in apps/agents process
+    │  Step 2: walk apps/agents/sandbox-files/servers/ in apps/agents process,
+    │          build an Array<[string, Uint8Array]> of ~63 entries
+    │          (package.json + tsconfig.json + _client/callMCPTool.ts + 60 wrappers),
+    │          each path rooted at /home/gem/nexus-servers/...
     │
-    │  Step 3: for each file → sandbox.write(target_path, contents)
+    │  Step 3: sandbox.uploadFiles([...all ~63 entries...])   ◄── ONE batched call
     │
-    │  Step 4: sandbox.executeBash("cd /home/gem/workspace/servers && npm install")
+    │  Step 4: sandbox.execute(
+    │              "cd /home/gem/nexus-servers && npm install 2>&1"
+    │          )
     │
-    │  Step 5: sandbox.write(".bootstrap-marker", timestamp)
+    │  Step 5: sandbox.execute(
+    │              "date -u +%Y-%m-%dT%H:%M:%SZ > /home/gem/nexus-servers/.bootstrap-marker"
+    │          )
     │
     │  Returns true on success, false on any failure
     │
@@ -286,7 +309,7 @@ ensureSandboxFilesystem
 createDeepAgent() proceeds → orchestrator returned (cached per thread)
 ```
 
-**Cost:** ~60 `sandbox.write` calls + 1 `npm install` + 1 marker write. The first-time bootstrap is dominated by the npm install (~10-30 seconds). Subsequent thread constructions hit the marker fast path and add ~1ms.
+**Cost:** 1 batched `uploadFiles` call (~63 files) + 1 `execute` for `npm install` + 1 `execute` for the marker. The first-time bootstrap is dominated by the npm install (~10-30 seconds); the batched upload is a small constant overhead on top. Subsequent thread constructions hit the marker fast path (a single `test -f` shell invocation) and add ~1ms. Because the target lives outside `/home/gem/workspace/`, every thread in the process shares the same `/home/gem/nexus-servers/` tree — the bootstrap runs once per LangGraph server process, not once per thread.
 
 ### Flow C — Agent uses an MCP tool (the hot path during a normal turn)
 
@@ -305,20 +328,26 @@ mcp_tool_search runs in apps/agents process
     ▼
 ToolMessage back to model:
     [
-      {"path": "servers/chrome_devtools/take_screenshot.ts",
+      {"path": "/home/gem/nexus-servers/chrome_devtools/take_screenshot.ts",
        "name": "chrome_devtools_take_screenshot",
        "summary": "Capture a screenshot..."},
-      {"path": "servers/browser/take_screenshot.ts", ...},
-      {"path": "servers/chrome_devtools/navigate.ts", ...},
+      {"path": "/home/gem/nexus-servers/browser/take_screenshot.ts", ...},
+      {"path": "/home/gem/nexus-servers/chrome_devtools/navigate.ts", ...},
       ...
     ]
     │
     ▼
 Model emits ToolCall: read_file({
-    path: "/home/gem/workspace/servers/chrome_devtools/take_screenshot.ts"
+    path: "/home/gem/nexus-servers/chrome_devtools/take_screenshot.ts"
 })
-    │  → DeepAgents auto-provisioned filesystem helper
-    │  → AIOSandboxBackend.read(path)
+    │  → DeepAgents auto-provisioned read_file filesystem helper, which
+    │    BaseSandbox implements via execute("cat <path>") against the
+    │    backend (there is no AIOSandboxBackend.read — filesystem tools
+    │    derive from shell execution, see backend/aio-sandbox.ts:17-25).
+    │  → The path falls through CompositeBackend to the default
+    │    AIOSandboxBackend route. CompositeBackend only intercepts
+    │    /memories/ and /skills/ prefixes; /home/gem/nexus-servers/
+    │    matches neither, so no special routing is needed.
     ▼
 Model now sees the JSDoc + types + function signature.
     THIS is the "deferred-tool-definition reveal" — the analog of
@@ -331,12 +360,11 @@ Model now sees the JSDoc + types + function signature.
     ▼
 Model emits ToolCall: sandbox_nodejs_execute({
     code: `
-        import { takeScreenshot } from './chrome_devtools/take_screenshot.js';
+        import { takeScreenshot } from "/home/gem/nexus-servers/chrome_devtools/take_screenshot.js";
         // login flow, navigate, screenshot
         const r = await takeScreenshot({ ... });
         console.log(r);
-    `,
-    cwd: "/home/gem/workspace/servers"
+    `
 })
     │
     ▼
@@ -344,7 +372,15 @@ HTTP POST to AIO Sandbox /v1/nodejs/execute
     │
     ▼
 AIO Sandbox runs the Node script
-    │  - Resolves './chrome_devtools/take_screenshot.js' against cwd
+    │  - Imports /home/gem/nexus-servers/chrome_devtools/take_screenshot.js
+    │    directly via an absolute filesystem path. Node ESM accepts absolute
+    │    paths in static `import` statements with no `file://` prefix.
+    │  - node_modules resolution walks UP from the importing wrapper file's
+    │    directory, so `import { Client } from "@modelcontextprotocol/sdk/..."`
+    │    inside the wrapper resolves to /home/gem/nexus-servers/node_modules/
+    │    regardless of what cwd the Node process was started in. This is why
+    │    sandbox_nodejs_execute has no `cwd` field and doesn't need one: the
+    │    wrapper namespace lives entirely in absolute-path land.
     │  - import calls the wrapper function
     │  - wrapper calls callMCPTool('chrome_devtools_take_screenshot', {...})
     │  - callMCPTool constructs a Streamable HTTP MCP Client,
@@ -396,24 +432,24 @@ Six failure surfaces.
 
 **What we do:** Catch the error, print `"Couldn't reach sandbox at <URL>. Start one with: docker run ... ghcr.io/agent-infra/sandbox:latest"`. Exit code 1. **No partial wrapper writes** — the generator builds the entire tree in memory first and only flushes after `listTools()` returns successfully.
 
-### Failure 2: `ensureSandboxFilesystem` can't write files
+### Failure 2: `ensureSandboxFilesystem` can't seed the bootstrap tree
 
-**What fails:** Mid-bootstrap `sandbox.write` failure (permission denied, disk full, container restart, network blip).
+**What fails:** Either the Step 2 `uploadFiles` batch returns errors for one or more entries (permission denied, disk full, container restart, network blip) or one of the `execute` shell calls (marker check, `npm install`, marker write) returns a non-zero exit code.
 
-**How it surfaces:** Filesystem backend throws. Bootstrap is mid-flight — some files written, marker not yet touched.
+**How it surfaces:** For `uploadFiles`, the returned `FileUploadResponse[]` contains entries with a non-null `error` field (`"file_not_found"` / `"permission_denied"` / `"invalid_path"`). For `execute`, the `ExecuteResponse` has a non-zero `exitCode` (or `output` contains the unreachable-sandbox sentinel). Bootstrap is mid-flight — some files may be in the sandbox, marker not yet touched.
 
 **What we do:**
-1. **No marker on partial failure.** The marker is the last action, like a transaction commit. Partial-write retry is automatic on the next orchestrator construction because the marker isn't there.
-2. **Catch the error in `ensureSandboxFilesystem`**, log it loudly with the failing path, set `mcpFilesystemReady = false`, return `false`. Orchestrator construction continues.
+1. **No marker on partial failure.** The marker is written only by the final `execute` step, as a transactional commit. Partial-upload retry is automatic on the next orchestrator construction because the marker isn't there.
+2. **Treat any non-null `error` in the `uploadFiles` response or any non-zero `exitCode` from `execute` as a bootstrap failure.** Log it loudly with the failing path (or the captured `execute` output), set `mcpFilesystemReady = false`, return `false`. Orchestrator construction continues.
 3. **`mcp_tool_search` checks the flag at call time.** If `false`, returns the structured "MCP tool catalog is unavailable" error so the agent falls back to its hot-layer tools.
 
 ### Failure 3: `npm install` inside the sandbox fails
 
-**What fails:** Files copied successfully, but `npm install --prefix /home/gem/workspace/servers` fails — no internet, npm registry slow, sandbox missing `npm`, etc.
+**What fails:** The wrapper tree uploaded successfully, but `cd /home/gem/nexus-servers && npm install 2>&1` fails — no internet, npm registry slow, sandbox missing `npm`, etc.
 
-**How it surfaces:** `executeBash` returns non-zero exit code with stderr containing the npm error.
+**How it surfaces:** The `execute` call returns a non-zero `exitCode` with the npm error text in `ExecuteResponse.output` (stderr is merged into stdout via `2>&1`, so a single field carries the diagnosis).
 
-**What we do:** Same path as Failure 2. **Critical: log the captured stderr.** npm errors are unhelpful without the actual output. The mitigation in Component 2 (pinning the SDK version exactly) prevents transitive-dep "it worked yesterday" failures.
+**What we do:** Same path as Failure 2. **Critical: log the captured output.** npm errors are unhelpful without the actual message. The `2>&1` redirection in Component 3 ensures stderr is captured in the same output stream, so the log line is trivially `console.error(execResponse.output)`. The mitigation in Component 2 (pinning the SDK version exactly) prevents transitive-dep "it worked yesterday" failures.
 
 ### Failure 4: Wrapper script throws at runtime
 
@@ -469,7 +505,7 @@ Approximately 10-12 cases. Sub-100ms.
 
 ### Test 2 — `__tests__/mcp-tool-search.test.ts`
 
-Covers the search/ranking logic. Fixture: `__tests__/fixtures/wrapper-files/`, ~10 hand-written stub wrapper files matching the real generator's format, including intentional name collisions.
+Covers the search/ranking logic. Fixture: `__tests__/fixtures/wrapper-files/`, ~10 hand-written stub wrapper files matching the real generator's format, including intentional name collisions. Because Component 4 reads the catalog from the host-side source tree via `fs.readdir` + `fs.readFile`, the test points the tool at the fixture directory instead of the real `apps/agents/sandbox-files/servers/` path — either by exposing an optional source-root override on the tool's factory (preferred, keeps the production code fully typed) or by mocking the `fs` calls. The `isMcpFilesystemReady()` accessor is also stubbed to return `true` so the short-circuit path doesn't fire. Case 9 below additionally covers the short-circuit behavior explicitly.
 
 Cases:
 
@@ -480,21 +516,23 @@ Cases:
 5. `limit` is honored.
 6. Empty result returns the structured-not-empty response with the category note.
 7. Zero-score entries are filtered, not padded.
-8. Index built lazily once and cached across multiple search invocations.
+8. Index built lazily once and cached across multiple search invocations (fixture read should happen on the first call, not the second).
+9. `isMcpFilesystemReady()` returning `false` short-circuits with the structured "catalog unavailable" error and **does not touch the fixture filesystem at all** (verified by asserting the stubbed `fs.readdir` was never called).
+10. The `path` field in every result entry starts with `/home/gem/nexus-servers/` — never with the host-side fixture path. Prevents regression where the tool leaks its source-of-truth location to the model.
 
-Approximately 8 cases.
+Approximately 10 cases.
 
 ### Test 3 — `__tests__/sandbox-bootstrap.test.ts`
 
-Covers the `ensureSandboxFilesystem` state machine. Mocks: `FakeSandboxBackend` class implementing `read` / `write` / `executeBash` against an in-memory `Map<string, string>`.
+Covers the `ensureSandboxFilesystem` state machine. Mocks: `FakeSandboxBackend` class implementing the real `BaseSandbox` surface — `execute(command)`, `uploadFiles(files)`, `downloadFiles(paths)` — against an in-memory `Map<string, Uint8Array>`. The fake interprets a small shell-command allowlist (`test -f <path>`, `cd <path> && npm install 2>&1`, `date ... > <path>`) well enough to drive the state machine without actually running a shell.
 
 Cases:
 
-1. Cold start writes everything, issues npm install, writes marker.
-2. Marker present → fast path returns immediately, zero writes.
+1. Cold start uploads everything in one batch, issues npm install via `execute`, writes marker via `execute`.
+2. Marker present (`test -f` returns exit 0 and `exists`) → fast path returns immediately, zero uploads.
 3. Concurrent calls dedupe (two simultaneous calls → one bootstrap, both promises resolve to the same result).
-4. Write failure mid-way → no marker, error logged with the failing path, no exception propagated, flag set false.
-5. `npm install` failure → no marker, error logged with the captured stderr, flag set false.
+4. `uploadFiles` returns a partial-error response → no marker, error logged with the failing path, no exception propagated, flag set false.
+5. `npm install` `execute` returns non-zero exit code → no marker, error logged with the captured merged stdout/stderr, flag set false.
 6. Retry after partial failure → second run succeeds, marker present, flag flips to true.
 7. Flag tracks current state, not "ever failed."
 
@@ -502,7 +540,7 @@ Approximately 7 cases.
 
 ### Test 4 — `__tests__/call-mcp-tool.integration.test.ts`
 
-The only test that requires a live sandbox. Matches the existing repo convention from `models/__tests__/zai-chat-model.integration.test.ts`: filename ends in `.integration.test.ts` and the entire `describe` block is gated with `describe.skipIf(!process.env.SANDBOX_INTEGRATION)`. The bespoke `SANDBOX_INTEGRATION=true` env var is the opt-in (the sandbox URL has a default, so we can't gate on its presence — we need an explicit "yes I have a sandbox running" signal).
+The only test that requires a live sandbox. Matches the convention used by `apps/agents/src/nexus/models/__tests__/zai-chat-model.integration.test.ts:5-7` — one of two integration-test conventions present in the repo (the other is `__tests__/tools-integration.test.ts`, which uses a plain `describe()` that always runs and is gated via CLI `--exclude` flags documented inline). We pick the Zai pattern here because the bespoke env var lets us opt in explicitly without modifying CLI exclude patterns, and because the sandbox URL has a default so we can't just gate on its presence — we need an explicit "yes I have a sandbox running" signal. Concretely: filename ends in `.integration.test.ts`, the entire `describe` block is gated with `describe.skipIf(!process.env.SANDBOX_INTEGRATION)`, and `SANDBOX_INTEGRATION=true` is the opt-in.
 
 Cases:
 
@@ -540,11 +578,18 @@ Approximately 5 cases.
 
 ## Verify Before Claiming Done
 
-Three manual checks no automated test can validate. The implementer must do these by hand before declaring the work complete:
+Four manual checks no automated test can validate. The implementer must do these by hand — step 0 before any implementation, steps 1-3 before declaring the work complete:
 
+0. **Sandbox preflight: confirm `npm` is reachable from inside the container.** Before starting implementation, run:
+
+   ```bash
+   docker run --rm ghcr.io/agent-infra/sandbox:latest sh -c "which npm && npm view @modelcontextprotocol/sdk version"
+   ```
+
+   Both commands must succeed. If either fails, the bootstrap design's assumption that `npm install` works inside the container is broken, and the design needs to vendor `@modelcontextprotocol/sdk` as a tarball in `apps/agents/sandbox-files/servers/` instead of fetching from the registry at bootstrap time. Flag this and revise Component 2 (static asset tree — tarball gets committed) and Component 3 (bootstrap — `npm install <tarball>` instead of registry fetch) before writing any runtime code. Do NOT skip this check on the assumption that "npm is everywhere"; the sandbox container has unusual networking in some configurations (see the docker-compose roadmap note in `roadmap_docker_compose.md`).
 1. **Run the generator against a live sandbox** and visually review the diff of the committed wrapper files. Look for: weird type names, missing JSDoc, namespace-routing surprises (a tool whose name doesn't follow the prefix convention).
 2. **`npm run dev` end to end with a real prompt.** Submit a research task that requires the cold layer (e.g., "screenshot github.com/anthropics from a logged-in session"). Watch the LangGraph stream — confirm `mcp_tool_search` is called, a wrapper is read, a script is executed, and the result lands in the conversation without the raw MCP payload bleeding through.
-3. **Bootstrap on a fresh sandbox container.** Stop the existing sandbox, start a fresh one, send a prompt — verify the bootstrap takes ~10-30s and subsequent prompts are instant.
+3. **Bootstrap on a fresh sandbox container.** Stop the existing sandbox, start a fresh one, send a prompt — verify the bootstrap takes ~10-30s and subsequent prompts are instant. Send a second prompt from a *different* thread in the same LangGraph server process and verify it skips the bootstrap entirely (proving the out-of-workspace `/home/gem/nexus-servers/` path is shared across threads, not per-thread-remapped).
 
 ## Open Questions
 
