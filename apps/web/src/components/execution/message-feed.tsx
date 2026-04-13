@@ -2,6 +2,7 @@
 "use client";
 
 import { SubagentCard } from "./subagent-card";
+import { FilesystemToolArtifact } from "./filesystem-tool-artifact";
 import { SynthesisIndicator } from "./synthesis-indicator";
 import { GenerateImageArtifact } from "./generate-image-artifact";
 import { MarkdownText } from "@/components/thread/markdown-text";
@@ -71,6 +72,9 @@ const TOOL_DISPLAY: Record<string, { label: string; icon: typeof WrenchIcon }> =
   task: { label: "Dispatching agent", icon: GitBranchIcon },
   execute: { label: "Running code", icon: CodeIcon },
   execute_code: { label: "Running code", icon: CodeIcon },
+  read_file: { label: "Reading file", icon: GlobeIcon },
+  write_file: { label: "Writing file", icon: GlobeIcon },
+  edit_file: { label: "Editing file", icon: GlobeIcon },
 };
 
 function getToolDisplay(toolName: string) {
@@ -233,6 +237,8 @@ function OrchestratorMessage({
               tc.args?.query ?? tc.args?.url ?? tc.args?.description ?? undefined;
             const isExecuteTool = toolName === "execute" || toolName === "execute_code";
             const isGenerateImageTool = toolName === "generate_image";
+            const isWriteOrEditTool = toolName === "write_file" || toolName === "edit_file";
+            const isReadFileTool = toolName === "read_file";
             const toolOutput = tc.id ? toolResultByCallId.get(tc.id) : undefined;
 
             return (
@@ -250,6 +256,23 @@ function OrchestratorMessage({
                     isStreaming={isActive && i === toolCalls.length - 1}
                     output={toolOutput}
                     title="Orchestrator execution"
+                    defaultOpen={isActive && i === toolCalls.length - 1}
+                  />
+                ) : null}
+                {isWriteOrEditTool ? (
+                  <FilesystemToolArtifact
+                    args={tc.args}
+                    defaultOpen={false}
+                    output={toolOutput}
+                    toolName={toolName === "write_file" ? "write_file" : "edit_file"}
+                  />
+                ) : null}
+                {isReadFileTool ? (
+                  <FilesystemToolArtifact
+                    args={tc.args}
+                    defaultOpen={false}
+                    output={toolOutput}
+                    toolName="read_file"
                   />
                 ) : null}
                 {isGenerateImageTool && toolOutput ? (
@@ -257,6 +280,7 @@ function OrchestratorMessage({
                     output={toolOutput}
                     prompt={typeof tc.args?.prompt === "string" ? tc.args.prompt : undefined}
                     title="Generated images"
+                    defaultOpen={false}
                   />
                 ) : null}
               </ChainOfThoughtStep>

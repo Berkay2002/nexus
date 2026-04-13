@@ -32,6 +32,7 @@ import {
 import { useEffect, useState } from "react";
 import { MarkdownText } from "@/components/thread/markdown-text";
 import { ExecuteToolArtifact } from "./execute-tool-artifact";
+import { FilesystemToolArtifact } from "./filesystem-tool-artifact";
 import { GenerateImageArtifact } from "./generate-image-artifact";
 
 function getContentString(content: unknown): string {
@@ -459,6 +460,8 @@ function StepsList({
         const stepActive = isLast && isRunning && !step.done;
         const isExecuteTool = step.name === "execute" || step.name === "execute_code";
         const isGenerateImageTool = step.name === "generate_image";
+        const isWriteOrEditTool = step.name === "write_file" || step.name === "edit_file";
+        const isReadFileTool = step.name === "read_file";
         return (
           <div
             key={step.key}
@@ -495,6 +498,23 @@ function StepsList({
                   isStreaming={stepActive}
                   output={step.output}
                   title="Subagent execution"
+                  defaultOpen={stepActive}
+                />
+              )}
+              {isWriteOrEditTool && (
+                <FilesystemToolArtifact
+                  args={step.args}
+                  defaultOpen={false}
+                  output={step.output}
+                  toolName={step.name === "write_file" ? "write_file" : "edit_file"}
+                />
+              )}
+              {isReadFileTool && (
+                <FilesystemToolArtifact
+                  args={step.args}
+                  defaultOpen={false}
+                  output={step.output}
+                  toolName="read_file"
                 />
               )}
               {isGenerateImageTool && step.output && (
@@ -502,6 +522,7 @@ function StepsList({
                   output={step.output}
                   prompt={typeof step.args?.prompt === "string" ? step.args.prompt : undefined}
                   title="Subagent image output"
+                  defaultOpen={false}
                 />
               )}
             </div>

@@ -9,6 +9,13 @@ import {
 } from "@/components/ai-elements/artifact";
 import { Image } from "@/components/ai-elements/image";
 import { CodeBlock } from "@/components/ai-elements/code-block";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
+import { ChevronDown } from "lucide-react";
 
 type GeneratedImageFile = {
   path: string;
@@ -64,24 +71,37 @@ export function GenerateImageArtifact({
   output,
   prompt,
   title = "Generated images",
+  defaultOpen = false,
 }: {
   output?: string;
   prompt?: string;
   title?: string;
+  defaultOpen?: boolean;
 }) {
   if (!output) return null;
 
   const parsed = parseResult(output);
   if (!parsed) {
     return (
-      <Artifact className="mt-2 border-border/60 bg-card/40">
-        <ArtifactHeader>
-          <ArtifactTitle>{title}</ArtifactTitle>
-        </ArtifactHeader>
-        <ArtifactContent className="p-3">
-          <CodeBlock code={output} language="json" showLineNumbers={false} />
-        </ArtifactContent>
-      </Artifact>
+      <Collapsible defaultOpen={defaultOpen}>
+        <Artifact className="mt-2 border-border/60 bg-card/40">
+          <CollapsibleTrigger asChild>
+            <ArtifactHeader className="group cursor-pointer">
+              <ArtifactTitle>{title}</ArtifactTitle>
+              <ChevronDown
+                className={cn(
+                  "size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180",
+                )}
+              />
+            </ArtifactHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <ArtifactContent className="p-3">
+              <CodeBlock code={output} language="json" showLineNumbers={false} />
+            </ArtifactContent>
+          </CollapsibleContent>
+        </Artifact>
+      </Collapsible>
     );
   }
 
@@ -98,82 +118,104 @@ export function GenerateImageArtifact({
 
   if (imageFiles.length === 0) {
     return (
-      <Artifact className="mt-2 border-border/60 bg-card/40">
-        <ArtifactHeader>
-          <div>
-            <ArtifactTitle>{title}</ArtifactTitle>
-            {promptText ? (
-              <ArtifactDescription className="line-clamp-2 text-xs">
-                {promptText}
-              </ArtifactDescription>
-            ) : null}
-          </div>
-        </ArtifactHeader>
-        <ArtifactContent className="p-3">
-          <CodeBlock
-            code={JSON.stringify(parsed, null, 2)}
-            language="json"
-            showLineNumbers={false}
-          />
-        </ArtifactContent>
-      </Artifact>
+      <Collapsible defaultOpen={defaultOpen}>
+        <Artifact className="mt-2 border-border/60 bg-card/40">
+          <CollapsibleTrigger asChild>
+            <ArtifactHeader className="group cursor-pointer">
+              <div>
+                <ArtifactTitle>{title}</ArtifactTitle>
+                {promptText ? (
+                  <ArtifactDescription className="line-clamp-2 text-xs">
+                    {promptText}
+                  </ArtifactDescription>
+                ) : null}
+              </div>
+              <ChevronDown
+                className={cn(
+                  "size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180",
+                )}
+              />
+            </ArtifactHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <ArtifactContent className="p-3">
+              <CodeBlock
+                code={JSON.stringify(parsed, null, 2)}
+                language="json"
+                showLineNumbers={false}
+              />
+            </ArtifactContent>
+          </CollapsibleContent>
+        </Artifact>
+      </Collapsible>
     );
   }
 
   return (
-    <Artifact className="mt-2 border-border/60 bg-card/40">
-      <ArtifactHeader>
-        <div className="min-w-0">
-          <ArtifactTitle>{title}</ArtifactTitle>
-          {promptText ? (
-            <ArtifactDescription className="line-clamp-2 text-xs">
-              {promptText}
-            </ArtifactDescription>
-          ) : null}
-        </div>
-      </ArtifactHeader>
-      <ArtifactContent className="space-y-3 p-3">
-        <div className="grid gap-3 sm:grid-cols-2">
-          {imageFiles.map((file, index) => {
-            const openHref = buildWorkspaceFileHref(file.path);
-            const downloadHref = buildWorkspaceFileHref(file.path, true);
-            return (
-              <div
-                key={`${file.path}-${index}`}
-                className="overflow-hidden rounded-md border border-border/60 bg-background"
-              >
-                <a href={openHref} rel="noreferrer" target="_blank">
-                  <Image
-                    alt={baseName(file.path)}
-                    className="max-h-72 w-full object-contain bg-muted/20"
-                    src={openHref}
-                  />
-                </a>
-                <div className="flex items-center justify-between gap-2 border-t border-border/60 px-2.5 py-2 text-[11px]">
-                  <span className="truncate text-muted-foreground">{baseName(file.path)}</span>
-                  <div className="flex items-center gap-2">
-                    <a
-                      className="text-primary hover:underline"
-                      href={openHref}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      Open
+    <Collapsible defaultOpen={defaultOpen}>
+      <Artifact className="mt-2 border-border/60 bg-card/40">
+        <CollapsibleTrigger asChild>
+          <ArtifactHeader className="group cursor-pointer">
+            <div className="min-w-0">
+              <ArtifactTitle>{title}</ArtifactTitle>
+              {promptText ? (
+                <ArtifactDescription className="line-clamp-2 text-xs">
+                  {promptText}
+                </ArtifactDescription>
+              ) : null}
+            </div>
+            <ChevronDown
+              className={cn(
+                "size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180",
+              )}
+            />
+          </ArtifactHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <ArtifactContent className="space-y-3 p-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {imageFiles.map((file, index) => {
+                const openHref = buildWorkspaceFileHref(file.path);
+                const downloadHref = buildWorkspaceFileHref(file.path, true);
+                return (
+                  <div
+                    key={`${file.path}-${index}`}
+                    className="overflow-hidden rounded-md border border-border/60 bg-background"
+                  >
+                    <a href={openHref} rel="noreferrer" target="_blank">
+                      <Image
+                        alt={baseName(file.path)}
+                        className="max-h-72 w-full object-contain bg-muted/20"
+                        src={openHref}
+                      />
                     </a>
-                    <a
-                      className="text-muted-foreground hover:text-foreground hover:underline"
-                      download={baseName(file.path)}
-                      href={downloadHref}
-                    >
-                      Download
-                    </a>
+                    <div className="flex items-center justify-between gap-2 border-t border-border/60 px-2.5 py-2 text-[11px]">
+                      <span className="truncate text-muted-foreground">{baseName(file.path)}</span>
+                      <div className="flex items-center gap-2">
+                        <a
+                          className="text-primary hover:underline"
+                          href={openHref}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          Open
+                        </a>
+                        <a
+                          className="text-muted-foreground hover:text-foreground hover:underline"
+                          download={baseName(file.path)}
+                          href={downloadHref}
+                        >
+                          Download
+                        </a>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </ArtifactContent>
-    </Artifact>
+                );
+              })}
+            </div>
+          </ArtifactContent>
+        </CollapsibleContent>
+      </Artifact>
+    </Collapsible>
   );
 }
