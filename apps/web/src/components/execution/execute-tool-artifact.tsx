@@ -91,9 +91,9 @@ export function ExecuteToolArtifact({
 
   return (
     <Collapsible defaultOpen={defaultOpen ?? Boolean(isStreaming)}>
-      <Artifact className="mt-2 rounded-lg border bg-card/50 overflow-hidden">
+      <Artifact className="mt-2 rounded-lg border bg-card/50 shadow-none overflow-hidden transition-colors">
         <CollapsibleTrigger asChild>
-          <ArtifactHeader className="cursor-pointer">
+          <ArtifactHeader className="cursor-pointer border-b-0 bg-transparent px-3 py-2.5 hover:bg-accent/50 transition-colors">
             <div className="min-w-0">
               <ArtifactTitle>{title}</ArtifactTitle>
               {description ? (
@@ -110,7 +110,7 @@ export function ExecuteToolArtifact({
           </ArtifactHeader>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <ArtifactContent className="space-y-2 p-3">
+          <ArtifactContent className="space-y-2 px-3 pb-3 pt-1 border-t border-border/50">
             {command ? (
               <CodeBlock code={command} language="bash" showLineNumbers={false} />
             ) : null}

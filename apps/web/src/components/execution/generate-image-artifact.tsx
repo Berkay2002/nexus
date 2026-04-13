@@ -84,9 +84,9 @@ export function GenerateImageArtifact({
   if (!parsed) {
     return (
       <Collapsible defaultOpen={defaultOpen}>
-        <Artifact className="mt-2 rounded-lg border bg-card/50 overflow-hidden">
+        <Artifact className="mt-2 rounded-lg border bg-card/50 shadow-none overflow-hidden transition-colors">
           <CollapsibleTrigger asChild>
-            <ArtifactHeader className="cursor-pointer">
+            <ArtifactHeader className="cursor-pointer border-b-0 bg-transparent px-3 py-2.5 hover:bg-accent/50 transition-colors">
               <ArtifactTitle>{title}</ArtifactTitle>
               <ChevronDown
                 className={cn(
@@ -96,7 +96,7 @@ export function GenerateImageArtifact({
             </ArtifactHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <ArtifactContent className="p-3">
+            <ArtifactContent className="px-3 pb-3 pt-1 border-t border-border/50">
               <CodeBlock code={output} language="json" showLineNumbers={false} />
             </ArtifactContent>
           </CollapsibleContent>
@@ -119,9 +119,9 @@ export function GenerateImageArtifact({
   if (imageFiles.length === 0) {
     return (
       <Collapsible defaultOpen={defaultOpen}>
-        <Artifact className="mt-2 rounded-lg border bg-card/50 overflow-hidden">
+        <Artifact className="mt-2 rounded-lg border bg-card/50 shadow-none overflow-hidden transition-colors">
           <CollapsibleTrigger asChild>
-            <ArtifactHeader className="cursor-pointer">
+            <ArtifactHeader className="cursor-pointer border-b-0 bg-transparent px-3 py-2.5 hover:bg-accent/50 transition-colors">
               <div>
                 <ArtifactTitle>{title}</ArtifactTitle>
                 {promptText ? (
@@ -138,7 +138,7 @@ export function GenerateImageArtifact({
             </ArtifactHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <ArtifactContent className="p-3">
+            <ArtifactContent className="px-3 pb-3 pt-1 border-t border-border/50">
               <CodeBlock
                 code={JSON.stringify(parsed, null, 2)}
                 language="json"
@@ -153,9 +153,9 @@ export function GenerateImageArtifact({
 
   return (
     <Collapsible defaultOpen={defaultOpen}>
-      <Artifact className="mt-2 rounded-lg border bg-card/50 overflow-hidden">
+      <Artifact className="mt-2 rounded-lg border bg-card/50 shadow-none overflow-hidden transition-colors">
         <CollapsibleTrigger asChild>
-          <ArtifactHeader className="cursor-pointer">
+          <ArtifactHeader className="cursor-pointer border-b-0 bg-transparent px-3 py-2.5 hover:bg-accent/50 transition-colors">
             <div className="min-w-0">
               <ArtifactTitle>{title}</ArtifactTitle>
               {promptText ? (
@@ -172,7 +172,7 @@ export function GenerateImageArtifact({
           </ArtifactHeader>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <ArtifactContent className="space-y-3 p-3">
+            <ArtifactContent className="space-y-3 px-3 pb-3 pt-1 border-t border-border/50">
             <div className="grid gap-3 sm:grid-cols-2">
               {imageFiles.map((file, index) => {
                 const openHref = buildWorkspaceFileHref(file.path);

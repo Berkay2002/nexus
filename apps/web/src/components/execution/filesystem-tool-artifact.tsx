@@ -110,7 +110,7 @@ function stripEmbeddedLineNumbers(content: string): string {
   const sample = lines.filter((line) => line.trim().length > 0).slice(0, 25);
   if (sample.length < 3) return content;
 
-  const twoColPattern = /^\s*\d+\s+\d+\s+/;
+  const twoColPattern = /^\s*\d+\s+\d+(?:\s+|$)/;
   const oneColPattern = /^\s*\d+\s+/;
 
   const twoColMatches = sample.filter((line) => twoColPattern.test(line)).length;
@@ -191,9 +191,9 @@ export function FilesystemToolArtifact({
 
   return (
     <Collapsible defaultOpen={defaultOpen}>
-      <Artifact className="mt-2 rounded-lg border bg-card/50 overflow-hidden">
+      <Artifact className="mt-2 rounded-lg border bg-card/50 shadow-none overflow-hidden transition-colors">
         <CollapsibleTrigger asChild>
-          <ArtifactHeader className="cursor-pointer">
+          <ArtifactHeader className="cursor-pointer border-b-0 bg-transparent px-3 py-2.5 hover:bg-accent/50 transition-colors">
             <div className="min-w-0">
               <ArtifactTitle>{toolTitle(toolName)}</ArtifactTitle>
               <ArtifactDescription className="truncate text-xs">
@@ -208,7 +208,7 @@ export function FilesystemToolArtifact({
           </ArtifactHeader>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <ArtifactContent className="space-y-2 p-3">
+          <ArtifactContent className="space-y-2 px-3 pb-3 pt-1 border-t border-border/50">
             {toolName !== "read_file" && writeOrEditPreview ? (
               <CodeBlock
                 className={WRAPPED_CODEBLOCK_CLASS}
