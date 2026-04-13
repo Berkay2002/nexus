@@ -14,6 +14,7 @@ import {
 import { useCallback, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { SectionHeaderCollapsible } from "./section-header-collapsible";
+import { useQueryState } from "nuqs";
 
 function baseName(filePath: string): string {
   if (filePath.endsWith("/")) {
@@ -75,8 +76,9 @@ function OutputPathIcon({ path }: { path: string }) {
   return <FileIcon className="size-3.5 mt-0.5 text-muted-foreground shrink-0" />;
 }
 
-function buildFileHref(filePath: string, download = false): string {
+function buildFileHref(filePath: string, threadId?: string, download = false): string {
   const params = new URLSearchParams({ path: filePath });
+  if (threadId) params.set("threadId", threadId);
   if (download) params.set("download", "1");
   return `/api/workspace/file?${params.toString()}`;
 }
@@ -143,6 +145,7 @@ export function WorkspaceOutputsPanel({
 }: {
   paths: string[];
 }) {
+  const [threadId] = useQueryState("threadId");
   const dedupedPaths = useMemo(() => dedupeOutputPaths(paths), [paths]);
   const outputTree = useMemo(() => buildOutputTree(dedupedPaths), [dedupedPaths]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -199,7 +202,7 @@ export function WorkspaceOutputsPanel({
 
             <div className="flex items-center gap-1.5 shrink-0 self-center">
               <a
-                href={buildFileHref(path, false)}
+                href={buildFileHref(path, threadId ?? undefined, false)}
                 target="_blank"
                 rel="noreferrer"
                 aria-label={isDirectoryPath(path) ? "Browse folder" : "Open file"}
@@ -214,7 +217,7 @@ export function WorkspaceOutputsPanel({
 
               {!isDirectoryPath(path) && (
                 <a
-                  href={buildFileHref(path, true)}
+                  href={buildFileHref(path, threadId ?? undefined, true)}
                   download={baseName(path)}
                   aria-label="Download file"
                   title="Download file"
@@ -235,7 +238,7 @@ export function WorkspaceOutputsPanel({
         </div>
       );
     },
-    [expandedFolders, outputTree.childrenByParent, toggleFolder],
+    [expandedFolders, outputTree.childrenByParent, threadId, toggleFolder],
   );
 
   if (dedupedPaths.length === 0) return null;

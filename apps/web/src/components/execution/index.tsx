@@ -7,8 +7,10 @@ import {
   extractLatestTodosFromMessages,
 } from "@/lib/subagent-utils";
 import { collectWorkspaceOutputPaths } from "@/lib/workspace-files";
+import { useQueryState } from "nuqs";
 
 export function ExecutionView() {
+  const [threadId] = useQueryState("threadId");
   const {
     messages,
     isLoading,
@@ -25,7 +27,11 @@ export function ExecutionView() {
   const todos =
     todosFromValues.length > 0 ? todosFromValues : todosFromMessages;
   const allSubagents = subagents ? [...subagents.values()] : [];
-  const outputPaths = collectWorkspaceOutputPaths(messages, allSubagents);
+  const outputPaths = collectWorkspaceOutputPaths(
+    messages,
+    allSubagents,
+    threadId ?? undefined,
+  );
 
   return (
     <ExecutionShell

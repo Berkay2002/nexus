@@ -1,5 +1,9 @@
 // apps/web/src/app/api/workspace/file/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import {
+  getWorkspaceRootForThread,
+  remapWorkspacePath,
+} from "@/lib/workspace-paths";
 
 const SANDBOX_URL = process.env.SANDBOX_URL ?? "http://localhost:8080";
 const WORKSPACE_ROOT = "/home/gem/workspace/";
@@ -49,7 +53,10 @@ function formatBytes(size: number | undefined): string {
   return `${mb.toFixed(1)} MB`;
 }
 
-async function renderDirectoryListing(path: string): Promise<Response> {
+async function renderDirectoryListing(
+  path: string,
+  threadId?: string,
+): Promise<Response> {
   const listUrl = new URL("/v1/file/list", SANDBOX_URL);
 
   let sandboxResponse: Response;
@@ -104,7 +111,9 @@ async function renderDirectoryListing(path: string): Promise<Response> {
       const entryPath = entry.is_directory
         ? ensureDirectoryPath(entry.path)
         : entry.path;
-      const href = `/api/workspace/file?path=${encodeURIComponent(entryPath)}`;
+      const params = new URLSearchParams({ path: entryPath });
+      if (threadId) params.set("threadId", threadId);
+      const href = `/api/workspace/file?${params.toString()}`;
       const icon = entry.is_directory ? "[DIR]" : "[FILE]";
       const size = entry.is_directory ? "" : formatBytes(entry.size);
       return `<li><a href="${href}">${icon} ${escapeHtml(entry.name)}</a>${size ? ` <span>(${escapeHtml(size)})</span>` : ""}</li>`;
@@ -145,6 +154,7 @@ async function renderDirectoryListing(path: string): Promise<Response> {
 
 export async function GET(request: NextRequest) {
   const filePath = request.nextUrl.searchParams.get("path") ?? "";
+  const threadId = request.nextUrl.searchParams.get("threadId") ?? undefined;
   const download = request.nextUrl.searchParams.get("download") === "1";
 
   if (!filePath || !isAllowedWorkspacePath(filePath)) {
@@ -154,18 +164,27 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (filePath.endsWith("/")) {
+  const workspaceRoot = getWorkspaceRootForThread(threadId);
+  const resolvedPath = remapWorkspacePath(filePath, workspaceRoot);
+  if (!isAllowedWorkspacePath(resolvedPath)) {
+    return NextResponse.json(
+      { error: "Resolved path is outside workspace root." },
+      { status: 400 },
+    );
+  }
+
+  if (resolvedPath.endsWith("/")) {
     if (download) {
       return NextResponse.json(
         { error: "Cannot download a directory. Open it to browse files." },
         { status: 400 },
       );
     }
-    return renderDirectoryListing(filePath);
+    return renderDirectoryListing(resolvedPath, threadId);
   }
 
   const proxyUrl = new URL("/v1/file/download", SANDBOX_URL);
-  proxyUrl.searchParams.set("path", filePath);
+  proxyUrl.searchParams.set("path", resolvedPath);
 
   let sandboxResponse: Response;
   try {
@@ -186,7 +205,7 @@ export async function GET(request: NextRequest) {
       !download &&
       details.includes("is not a file")
     ) {
-      return renderDirectoryListing(ensureDirectoryPath(filePath));
+      return renderDirectoryListing(ensureDirectoryPath(resolvedPath), threadId);
     }
 
     return NextResponse.json(
@@ -199,9 +218,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const filename = extractName(filePath);
+  const filename = extractName(resolvedPath);
   const sandboxContentType = sandboxResponse.headers.get("content-type");
-  const guessedContentType = guessMimeType(filePath);
+  const guessedContentType = guessMimeType(resolvedPath);
   const contentType =
     sandboxContentType && sandboxContentType !== "application/octet-stream"
       ? sandboxContentType

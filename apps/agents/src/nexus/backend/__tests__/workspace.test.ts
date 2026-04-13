@@ -42,6 +42,12 @@ describe("workspace helpers", () => {
     );
   });
 
+  it("does not remap already-threaded workspace paths", () => {
+    const threadRoot = "/home/gem/workspace/threads/t1";
+    const path = "/home/gem/workspace/threads/t1/shared/report.md";
+    expect(remapWorkspacePath(path, threadRoot)).toBe(path);
+  });
+
   it("remaps workspace references in shell commands", () => {
     const threadRoot = "/home/gem/workspace/threads/t1";
     const command =
@@ -49,5 +55,11 @@ describe("workspace helpers", () => {
     expect(remapWorkspaceCommand(command, threadRoot)).toBe(
       "mkdir -p /home/gem/workspace/threads/t1/shared && ls -la /home/gem/workspace/threads/t1/shared",
     );
+  });
+
+  it("does not double-remap already-threaded command paths", () => {
+    const threadRoot = "/home/gem/workspace/threads/t1";
+    const command = "ls -la /home/gem/workspace/threads/t1/shared";
+    expect(remapWorkspaceCommand(command, threadRoot)).toBe(command);
   });
 });

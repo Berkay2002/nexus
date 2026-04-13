@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
+import { useQueryState } from "nuqs";
 
 type GeneratedImageFile = {
   path: string;
@@ -56,8 +57,13 @@ function isImagePath(path: string, mimeType?: string): boolean {
   );
 }
 
-function buildWorkspaceFileHref(path: string, download = false): string {
+function buildWorkspaceFileHref(
+  path: string,
+  threadId?: string,
+  download = false,
+): string {
   const params = new URLSearchParams({ path });
+  if (threadId) params.set("threadId", threadId);
   if (download) params.set("download", "1");
   return `/api/workspace/file?${params.toString()}`;
 }
@@ -78,6 +84,8 @@ export function GenerateImageArtifact({
   title?: string;
   defaultOpen?: boolean;
 }) {
+  const [threadId] = useQueryState("threadId");
+
   if (!output) return null;
 
   const parsed = parseResult(output);
@@ -175,8 +183,15 @@ export function GenerateImageArtifact({
             <ArtifactContent className="space-y-3 px-3 pb-3 pt-1 border-t border-border/50">
             <div className="grid gap-3 sm:grid-cols-2">
               {imageFiles.map((file, index) => {
-                const openHref = buildWorkspaceFileHref(file.path);
-                const downloadHref = buildWorkspaceFileHref(file.path, true);
+                const openHref = buildWorkspaceFileHref(
+                  file.path,
+                  threadId ?? undefined,
+                );
+                const downloadHref = buildWorkspaceFileHref(
+                  file.path,
+                  threadId ?? undefined,
+                  true,
+                );
                 return (
                   <div
                     key={`${file.path}-${index}`}

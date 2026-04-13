@@ -41,6 +41,13 @@ export function remapWorkspacePath(
   const normalizedRoot = normalizeWorkspaceRoot(workspaceRoot);
   if (normalizedRoot === DEFAULT_WORKSPACE_ROOT) return originalPath;
 
+  if (
+    originalPath === normalizedRoot ||
+    originalPath.startsWith(`${normalizedRoot}/`)
+  ) {
+    return originalPath;
+  }
+
   if (originalPath === DEFAULT_WORKSPACE_ROOT) {
     return normalizedRoot;
   }
@@ -58,5 +65,6 @@ export function remapWorkspaceCommand(
   if (normalizedRoot === DEFAULT_WORKSPACE_ROOT) return command;
   if (!command.includes(DEFAULT_WORKSPACE_ROOT)) return command;
 
-  return command.split(DEFAULT_WORKSPACE_ROOT).join(normalizedRoot);
+  // Replace legacy workspace roots, but leave already-threaded paths intact.
+  return command.replace(/\/home\/gem\/workspace(?!\/threads\/)/g, normalizedRoot);
 }

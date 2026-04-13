@@ -1,5 +1,10 @@
 // apps/web/src/lib/workspace-files.ts
 
+import {
+  getWorkspaceRootForThread,
+  remapWorkspacePath,
+} from "@/lib/workspace-paths";
+
 const WORKSPACE_PATH_REGEX = /\/home\/gem\/workspace\/[\w./-]+/g;
 
 function extractText(content: unknown): string {
@@ -77,6 +82,7 @@ function collectFromMessage(message: any, out: Set<string>) {
 export function collectWorkspaceOutputPaths(
   messages: any[],
   subagents: any[],
+  threadId?: string,
 ): string[] {
   const paths = new Set<string>();
 
@@ -93,5 +99,11 @@ export function collectWorkspaceOutputPaths(
     collectFromUnknown(subagent?.toolCall?.args, paths);
   }
 
-  return [...paths].sort((a, b) => a.localeCompare(b));
+  const workspaceRoot = getWorkspaceRootForThread(threadId);
+  const remapped = new Set<string>();
+  for (const path of paths) {
+    remapped.add(remapWorkspacePath(path, workspaceRoot));
+  }
+
+  return [...remapped].sort((a, b) => a.localeCompare(b));
 }
