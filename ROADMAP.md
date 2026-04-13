@@ -7,9 +7,6 @@ MVP is done. This file sketches what comes next, grouped by how soon I plan to g
 ### docker compose up
 One file that starts the AIO Sandbox, LangGraph server, Next.js, and SQLite with sensible defaults. Today, running Nexus means three terminals and a `gcloud` login. A single `docker compose up` makes it something other people can actually try.
 
-### Artifact panel
-A third column in the execution view that previews whatever the agents drop into `/home/gem/workspace/shared/`: PDFs, code diffs, image galleries, CSV tables, rendered HTML reports. The final deliverable is currently hidden behind file paths inside the sandbox; surfacing it turns invisible work into a visible product.
-
 ### Cost and token meter
 A running total in the header, broken down per sub-agent, with an optional budget that pauses the run when hit.
 
@@ -35,12 +32,8 @@ The orchestrator re-sends a large system prompt, a pile of skill files, and full
 
 ## Later
 
-### MCP support, both ways
-Two projects under one banner.
-
-*Agents call MCP tools.* Configure an MCP server URL and its tools become available to the research, code, or creative sub-agent. This plugs Nexus into the existing MCP ecosystem (browse, GitHub, Linear, Slack, filesystem, and custom internal tools) without writing new integrations.
-
-*Nexus exposes itself as an MCP server.* Claude Desktop, Cursor, Zed, or any MCP client can call a `nexus_run` tool that hands a prompt to the orchestrator and streams the result back. Nexus becomes a multi-agent primitive that other agents can delegate to.
+### Nexus exposes itself as an MCP server
+Claude Desktop, Cursor, Zed, or any MCP client can call a `nexus_run` tool that hands a prompt to the orchestrator and streams the result back. Nexus becomes a multi-agent primitive that other agents can delegate to. The other half of MCP support — agents calling external MCP tools — already shipped via the filesystem-of-tools design (`docs/superpowers/specs/2026-04-13-mcp-filesystem-of-tools-design.md`).
 
 ### Import skills from a Git URL
 `nexus skill add <git-url>` clones a skill folder (a `SKILL.md` plus templates) into the skills store, and the orchestrator picks it up on the next run. Skills are already plain files under a virtual POSIX path, so the plumbing is small. The goal is a set of reusable workflows that anyone can publish instead of a fixed set of five.
