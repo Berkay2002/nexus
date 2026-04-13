@@ -1,0 +1,52 @@
+{
+  "skill_name": "sandbox-openapi-tool-factory",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Implement the remaining Node.js runtime tools from openapi.json: add sandbox_nodejs_execute and sandbox_nodejs_info in apps/agents/src/nexus/tools, wire exports in tools/index.ts, add them to codeTools, and update affected tests.",
+      "expected_output": "New nodejs tool files are created with OpenAPI-aligned zod schemas, HTTP calls use shared sandbox helper, barrel exports are updated, and tests reflect the new tools.",
+      "files": [
+        "openapi.json",
+        "apps/agents/src/nexus/tools/index.ts",
+        "apps/agents/src/nexus/tools/sandbox-runtime-api.ts"
+      ],
+      "expectations": [
+        "Creates prompt.ts and tool.ts for each requested Node.js endpoint",
+        "Uses OpenAPI constraints in zod schema",
+        "Returns normalized JSON from tool implementation",
+        "Updates tools-index and code-agent related tests"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Add browser tools following the established pattern: sandbox_browser_action and sandbox_browser_screenshot. Keep them in codeTools for now, and include practical output normalization for action results and screenshot metadata.",
+      "expected_output": "Browser tools are added with clear schema boundaries, endpoint wrappers call sandbox APIs, outputs are normalized for model consumption, and wiring/tests are updated.",
+      "files": [
+        "openapi.json",
+        "apps/agents/src/nexus/tools/index.ts",
+        "apps/agents/src/nexus/agents/code/agent.ts"
+      ],
+      "expectations": [
+        "Tool names follow sandbox_<domain>_<action>",
+        "Schemas map to endpoint request contracts",
+        "Response handling includes success and error paths",
+        "No unrelated architecture changes"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Implement MCP wrappers from openapi.json: sandbox_mcp_list_servers, sandbox_mcp_list_tools, and sandbox_mcp_execute_tool. Ensure path params and body args are handled safely and tests cover tool export/wiring.",
+      "expected_output": "MCP tools are implemented with safe input handling, normalized outputs, and proper integration into the existing tool export and code agent pipeline.",
+      "files": [
+        "openapi.json",
+        "apps/agents/src/nexus/tools/index.ts"
+      ],
+      "expectations": [
+        "Path parameters are represented explicitly in zod schema",
+        "Request body for MCP execute supports argument object",
+        "Output includes stable top-level keys",
+        "Test expectations updated for new tool counts and names"
+      ]
+    }
+  ]
+}
