@@ -1,7 +1,6 @@
 // apps/web/src/components/execution/agent-status-panel.tsx
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   getAgentName,
@@ -13,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Circle, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
+import { SectionHeaderCollapsible } from "./section-header-collapsible";
 
 function AgentStatusIcon({
   status,
@@ -93,17 +93,16 @@ export function AgentStatusPanel({
   const completed = statuses.filter((s) => s === "complete").length;
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between px-1">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Agents
-        </h3>
-        <Badge variant="secondary" className="text-[0.6rem] h-4 px-1.5">
+    <SectionHeaderCollapsible
+      title="Agents"
+      rightSlot={
+        <span className="text-xs text-muted-foreground tabular-nums">
           {running > 0
             ? `${running} running`
             : `${completed}/${agents.length} done`}
-        </Badge>
-      </div>
+        </span>
+      }
+    >
       <ScrollArea className="max-h-[30vh]">
         <div className="flex flex-col gap-0.5">
           {agents.map((agent) => (
@@ -111,6 +110,6 @@ export function AgentStatusPanel({
           ))}
         </div>
       </ScrollArea>
-    </div>
+    </SectionHeaderCollapsible>
   );
 }

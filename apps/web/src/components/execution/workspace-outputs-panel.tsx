@@ -1,14 +1,17 @@
 // apps/web/src/components/execution/workspace-outputs-panel.tsx
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronDown, ExternalLink, Download, FileText } from "lucide-react";
+import {
+  Download,
+  ExternalLink,
+  FileIcon,
+  FileImageIcon,
+  FileText,
+  FolderIcon,
+} from "lucide-react";
+import { useMemo } from "react";
+import { SectionHeaderCollapsible } from "./section-header-collapsible";
 
 function baseName(filePath: string): string {
   if (filePath.endsWith("/")) {
@@ -24,10 +27,84 @@ function isDirectoryPath(filePath: string): boolean {
   return filePath.endsWith("/");
 }
 
+function isImagePath(filePath: string): boolean {
+  const lower = filePath.toLowerCase();
+  return (
+    lower.endsWith(".png") ||
+    lower.endsWith(".jpg") ||
+    lower.endsWith(".jpeg") ||
+    lower.endsWith(".webp") ||
+    lower.endsWith(".gif") ||
+    lower.endsWith(".svg")
+  );
+}
+
+function isTextLikePath(filePath: string): boolean {
+  const lower = filePath.toLowerCase();
+  return (
+    lower.endsWith(".md") ||
+    lower.endsWith(".txt") ||
+    lower.endsWith(".json") ||
+    lower.endsWith(".yml") ||
+    lower.endsWith(".yaml") ||
+    lower.endsWith(".ts") ||
+    lower.endsWith(".tsx") ||
+    lower.endsWith(".js") ||
+    lower.endsWith(".jsx") ||
+    lower.endsWith(".py") ||
+    lower.endsWith(".css") ||
+    lower.endsWith(".html")
+  );
+}
+
+function OutputPathIcon({ path }: { path: string }) {
+  if (isDirectoryPath(path)) {
+    return <FolderIcon className="size-3.5 mt-0.5 text-blue-500 shrink-0" />;
+  }
+
+  if (isImagePath(path)) {
+    return <FileImageIcon className="size-3.5 mt-0.5 text-emerald-500 shrink-0" />;
+  }
+
+  if (isTextLikePath(path)) {
+    return <FileText className="size-3.5 mt-0.5 text-muted-foreground shrink-0" />;
+  }
+
+  return <FileIcon className="size-3.5 mt-0.5 text-muted-foreground shrink-0" />;
+}
+
 function buildFileHref(filePath: string, download = false): string {
   const params = new URLSearchParams({ path: filePath });
   if (download) params.set("download", "1");
   return `/api/workspace/file?${params.toString()}`;
+}
+
+function dedupeOutputPaths(paths: string[]): string[] {
+  const orderedKeys: string[] = [];
+  const byKey = new Map<string, string>();
+
+  for (const rawPath of paths) {
+    const path = rawPath.trim();
+    if (!path) continue;
+
+    const key = path.endsWith("/") ? path.slice(0, -1) : path;
+    const existing = byKey.get(key);
+
+    if (!existing) {
+      byKey.set(key, path);
+      orderedKeys.push(key);
+      continue;
+    }
+
+    // If both forms exist, prefer directory-style with trailing slash.
+    if (path.endsWith("/") && !existing.endsWith("/")) {
+      byKey.set(key, path);
+    }
+  }
+
+  return orderedKeys
+    .map((key) => byKey.get(key))
+    .filter((path): path is string => typeof path === "string");
 }
 
 export function WorkspaceOutputsPanel({
@@ -35,78 +112,63 @@ export function WorkspaceOutputsPanel({
 }: {
   paths: string[];
 }) {
-  if (paths.length === 0) return null;
+  const dedupedPaths = useMemo(() => dedupeOutputPaths(paths), [paths]);
+
+  if (dedupedPaths.length === 0) return null;
 
   return (
-    <Collapsible defaultOpen>
-      <div className="flex flex-col gap-2">
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="flex w-full items-center justify-between px-1 text-muted-foreground hover:text-foreground"
-          >
-            <div className="flex items-center gap-1.5">
-              <ChevronDown className="size-3.5 shrink-0 transition-transform [[data-state=closed]_&]:-rotate-90" />
-              <h3 className="text-xs font-semibold uppercase tracking-wider">
-                Workspace Outputs
-              </h3>
-            </div>
-            <Badge variant="secondary" className="text-[0.6rem] h-4 px-1.5">
-              {paths.length} files
-            </Badge>
-          </button>
-        </CollapsibleTrigger>
-
-        <CollapsibleContent>
-          <ScrollArea className="max-h-[35vh]">
-            <div className="flex flex-col gap-1.5">
-              {paths.map((path) => (
-                <div
-                  key={path}
-                  className="rounded-md border border-border/60 bg-transparent px-2.5 py-2"
-                >
-                  <div className="flex items-start gap-2">
-                    <FileText className="size-3.5 mt-0.5 text-muted-foreground shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium truncate">{baseName(path)}</p>
-                      <p className="text-[11px] text-muted-foreground break-all">{path}</p>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <a
-                        href={buildFileHref(path, false)}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label={isDirectoryPath(path) ? "Browse folder" : "Open file"}
-                        title={isDirectoryPath(path) ? "Browse folder" : "Open file"}
-                        className="inline-flex items-center text-muted-foreground hover:text-foreground"
-                      >
-                        <ExternalLink className="size-3.5" />
-                        <span className="sr-only">
-                          {isDirectoryPath(path) ? "Browse" : "Open"}
-                        </span>
-                      </a>
-
-                      {!isDirectoryPath(path) && (
-                        <a
-                          href={buildFileHref(path, true)}
-                          download={baseName(path)}
-                          aria-label="Download file"
-                          title="Download file"
-                          className="inline-flex items-center text-muted-foreground hover:text-foreground"
-                        >
-                          <Download className="size-3.5" />
-                          <span className="sr-only">Download</span>
-                        </a>
-                      )}
-                    </div>
-                  </div>
+    <SectionHeaderCollapsible
+      title="Workspace Outputs"
+      rightSlot={
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {dedupedPaths.length} files
+        </span>
+      }
+    >
+      <ScrollArea className="max-h-[35vh]">
+        <div className="flex flex-col gap-1.5">
+          {dedupedPaths.map((path) => (
+            <div key={path} className="rounded-md bg-transparent px-2.5 py-2">
+              <div className="flex items-start gap-2">
+                <OutputPathIcon path={path} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium truncate">{baseName(path)}</p>
+                  <p className="text-[11px] text-muted-foreground break-all">{path}</p>
                 </div>
-              ))}
+
+                <div className="flex items-center gap-1.5 shrink-0 self-center">
+                  <a
+                    href={buildFileHref(path, false)}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={isDirectoryPath(path) ? "Browse folder" : "Open file"}
+                    title={isDirectoryPath(path) ? "Browse folder" : "Open file"}
+                    className="inline-flex items-center text-muted-foreground hover:text-foreground"
+                  >
+                    <ExternalLink className="size-3.5" />
+                    <span className="sr-only">
+                      {isDirectoryPath(path) ? "Browse" : "Open"}
+                    </span>
+                  </a>
+
+                  {!isDirectoryPath(path) && (
+                    <a
+                      href={buildFileHref(path, true)}
+                      download={baseName(path)}
+                      aria-label="Download file"
+                      title="Download file"
+                      className="inline-flex items-center text-muted-foreground hover:text-foreground"
+                    >
+                      <Download className="size-3.5" />
+                      <span className="sr-only">Download</span>
+                    </a>
+                  )}
+                </div>
+              </div>
             </div>
-          </ScrollArea>
-        </CollapsibleContent>
-      </div>
-    </Collapsible>
+          ))}
+        </div>
+      </ScrollArea>
+    </SectionHeaderCollapsible>
   );
 }

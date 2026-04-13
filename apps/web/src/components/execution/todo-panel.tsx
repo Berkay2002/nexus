@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import type { NexusTodo } from "@/lib/subagent-utils";
 import { CheckCircle2, Circle, Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { SectionHeaderCollapsible } from "./section-header-collapsible";
 
 function TodoStatusIcon({ status }: { status: NexusTodo["status"] }) {
   switch (status) {
@@ -43,15 +44,14 @@ export function TodoPanel({ todos }: { todos: NexusTodo[] }) {
   const completed = todos.filter((t) => t.status === "completed").length;
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between px-1">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Plan
-        </h3>
+    <SectionHeaderCollapsible
+      title="Plan"
+      rightSlot={
         <span className="text-xs text-muted-foreground tabular-nums">
           {completed}/{todos.length}
         </span>
-      </div>
+      }
+    >
       <ScrollArea className="max-h-[40vh]">
         <div className="flex flex-col gap-0.5">
           {todos.map((todo, i) => (
@@ -59,6 +59,6 @@ export function TodoPanel({ todos }: { todos: NexusTodo[] }) {
           ))}
         </div>
       </ScrollArea>
-    </div>
+    </SectionHeaderCollapsible>
   );
 }
