@@ -7,7 +7,7 @@ sources: [raw/langchain/langgraph/test.md]
 
 # LangGraph Testing
 
-Patterns for writing unit tests against LangGraph graphs with custom node/edge structures using [[vitest]].
+Patterns for writing unit tests against LangGraph graphs with custom node/edge structures using `vitest`.
 
 > **Warning — scope:** This guide is for graphs built directly with `StateGraph`. If your agent uses LangChain's `createAgent` helper, use [[langchain-unit-testing]] or [[langchain-integration-testing]] instead — those cover the `createAgent`-based pattern. The patterns here do not apply to `createAgent` workflows.
 

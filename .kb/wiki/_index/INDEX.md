@@ -74,6 +74,7 @@ Content catalog of the Nexus knowledge base, grouped by domain. Use `/wikillm:qu
 - [[langgraph-runtime]] — The Pregel BSP runtime model (Plan/Execute/Update phases)
 - [[pregel]] — `Pregel` class API reference
 - [[actors-and-channels]] — PregelNode actors, LastValue / Topic / BinaryOperatorAggregate channels
+- [[langgraph-functional-api]] — `@entrypoint` + `task()` as an alternative to `StateGraph` (stub)
 
 ## LangGraph — Persistence
 

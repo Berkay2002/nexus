@@ -316,7 +316,7 @@ Tag directory for the Nexus knowledge base. Each tag lists the articles that use
 
 ## stub
 
-- [[agent-protocol]]
+- [[agent-protocol]], [[langgraph-functional-api]]
 
 ## tavily
 

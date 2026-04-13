@@ -1,5 +1,26 @@
 # Log
 
+## [2026-04-13 18:30] lint | Post-ingest health check — 1 stub created, 1 broken link unlinked
+
+Ran after the LangGraph/LangChain testing ingest batch.
+
+**Unresolved wikilinks (wiki side, ignoring raw/):**
+- `[[langgraph-functional-api]]` — referenced 2x from [[durable-execution]] (`task()` + Related). Met 2+ threshold; created stub article linking to [[durable-execution]], [[langgraph-runtime]], [[pregel]], [[checkpointer]]. Indexed under LangGraph — Core & Runtime.
+- `[[vitest]]` — single reference in [[langgraph-testing]]. Unlinked to plain `` `vitest` `` — vitest is a tool name, not a concept that deserves its own article.
+
+**Orphan pages:** none on the wiki side. All 26 new articles from the ingest batch have inbound wikilinks (verified via `obsidian orphans`). Orphans list contained only raw/ source files (expected — raw/ is immutable input) and `wiki/_index/` files (expected — indices are meta).
+
+**Hub detection (backlink counts on new articles):**
+- [[checkpointer]] — 25 backlinks (load-bearing hub)
+- [[langgraph-persistence]] — 26 backlinks (load-bearing hub)
+- [[human-in-the-loop]] — 10 backlinks
+- [[langgraph-runtime]] — 13 backlinks
+- [[deepagents-human-in-the-loop]] — 12 backlinks
+- [[fake-model]] — 13 backlinks
+All new articles already surfaced at the top of their INDEX.md categories — no reorder needed.
+
+**No contradictions detected.** **No missing frontmatter.** **50-fix cap not reached.**
+
 ## [2026-04-13 18:00] ingest | LangGraph core + LangChain testing + LangSmith Studio — 13 sources → 26 new articles, 5 updated
 
 Parallel ingest dispatch with 13 `ingest-worker` subagents (Sonnet 4.6), one per source, with a concept assignment table to prevent duplicate article creation.

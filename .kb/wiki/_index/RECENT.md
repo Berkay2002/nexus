@@ -2,6 +2,8 @@
 
 Last 20 wiki articles changed, most recent first.
 
+- [[langgraph-functional-api]] — 2026-04-13 — lint: created stub (referenced 2x from [[durable-execution]])
+- [[langgraph-testing]] — 2026-04-13 — lint: unlinked broken `[[vitest]]` to plain text
 - [[langgraph-persistence]] — 2026-04-13 — created (umbrella: checkpointer, threads, checkpoints, store)
 - [[checkpointer]] — 2026-04-13 — created (BaseCheckpointSaver + library implementations)
 - [[langgraph-store]] — 2026-04-13 — created (cross-thread Store primitive; distinct from DeepAgents StoreBackend)
