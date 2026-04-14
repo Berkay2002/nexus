@@ -47,7 +47,7 @@ Spawn a **code** sub-agent with a detailed task description.
 Each task description MUST include:
 - What to build (specific features, not vague goals)
 - Tech stack to use
-- Workspace path: `/home/gem/workspace/code/task_{id}/`
+- Workspace path: `{workspaceRoot}/code/task_{id}/`
 - If Research ran first: path to research findings
 - Output: working code + `build-log.md` using the template at `templates/build-log.md`
 - Instruction to verify the app runs (smoke test) before reporting completion
@@ -64,7 +64,7 @@ If the application needs visual assets (hero images, icons, illustrations):
 
 After all sub-agents complete:
 1. Read the Code agent's `build-log.md` to verify success
-2. Copy final deliverable to `/home/gem/workspace/shared/`
+2. Copy final deliverable to `{workspaceRoot}/shared/`
 3. If Creative produced assets, integrate them into the app directory
 4. Return a summary with: what was built, how to run it, key features
 
@@ -77,7 +77,7 @@ After all sub-agents complete:
 ## Output Format
 
 ```
-/home/gem/workspace/shared/
+{workspaceRoot}/shared/
 ├── [project files]    # The complete application
 ├── build-log.md       # What was built, how to run, dependencies (see templates/build-log.md)
 └── assets/            # Visual assets if Creative agent was used (optional)

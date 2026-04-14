@@ -7,7 +7,7 @@ These are ready-to-use templates for spawning Research sub-agents. Copy and adap
 ```
 Research: {sub-question}
 
-Write outputs to /home/gem/workspace/research/task_{id}/
+Write outputs to {workspaceRoot}/research/task_{id}/
 Create findings.md with your synthesis of what you found.
 Create sources.json as an array: [{"title": "...", "url": "...", "relevance": "..."}]
 Store any raw extracted content in raw/ subdirectory.
@@ -24,7 +24,7 @@ Strategy:
 ```
 Research: Compare {option A} vs {option B} on the following dimensions: {dim1}, {dim2}, {dim3}.
 
-Write outputs to /home/gem/workspace/research/task_{id}/
+Write outputs to {workspaceRoot}/research/task_{id}/
 Create findings.md with a comparison table and prose analysis.
 Create sources.json with all sources used.
 
@@ -40,7 +40,7 @@ Strategy:
 ```
 Research: What are the latest developments in {topic} from the past {timeframe}?
 
-Write outputs to /home/gem/workspace/research/task_{id}/
+Write outputs to {workspaceRoot}/research/task_{id}/
 Create findings.md with chronological findings.
 Create sources.json with all sources, including publication dates.
 

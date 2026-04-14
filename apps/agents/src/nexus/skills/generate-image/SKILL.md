@@ -37,7 +37,7 @@ Spawn a **creative** sub-agent for each batch of related images.
 Each task description MUST include:
 - Exactly what images to generate (subject, purpose, context)
 - Style guidance: mood, color palette, composition style
-- Workspace path: `/home/gem/workspace/creative/task_{id}/`
+- Workspace path: `{workspaceRoot}/creative/task_{id}/`
 - Naming convention: descriptive filenames (e.g., `hero-banner-dark.png`, not `image1.png`)
 - Instruction to document prompts in `prompt-log.md` using the template at `templates/prompt-log.md`
 
@@ -57,7 +57,7 @@ When crafting task descriptions, help the Creative agent write effective Imagen 
 
 After the Creative agent completes:
 1. Read the output directory to verify images were generated
-2. Copy to `/home/gem/workspace/shared/` or integrate into an app directory if part of build-app
+2. Copy to `{workspaceRoot}/shared/` or integrate into an app directory if part of build-app
 3. Return a summary listing each image with its filename and brief description
 
 ## Complementary Skills
@@ -68,7 +68,7 @@ After the Creative agent completes:
 ## Output Format
 
 ```
-/home/gem/workspace/shared/
+{workspaceRoot}/shared/
 ├── [descriptive-name].png    # Generated images with clear filenames
 ├── [descriptive-name].png
 └── prompt-log.md             # Exact prompts used (see templates/prompt-log.md)

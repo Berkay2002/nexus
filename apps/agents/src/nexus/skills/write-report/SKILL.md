@@ -35,7 +35,7 @@ Create a plan using `write_todos`:
 Spawn **research** sub-agents to gather information:
 - One sub-agent per major section or topic area (parallel)
 - If the research topic is complex, consider loading the **deep-research** skill for thorough multi-source decomposition
-- Each Research agent writes to `/home/gem/workspace/research/task_{id}/`
+- Each Research agent writes to `{workspaceRoot}/research/task_{id}/`
 - Wait for all research to complete before drafting
 
 See `examples.md` for research task description templates tailored to report writing.
@@ -47,7 +47,7 @@ Spawn a **code** sub-agent to compile the report.
 The task description MUST include:
 - Report outline (sections and what each should cover)
 - Paths to all research findings
-- Workspace path: `/home/gem/workspace/code/task_{id}/`
+- Workspace path: `{workspaceRoot}/code/task_{id}/`
 - Output format: Markdown (.md)
 - Instruction to synthesize (not copy-paste) and cite sources inline
 - Reference to the report template at `templates/report.md`
@@ -66,7 +66,7 @@ If the report would benefit from visual elements:
 After all sub-agents complete:
 1. Read the draft report from the Code agent
 2. If Creative produced images, reference them in the report markdown
-3. Copy final report to `/home/gem/workspace/shared/report.md`
+3. Copy final report to `{workspaceRoot}/shared/report.md`
 4. If the user requested a different format (PDF, HTML), spawn a Code agent to convert using pandoc
 5. Return a concise summary of the report contents (under 500 words)
 
@@ -79,7 +79,7 @@ After all sub-agents complete:
 ## Output Format
 
 ```
-/home/gem/workspace/shared/
+{workspaceRoot}/shared/
 ├── report.md              # The complete formatted report (see templates/report.md)
 ├── assets/                # Visual elements (optional)
 │   ├── {descriptive-name}.png

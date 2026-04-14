@@ -50,7 +50,7 @@ Each task description MUST include:
 - What data to analyze (file path or description)
 - What questions to answer / what insights to extract
 - If Research gathered data: path to research outputs
-- Workspace path: `/home/gem/workspace/code/task_{id}/`
+- Workspace path: `{workspaceRoot}/code/task_{id}/`
 - Python-first instruction: use pandas, matplotlib, seaborn
 - Instruction to install libraries as needed (`pip install pandas matplotlib seaborn`)
 - Output: `analysis-report.md` using the template at `templates/analysis-report.md` + visualizations when relevant
@@ -72,7 +72,7 @@ Skip visualizations for purely numerical, text, or categorical analysis where ch
 
 After the Code agent completes:
 1. Read `analysis-report.md` to verify quality
-2. Copy results and charts to `/home/gem/workspace/shared/`
+2. Copy results and charts to `{workspaceRoot}/shared/`
 3. Return a concise summary of key findings (under 500 words) with references to charts
 
 ## Complementary Skills
@@ -84,7 +84,7 @@ After the Code agent completes:
 ## Output Format
 
 ```
-/home/gem/workspace/shared/
+{workspaceRoot}/shared/
 ├── analysis-report.md         # Findings and methodology (see templates/analysis-report.md)
 ├── charts/                    # Generated visualizations (when relevant)
 │   ├── {descriptive-name}.png

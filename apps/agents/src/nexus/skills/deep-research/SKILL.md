@@ -33,7 +33,7 @@ Spawn one **research** sub-agent per sub-question using the `task` tool. These r
 
 Each task description MUST include:
 - The specific sub-question to answer
-- Workspace path: `/home/gem/workspace/research/task_{id}/`
+- Workspace path: `{workspaceRoot}/research/task_{id}/`
 - Output instructions: use the findings template at `templates/findings.md` and source format at `templates/sources.json`
 - Instruction to search broadly, then extract deeply from the best sources
 
@@ -50,9 +50,9 @@ After all sub-agents return:
 ### Step 4: Synthesize
 
 Combine all findings into a single comprehensive output:
-- Write `/home/gem/workspace/shared/findings.md` using the format in `templates/findings.md`
-- Write `/home/gem/workspace/shared/sources.json` following the structure in `templates/sources.json`
-- Copy relevant raw data to `/home/gem/workspace/shared/raw/` if needed
+- Write `{workspaceRoot}/shared/findings.md` using the format in `templates/findings.md`
+- Write `{workspaceRoot}/shared/sources.json` following the structure in `templates/sources.json`
+- Copy relevant raw data to `{workspaceRoot}/shared/raw/` if needed
 - Return a concise summary (under 500 words) in the conversation
 
 ## Complementary Skills
@@ -63,7 +63,7 @@ Combine all findings into a single comprehensive output:
 ## Output Format
 
 ```
-/home/gem/workspace/shared/
+{workspaceRoot}/shared/
 ├── findings.md        # Synthesized research with all sub-questions addressed
 ├── sources.json       # [{title, url, relevance}] — all sources, deduplicated
 └── raw/               # Raw extracted content from key sources (optional)

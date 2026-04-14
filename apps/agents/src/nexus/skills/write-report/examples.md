@@ -11,7 +11,7 @@ Focus areas:
 - {Specific aspect 2}
 - {Specific aspect 3}
 
-Write to /home/gem/workspace/research/task_{id}/
+Write to {workspaceRoot}/research/task_{id}/
 Create findings.md with detailed findings and inline citations.
 Create sources.json as [{"title": "...", "url": "...", "relevance": "..."}]
 Prioritize authoritative sources (official docs, peer-reviewed, reputable publications).
@@ -31,11 +31,11 @@ Report structure:
 6. Sources
 
 Research inputs:
-- {Topic A}: /home/gem/workspace/research/task_{id1}/findings.md
-- {Topic B}: /home/gem/workspace/research/task_{id2}/findings.md
-- {Topic C}: /home/gem/workspace/research/task_{id3}/findings.md
+- {Topic A}: {workspaceRoot}/research/task_{id1}/findings.md
+- {Topic B}: {workspaceRoot}/research/task_{id2}/findings.md
+- {Topic C}: {workspaceRoot}/research/task_{id3}/findings.md
 
-Write to /home/gem/workspace/code/task_{id}/
+Write to {workspaceRoot}/code/task_{id}/
 Output: report.md
 
 Instructions:
@@ -53,19 +53,19 @@ Create visual assets for a report on {topic}:
 1. Cover image — {style description}
 2. {Diagram/illustration} — {what it shows}
 
-The report is at /home/gem/workspace/code/task_{id}/report.md — read it for context.
-Write to /home/gem/workspace/creative/task_{id}/
+The report is at {workspaceRoot}/code/task_{id}/report.md — read it for context.
+Write to {workspaceRoot}/creative/task_{id}/
 Use descriptive filenames. Document prompts in prompt-log.md.
 ```
 
 ## Format Conversion (Code Agent — only if requested)
 
 ```
-Convert the markdown report at /home/gem/workspace/shared/report.md to {PDF/HTML}.
+Convert the markdown report at {workspaceRoot}/shared/report.md to {PDF/HTML}.
 
 Use pandoc: pip install pandoc (or apt-get install pandoc)
 Command: pandoc report.md -o report.{pdf/html} --standalone
 
 If images are referenced, ensure they're in the correct relative paths.
-Write output to /home/gem/workspace/shared/
+Write output to {workspaceRoot}/shared/
 ```

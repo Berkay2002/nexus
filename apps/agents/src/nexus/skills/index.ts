@@ -2,6 +2,10 @@ import { readFileSync, readdirSync, statSync, existsSync } from "fs";
 import { resolve, dirname, relative } from "path";
 import { fileURLToPath } from "url";
 import type { FileData } from "deepagents";
+import {
+  DEFAULT_WORKSPACE_ROOT,
+  renderWorkspaceTemplate,
+} from "../backend/workspace.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -25,10 +29,13 @@ function createFileData(content: string): FileData {
 
 /**
  * Recursively collect all files in a skill directory and return
- * them as a map of virtual POSIX paths to FileData.
+ * them as a map of virtual POSIX paths to FileData. Any `{workspaceRoot}`
+ * placeholders in file contents are substituted with `workspaceRoot` so
+ * skill playbooks and templates reference the thread-scoped absolute path.
  */
 function collectSkillFiles(
   skillName: string,
+  workspaceRoot: string,
 ): Record<string, FileData> {
   const skillDir = resolve(__dirname, skillName);
   const files: Record<string, FileData> = {};
@@ -42,8 +49,9 @@ function collectSkillFiles(
       } else {
         const relPath = relative(skillDir, fullPath).split("\\").join("/");
         const virtualPath = `/skills/${skillName}/${relPath}`;
-        const content = readFileSync(fullPath, "utf-8");
-        files[virtualPath] = createFileData(content);
+        const rawContent = readFileSync(fullPath, "utf-8");
+        const rendered = renderWorkspaceTemplate(rawContent, workspaceRoot);
+        files[virtualPath] = createFileData(rendered);
       }
     }
   }
@@ -55,13 +63,25 @@ function collectSkillFiles(
 }
 
 /**
- * All Nexus skill files as a FileData map keyed by virtual POSIX path.
- * Ready to seed into a StoreBackend or pass via invoke({ files }).
+ * Build the Nexus skill files FileData map for a given thread-scoped
+ * `workspaceRoot`. Ready to seed via `orchestrator.invoke({ files })`.
  *
  * Includes SKILL.md, examples.md, and all template files for each skill.
  * Virtual paths match what the orchestrator expects under /skills/.
  */
-export const nexusSkillFiles: Record<string, FileData> = Object.assign(
-  {},
-  ...SKILL_NAMES.map((name) => collectSkillFiles(name)),
-);
+export function buildNexusSkillFiles(
+  workspaceRoot: string = DEFAULT_WORKSPACE_ROOT,
+): Record<string, FileData> {
+  return Object.assign(
+    {},
+    ...SKILL_NAMES.map((name) => collectSkillFiles(name, workspaceRoot)),
+  );
+}
+
+/**
+ * Back-compat eager export using DEFAULT_WORKSPACE_ROOT. Retained so the
+ * existing test suite keeps working without changes. Runtime callers should
+ * prefer `buildNexusSkillFiles(workspaceRoot)` so skill templates resolve to
+ * the thread's real filesystem path.
+ */
+export const nexusSkillFiles: Record<string, FileData> = buildNexusSkillFiles();

@@ -12,7 +12,7 @@ Generate a set of icons for {project/app name}:
 
 Style: minimalist line art / flat design / 3D rendered (pick one)
 Color palette: {primary color} with {accent color}, {background}
-Write to /home/gem/workspace/creative/task_{id}/
+Write to {workspaceRoot}/creative/task_{id}/
 Filenames: {name-1}.png, {name-2}.png, {name-3}.png
 Document all prompts in prompt-log.md.
 ```
@@ -28,7 +28,7 @@ Colors: {palette description, e.g., "dark background with blue and purple accent
 Composition: {landscape, centered subject, with space for text overlay on the left}
 Dimensions: suitable for a wide banner (16:9 aspect ratio)
 
-Write to /home/gem/workspace/creative/task_{id}/hero-banner.png
+Write to {workspaceRoot}/creative/task_{id}/hero-banner.png
 Document prompt in prompt-log.md.
 ```
 
@@ -40,7 +40,7 @@ Subject: {what the illustration should show}
 Style: {clean digital illustration, consistent with modern tech blog aesthetic}
 Colors: {match the content's theme}
 
-Write to /home/gem/workspace/creative/task_{id}/
+Write to {workspaceRoot}/creative/task_{id}/
 Use a descriptive filename: {topic-illustration}.png
 Document prompt in prompt-log.md.
 ```

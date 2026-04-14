@@ -7,8 +7,8 @@ describe("ORCHESTRATOR_SYSTEM_PROMPT", () => {
     expect(ORCHESTRATOR_SYSTEM_PROMPT.length).toBeGreaterThan(100);
   });
 
-  it("should mention workspace convention", () => {
-    expect(ORCHESTRATOR_SYSTEM_PROMPT).toContain("/home/gem/workspace/");
+  it("should mention workspace convention via templated workspaceRoot placeholder", () => {
+    expect(ORCHESTRATOR_SYSTEM_PROMPT).toContain("{workspaceRoot}/");
   });
 
   it("should mention sub-agent delegation via task tool", () => {

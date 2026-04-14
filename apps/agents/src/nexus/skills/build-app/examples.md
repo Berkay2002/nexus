@@ -8,7 +8,7 @@ These are ready-to-use templates for spawning sub-agents. Copy and adapt for you
 Build a {framework} application that {description of features}.
 
 Tech stack: {framework} + {language} + {key libraries}
-Write to /home/gem/workspace/code/task_{id}/
+Write to {workspaceRoot}/code/task_{id}/
 
 Requirements:
 1. {Feature 1}
@@ -31,7 +31,7 @@ Write a {language} script that {what it does}.
 
 Input: {what it reads / accepts}
 Output: {what it produces}
-Write to /home/gem/workspace/code/task_{id}/
+Write to {workspaceRoot}/code/task_{id}/
 
 Make the script executable and test it with sample data.
 Create build-log.md with usage instructions and examples.
@@ -46,18 +46,18 @@ Research the {API/library name} API:
 - Rate limits and pricing
 - Code examples in {language}
 
-Write findings to /home/gem/workspace/research/task_{id}/
+Write findings to {workspaceRoot}/research/task_{id}/
 Create findings.md with API documentation summary and code snippets.
 ```
 
 ## Visual Assets (Creative Agent — use after Code)
 
 ```
-The app at /home/gem/workspace/code/task_{id}/ needs visual assets:
+The app at {workspaceRoot}/code/task_{id}/ needs visual assets:
 1. {Image 1 description}
 2. {Image 2 description}
 
 Style: {style guidance matching the app's theme}
-Write to /home/gem/workspace/creative/task_{id}/
+Write to {workspaceRoot}/creative/task_{id}/
 Use descriptive filenames. Document prompts in prompt-log.md.
 ```
