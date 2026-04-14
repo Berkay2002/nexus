@@ -145,91 +145,129 @@ function HumanBubble({ content }: { content: string }) {
   );
 }
 
+type SelectedModelRefsByRole = Partial<
+  Record<
+    "orchestrator" | "research" | "code" | "creative" | "general-purpose",
+    string
+  >
+>;
+
 /**
- * Renders a coordinator AI message as a chain-of-thought visualization.
+ * Renders all AI messages for a single user turn as ONE chain-of-thought.
  *
- * The orchestrator's AI messages contain:
- * - text content (reasoning / response prose)
- * - tool_calls (actions like task [subagent dispatch], write_todos, tavily_search)
+ * Each AI message contributes:
+ * - (optional) a prose block for text content
+ * - one step per tool_call (write_todos, task [subagent dispatch], tavily_*, etc.)
  *
- * We parse these into CoT steps. Subagent cards are embedded inside
- * the "Dispatching agent" steps.
+ * Consecutive `ls` calls within a message are further collapsed into a single
+ * ls-group step via groupToolCalls(). Subagent cards are embedded inside
+ * "Dispatching agent" steps via per-message id matching.
  */
-function OrchestratorMessage({
-  message,
-  subagents,
-  isLastMessage,
+function OrchestratorTurn({
+  messages,
+  subagentsByMessageId,
   isLoading,
   toolResultByCallId,
   selectedModelRefsByRole,
 }: {
-  message: any;
-  subagents: any[];
-  isLastMessage: boolean;
+  messages: any[];
+  subagentsByMessageId: Map<string, any[]>;
   isLoading: boolean;
   toolResultByCallId: Map<string, string>;
-  selectedModelRefsByRole?: Partial<
-    Record<
-      "orchestrator" | "research" | "code" | "creative" | "general-purpose",
-      string
-    >
-  >;
+  selectedModelRefsByRole?: SelectedModelRefsByRole;
 }) {
-  const content = getContentString(message.content);
-  const toolCalls: any[] =
-    message.tool_calls ??
-    message.additional_kwargs?.tool_calls ??
-    [];
+  if (messages.length === 0) return null;
 
-  // If this is a pure text message with no tool calls and no subagents,
-  // render as simple prose (like the coordinator's intro or final synthesis)
-  if (toolCalls.length === 0 && subagents.length === 0) {
-    if (!content.trim()) return null;
+  // Peel off the final synthesis message so collapsing the CoT doesn't hide
+  // the orchestrator's answer. A message qualifies as "final synthesis" if it
+  // is the last AI message in the turn, carries text content, and has no
+  // tool calls of its own.
+  const lastMessage = messages[messages.length - 1];
+  const lastMessageToolCalls = lastMessage ? getToolCalls(lastMessage) : [];
+  const lastMessageText = lastMessage
+    ? getContentString(lastMessage.content).trim()
+    : "";
+  const hasFinalSynthesis =
+    messages.length >= 1 &&
+    lastMessageToolCalls.length === 0 &&
+    lastMessageText.length > 0;
+  const thinkingMessages = hasFinalSynthesis
+    ? messages.slice(0, -1)
+    : messages;
+  const finalSynthesisMessage = hasFinalSynthesis ? lastMessage : null;
+
+  const lastThinkingMessageId =
+    thinkingMessages[thinkingMessages.length - 1]?.id;
+
+  // Flatten tool-call counts and compute the turn-wide "last tool call" for
+  // active status tracking. Only the trailing tool call of the trailing
+  // thinking message can be active.
+  let totalToolCalls = 0;
+  let firstToolName: string | null = null;
+  let lastToolCallId: string | undefined;
+  for (const msg of thinkingMessages) {
+    const calls = getToolCalls(msg);
+    if (calls.length > 0) {
+      totalToolCalls += calls.length;
+      if (firstToolName === null) firstToolName = calls[0]?.name ?? null;
+      if (msg.id === lastThinkingMessageId) {
+        lastToolCallId = calls[calls.length - 1]?.id;
+      }
+    }
+  }
+
+  // If there are no tool calls anywhere in the turn (pure-text orchestrator
+  // response), skip the CoT wrapper entirely — the prose below handles it.
+  const hasAnyToolCalls = totalToolCalls > 0;
+  const hasAnyThinkingText = thinkingMessages.some((m) =>
+    getContentString(m.content).trim(),
+  );
+
+  if (!hasAnyToolCalls && !hasAnyThinkingText) {
+    if (!finalSynthesisMessage) return null;
     return (
       <div className="text-sm">
-        <MarkdownText>{content}</MarkdownText>
+        <MarkdownText>{lastMessageText}</MarkdownText>
       </div>
     );
   }
 
-  // Build CoT steps from the message
-  const hasMultipleActions = toolCalls.length > 1 || subagents.length > 1;
-  const isActive = isLastMessage && isLoading;
+  const hasMultipleActions = totalToolCalls > 1;
+  const headerLabel = hasMultipleActions
+    ? `Running ${totalToolCalls} tasks`
+    : firstToolName
+      ? getToolDisplay(firstToolName).label
+      : "Working...";
 
-  // Group subagents by their tool call ID for matching
-  const subagentByToolCallId = new Map<string, any>();
-  for (const sub of subagents) {
-    if (sub.toolCall?.id) {
-      subagentByToolCallId.set(sub.toolCall.id, sub);
-    }
-  }
-
-  // Also create a list of unmatched subagents (fallback)
+  // Track unmatched subagents across all messages in the turn (fallback rail).
   const matchedToolCallIds = new Set<string>();
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Coordinator reasoning text (if any) */}
-      {content.trim() && (
-        <div className="text-sm">
-          <MarkdownText>{content}</MarkdownText>
-        </div>
-      )}
-
-      {/* Chain of thought for orchestrator actions */}
+    <div className="flex flex-col gap-4">
+      {(hasAnyToolCalls || hasAnyThinkingText) && (
       <ChainOfThought defaultOpen={true}>
-        <ChainOfThoughtHeader>
-          {hasMultipleActions
-            ? `Running ${toolCalls.length || subagents.length} tasks${subagents.length > 1 ? " in parallel" : ""}`
-            : toolCalls.length === 1
-              ? getToolDisplay(toolCalls[0].name).label
-              : "Working..."}
-        </ChainOfThoughtHeader>
-        <ChainOfThoughtContent>
-          {groupToolCalls(toolCalls).map((item, _itemIdx) => {
+      <ChainOfThoughtHeader>{headerLabel}</ChainOfThoughtHeader>
+      <ChainOfThoughtContent>
+        {thinkingMessages.map((message, mIdx) => {
+          const content = getContentString(message.content);
+          const toolCalls: any[] = getToolCalls(message);
+          const subagents = subagentsByMessageId.get(message.id) ?? [];
+
+          const subagentByToolCallId = new Map<string, any>();
+          for (const sub of subagents) {
+            if (sub.toolCall?.id) {
+              subagentByToolCallId.set(sub.toolCall.id, sub);
+            }
+          }
+
+          const isTrailingMessage = message.id === lastThinkingMessageId;
+          const isActive = isTrailingMessage && isLoading;
+
+          const stepNodes = groupToolCalls(toolCalls).map((item, _itemIdx) => {
             if (item.kind === "ls-group") {
               const isGroupActive =
-                isActive && item.endIndex === toolCalls.length - 1;
+                isActive &&
+                item.calls.some((c: any) => c.id === lastToolCallId);
               const groupLabel =
                 item.calls.length === 1
                   ? (() => {
@@ -241,7 +279,7 @@ function OrchestratorMessage({
                   : `Listing ${item.calls.length} directories`;
               return (
                 <ChainOfThoughtStep
-                  key={`ls-group-${item.startIndex}-${item.endIndex}`}
+                  key={`ls-group-${mIdx}-${item.startIndex}-${item.endIndex}`}
                   icon={FolderIcon}
                   label={groupLabel}
                   status={isGroupActive ? "active" : "complete"}
@@ -253,7 +291,7 @@ function OrchestratorMessage({
                         : undefined;
                       return (
                         <FilesystemToolArtifact
-                          key={tc.id ?? `ls-${item.startIndex}-${j}`}
+                          key={tc.id ?? `ls-${mIdx}-${item.startIndex}-${j}`}
                           args={tc.args}
                           defaultOpen={
                             item.calls.length === 1 ||
@@ -273,6 +311,8 @@ function OrchestratorMessage({
             const toolName = tc.name ?? "tool";
             const display = getToolDisplay(toolName);
             const matchedSubagent = subagentByToolCallId.get(tc.id);
+            const isCallActive = isActive && tc.id === lastToolCallId;
+            const stepKey = tc.id ?? `msg-${mIdx}-tc-${i}`;
 
             if (matchedSubagent) {
               matchedToolCallIds.add(tc.id);
@@ -283,7 +323,7 @@ function OrchestratorMessage({
               const agentType = tc.args?.subagent_type ?? matchedSubagent.toolCall?.args?.subagent_type ?? "agent";
               return (
                 <ChainOfThoughtStep
-                  key={tc.id ?? i}
+                  key={stepKey}
                   icon={display.icon}
                   label={`Dispatching ${getAgentName(agentType)}`}
                   status={
@@ -324,10 +364,10 @@ function OrchestratorMessage({
 
               return (
                 <ChainOfThoughtStep
-                  key={tc.id ?? i}
+                  key={stepKey}
                   icon={ListTodoIcon}
                   label={toolName === "write_todo" ? "Updating plan" : "Creating plan"}
-                  status={isActive ? "active" : "complete"}
+                  status={isCallActive ? "active" : "complete"}
                 >
                   <div className="flex flex-col gap-1 mt-1">
                     {todos.map((todo, j: number) => {
@@ -354,20 +394,20 @@ function OrchestratorMessage({
 
             return (
               <ChainOfThoughtStep
-                key={tc.id ?? i}
+                key={stepKey}
                 icon={display.icon}
                 label={display.label}
                 description={typeof description === "string" ? description : undefined}
-                status={isActive && i === toolCalls.length - 1 ? "active" : "complete"}
+                status={isCallActive ? "active" : "complete"}
               >
                 {isExecuteTool && toolOutput ? (
                   <ExecuteToolArtifact
                     command={typeof tc.args?.command === "string" ? tc.args.command : undefined}
                     description={typeof description === "string" ? description : undefined}
-                    isStreaming={isActive && i === toolCalls.length - 1}
+                    isStreaming={isCallActive}
                     output={toolOutput}
                     title="Orchestrator execution"
-                    defaultOpen={isActive && i === toolCalls.length - 1}
+                    defaultOpen={isCallActive}
                   />
                 ) : null}
                 {isWriteOrEditTool ? (
@@ -396,17 +436,16 @@ function OrchestratorMessage({
                 ) : null}
               </ChainOfThoughtStep>
             );
-          })}
+          });
 
-          {/* Render any subagents that didn't match a tool call */}
-          {subagents
+          const unmatchedSubagentNodes = subagents
             .filter((sub) => !matchedToolCallIds.has(sub.toolCall?.id))
             .map((sub) => {
               const agentType = sub.toolCall?.args?.subagent_type ?? "agent";
               const subDescription = sub.toolCall?.args?.description;
               return (
                 <ChainOfThoughtStep
-                  key={sub.id}
+                  key={`sub-${mIdx}-${sub.id}`}
                   icon={GitBranchIcon}
                   label={`Dispatching ${getAgentName(agentType)}`}
                   description={typeof subDescription === "string" ? subDescription : undefined}
@@ -431,9 +470,28 @@ function OrchestratorMessage({
                   </div>
                 </ChainOfThoughtStep>
               );
-            })}
-        </ChainOfThoughtContent>
-      </ChainOfThought>
+            });
+
+          return (
+            <Fragment key={message.id ?? `msg-${mIdx}`}>
+              {content.trim() ? (
+                <div className="text-sm pl-6">
+                  <MarkdownText>{content}</MarkdownText>
+                </div>
+              ) : null}
+              {stepNodes}
+              {unmatchedSubagentNodes}
+            </Fragment>
+          );
+        })}
+      </ChainOfThoughtContent>
+    </ChainOfThought>
+      )}
+      {finalSynthesisMessage ? (
+        <div className="text-sm">
+          <MarkdownText>{lastMessageText}</MarkdownText>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -460,66 +518,76 @@ export function MessageFeed({
     (m) => !m.id?.startsWith(DO_NOT_RENDER_ID_PREFIX),
   );
   const toolResultByCallId = buildToolResultMap(filteredMessages);
-  const lastHumanIndex = (() => {
-    for (let i = filteredMessages.length - 1; i >= 0; i--) {
-      if (filteredMessages[i]?.type === "human") return i;
-    }
-    return -1;
-  })();
   const showRoutingCard =
     routing !== undefined &&
     (routing.isClassifying || routing.result !== null);
   const selectedModelRefsByRole = routing?.result?.selectedModels;
 
+  // Group messages into turns. Each turn starts with a human message (or the
+  // conversation head) and accumulates every AI message until the next human
+  // message. Tool messages are already filtered out of CoT rendering.
+  type Turn = { human: any | null; aiMessages: any[] };
+  const turns: Turn[] = [];
+  {
+    let current: Turn = { human: null, aiMessages: [] };
+    for (const msg of filteredMessages) {
+      if (msg.type === "human") {
+        if (current.human || current.aiMessages.length > 0) turns.push(current);
+        current = { human: msg, aiMessages: [] };
+      } else if (msg.type !== "tool") {
+        current.aiMessages.push(msg);
+      }
+    }
+    if (current.human || current.aiMessages.length > 0) turns.push(current);
+  }
+
   return (
     <div className="flex flex-col gap-5 py-6 px-4 w-full max-w-3xl mx-auto">
-      {filteredMessages.map((message, index) => {
-        const isHuman = message.type === "human";
-        const isTool = message.type === "tool";
-        const key = message.id || `msg-${index}`;
-        const routingSlot =
-          showRoutingCard && index === lastHumanIndex ? (
-            <RoutingCard {...routing!} />
-          ) : null;
+      {turns.map((turn, tIdx) => {
+        const isLastTurn = tIdx === turns.length - 1;
 
-        if (isHuman) {
-          return (
-            <Fragment key={key}>
-              <HumanBubble content={getContentString(message.content)} />
-              {routingSlot}
-            </Fragment>
+        // Build per-message subagent map for this turn, with a fallback that
+        // attaches the global subagent list to the latest `task` call when
+        // per-message matching is empty (observed: initial render before the
+        // SDK has populated message IDs on freshly-streamed AI chunks).
+        const subagentsByMessageId = new Map<string, any[]>();
+        for (let i = 0; i < turn.aiMessages.length; i++) {
+          const m = turn.aiMessages[i];
+          const direct = getSubagentsByMessage?.(m.id) ?? [];
+          if (direct.length > 0) {
+            subagentsByMessageId.set(m.id, direct);
+            continue;
+          }
+          const isTrailing =
+            isLastTurn && i === turn.aiMessages.length - 1;
+          const hasTaskCall = getToolCalls(m).some(
+            (tc: any) => tc?.name === "task",
           );
+          if (isTrailing && hasTaskCall && allSubagents.length > 0) {
+            subagentsByMessageId.set(m.id, allSubagents);
+          } else {
+            subagentsByMessageId.set(m.id, []);
+          }
         }
 
-        // Skip standalone tool result messages — shown inside CoT
-        if (isTool) return null;
-
-        // AI message — render as orchestrator CoT.
-        // Fallback: if per-message matching is empty but we do have global
-        // subagent state, attach those cards to the latest `task` message.
-        const subagentsForMessage = getSubagentsByMessage?.(message.id) ?? [];
-        const toolCalls = getToolCalls(message);
-        const hasTaskCall = toolCalls.some((tc: any) => tc?.name === "task");
-        const isLatest = index === filteredMessages.length - 1;
-        const shouldUseFallbackSubagents =
-          subagentsForMessage.length === 0 &&
-          allSubagents.length > 0 &&
-          hasTaskCall &&
-          isLatest;
-        const subs = shouldUseFallbackSubagents
-          ? allSubagents
-          : subagentsForMessage;
-
         return (
-          <OrchestratorMessage
-            key={key}
-            message={message}
-            subagents={subs}
-            isLastMessage={index === filteredMessages.length - 1}
-            isLoading={isLoading}
-            toolResultByCallId={toolResultByCallId}
-            selectedModelRefsByRole={selectedModelRefsByRole}
-          />
+          <Fragment key={`turn-${tIdx}`}>
+            {turn.human ? (
+              <HumanBubble
+                content={getContentString(turn.human.content)}
+              />
+            ) : null}
+            {showRoutingCard && isLastTurn ? <RoutingCard {...routing!} /> : null}
+            {turn.aiMessages.length > 0 ? (
+              <OrchestratorTurn
+                messages={turn.aiMessages}
+                subagentsByMessageId={subagentsByMessageId}
+                isLoading={isLoading && isLastTurn}
+                toolResultByCallId={toolResultByCallId}
+                selectedModelRefsByRole={selectedModelRefsByRole}
+              />
+            ) : null}
+          </Fragment>
         );
       })}
 
