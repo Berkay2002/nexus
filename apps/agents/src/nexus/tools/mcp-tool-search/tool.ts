@@ -168,8 +168,9 @@ function structuredEmptyResult(query: string, catalog: CatalogEntry[]): string {
 function structuredUnavailableResult(): string {
   return JSON.stringify({
     error:
-      "MCP tool catalog is unavailable in this run. The sandbox bootstrap failed; " +
-      "check stderr for details. Continue with built-in tools.",
+      "MCP tool catalog is not ready yet — sandbox bootstrap may still be in progress, " +
+      "or may have failed. Check stderr for bootstrap errors. Continue with built-in tools; " +
+      "retry later if you need an MCP capability.",
   });
 }
 

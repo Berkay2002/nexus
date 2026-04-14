@@ -109,7 +109,7 @@ describe("mcp_tool_search", () => {
       readyChecker: () => false,
     });
     const result = await invoke(tool, { query: "navigate" });
-    expect(result.error).toMatch(/MCP tool catalog is unavailable/);
+    expect(result.error).toMatch(/MCP tool catalog is not ready yet/);
     expect(result.note).toBeUndefined();
   });
 
