@@ -180,12 +180,19 @@ export async function metaRouter(
       ? lastMessage.content
       : JSON.stringify(lastMessage.content);
 
+  // Hide the classifier's chat-model run from streamMode: "messages" so its
+  // raw output (especially the recovery path's free-form JSON) doesn't leak
+  // into stream.messages and render as an AI message in the chat feed. See
+  // pregel/messages.js StreamMessagesHandler.handleChatModelStart — any tag
+  // containing "langsmith:nostream" or "nostream" suppresses tracking.
+  const HIDDEN_FROM_STREAM = { tags: ["langsmith:nostream"] };
+
   let result: RouterOutput;
   try {
-    result = await invoker.invoke([
-      new SystemMessage(ROUTER_SYSTEM_PROMPT),
-      new HumanMessage(userContent),
-    ]);
+    result = await invoker.invoke(
+      [new SystemMessage(ROUTER_SYSTEM_PROMPT), new HumanMessage(userContent)],
+      HIDDEN_FROM_STREAM,
+    );
   } catch (error) {
     if (!isOutputParsingFailure(error)) {
       throw error;
@@ -195,12 +202,15 @@ export async function metaRouter(
       fallbackModels.length > 0
         ? primary.withFallbacks({ fallbacks: fallbackModels })
         : primary;
-    const rawResult = await rawInvoker.invoke([
-      new SystemMessage(
-        `${ROUTER_SYSTEM_PROMPT}\n\nIf strict JSON schema formatting fails, respond with only one token: trivial or default.`,
-      ),
-      new HumanMessage(userContent),
-    ]);
+    const rawResult = await rawInvoker.invoke(
+      [
+        new SystemMessage(
+          `${ROUTER_SYSTEM_PROMPT}\n\nIf strict JSON schema formatting fails, respond with only one token: trivial or default.`,
+        ),
+        new HumanMessage(userContent),
+      ],
+      HIDDEN_FROM_STREAM,
+    );
 
     const rawText = extractText(rawResult.content);
     result = recoverRouterOutput(rawText);
