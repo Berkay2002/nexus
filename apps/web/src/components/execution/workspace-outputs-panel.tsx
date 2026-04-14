@@ -154,24 +154,6 @@ function countFiles(node: TreeNode): number {
   return total;
 }
 
-function FolderActions({ path, threadId }: { path: string; threadId?: string }) {
-  return (
-    <FileTreeActions>
-      <a
-        href={buildFileHref(path, threadId, false)}
-        target="_blank"
-        rel="noreferrer"
-        aria-label="Browse folder"
-        title="Browse folder"
-        className="inline-flex items-center text-muted-foreground hover:text-foreground"
-      >
-        <ExternalLink className="size-3.5" />
-        <span className="sr-only">Browse</span>
-      </a>
-    </FileTreeActions>
-  );
-}
-
 function FileActions({
   path,
   name,
@@ -229,9 +211,6 @@ export function WorkspaceOutputsPanel({ paths }: { paths: string[] }) {
           key={node.fullPath}
           path={node.fullPath}
           name={node.name}
-          actions={
-            <FolderActions path={node.fullPath} threadId={threadId ?? undefined} />
-          }
         >
           {sortChildren(node).map(renderNode)}
         </FileTreeFolder>
