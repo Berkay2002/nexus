@@ -61,6 +61,11 @@
       "sourceType": "github",
       "computedHash": "e3aeb1f9e8a68d24df0c1c2e3c8ab97ede09a7251a2c76988318d02254346979"
     },
+    "semver-changelog": {
+      "source": "prulloac/agent-skills",
+      "sourceType": "github",
+      "computedHash": "46abd695bf7eda64baf410592f4d1884aaee83d42ccd8c230b9a3fb9b3b70caf"
+    },
     "shadcn": {
       "source": "shadcn/ui",
       "sourceType": "github",
