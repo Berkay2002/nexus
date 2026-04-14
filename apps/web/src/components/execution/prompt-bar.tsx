@@ -199,7 +199,7 @@ export function PromptBar({
                       onClick={() => removeFileAtIndex(index)}
                       className="absolute right-1 top-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-black/70 text-white transition-colors hover:bg-black/90"
                       aria-label={`Remove ${file.filename ?? `image ${index + 1}`}`}
-                      title="Remove image"
+                      title={file.mediaType?.startsWith("image/") ? "Remove image" : "Remove attachment"}
                     >
                       <X className="h-2.5 w-2.5" />
                     </button>
