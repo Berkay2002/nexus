@@ -1,9 +1,13 @@
 import { createDeepAgent } from "deepagents";
 import { AIMessage } from "@langchain/core/messages";
+import type { FileData } from "deepagents";
 import { AIOSandboxBackend } from "./backend/aio-sandbox.js";
 import { createNexusBackend } from "./backend/composite.js";
 import { ensureSandboxFilesystem } from "./backend/sandbox-bootstrap.js";
-import { getWorkspaceRootForThread } from "./backend/workspace.js";
+import {
+  getWorkspaceRootForThread,
+  renderWorkspaceTemplate,
+} from "./backend/workspace.js";
 import { configurableModelMiddleware } from "./middleware/configurable-model.js";
 import { createModelFallbackMiddleware } from "./middleware/model-fallback.js";
 import { createRuntimeInstructionsMiddleware } from "./middleware/runtime-instructions.js";
@@ -15,7 +19,7 @@ import {
 } from "./models/index.js";
 import { ORCHESTRATOR_SYSTEM_PROMPT } from "./prompts/orchestrator-system.js";
 import { getNexusSubagents } from "./agents/index.js";
-import { nexusSkillFiles } from "./skills/index.js";
+import { buildNexusSkillFiles } from "./skills/index.js";
 import type { NexusState } from "./state.js";
 
 interface NexusRunnableConfig {
@@ -30,6 +34,7 @@ interface NexusRunnableConfig {
 interface OrchestratorBundle {
   agent: ReturnType<typeof createNexusOrchestrator>;
   allowedSubagentTypes: string[];
+  skillFiles: Record<string, FileData>;
 }
 
 function buildSubagentAvailabilityMessage(
@@ -121,12 +126,15 @@ export function createNexusOrchestrator(
   return createDeepAgent({
     name: "nexus-orchestrator",
     model: defaultModel,
-    systemPrompt: ORCHESTRATOR_SYSTEM_PROMPT,
+    systemPrompt: renderWorkspaceTemplate(
+      ORCHESTRATOR_SYSTEM_PROMPT,
+      workspaceRoot,
+    ),
     middleware: orchestratorMiddleware,
     backend,
     memory: ["/memories/AGENTS.md"],
     skills: ["/skills/"],
-    subagents: getNexusSubagents(),
+    subagents: getNexusSubagents(workspaceRoot),
   });
 }
 
@@ -140,7 +148,7 @@ function resolveThreadId(config?: NexusRunnableConfig): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-function getOrchestrator(threadId?: string) {
+function getOrchestrator(threadId?: string): OrchestratorBundle {
   const key = threadId ?? "__default__";
   const cached = orchestratorByThread.get(key);
   if (cached) {
@@ -149,10 +157,15 @@ function getOrchestrator(threadId?: string) {
 
   const workspaceRoot = getWorkspaceRootForThread(threadId);
   const orchestrator = createNexusOrchestrator(undefined, workspaceRoot);
-  const allowedSubagentTypes = getNexusSubagents().map((subagent) =>
-    subagent.name.trim(),
+  const allowedSubagentTypes = getNexusSubagents(workspaceRoot).map(
+    (subagent) => subagent.name.trim(),
   );
-  const bundle = { agent: orchestrator, allowedSubagentTypes };
+  const skillFiles = buildNexusSkillFiles(workspaceRoot);
+  const bundle: OrchestratorBundle = {
+    agent: orchestrator,
+    allowedSubagentTypes,
+    skillFiles,
+  };
   orchestratorByThread.set(key, bundle);
   return bundle;
 }
@@ -170,7 +183,11 @@ export async function orchestratorNode(
   config?: NexusRunnableConfig,
 ): Promise<Partial<NexusState>> {
   const threadId = resolveThreadId(config);
-  const { agent: orchestrator, allowedSubagentTypes } = getOrchestrator(threadId);
+  const {
+    agent: orchestrator,
+    allowedSubagentTypes,
+    skillFiles,
+  } = getOrchestrator(threadId);
 
   const tierForComplexity: Tier =
     state.routerResult?.complexity === "trivial" ? "classifier" : "default";
@@ -203,7 +220,7 @@ export async function orchestratorNode(
 
   const invokeInput = {
     messages: state.messages,
-    files: nexusSkillFiles,
+    files: skillFiles,
   };
 
   const invokeConfig = {
@@ -231,7 +248,7 @@ export async function orchestratorNode(
       const retryResult = await orchestrator.invoke(
         {
           messages: state.messages,
-          files: nexusSkillFiles,
+          files: skillFiles,
         },
         {
           context: {
