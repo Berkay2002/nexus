@@ -10,14 +10,7 @@ import { z } from "zod/v4";
 // modelContextSchema tests
 // ---------------------------------------------------------------------------
 describe("modelContextSchema", () => {
-  it("should accept a valid model string", () => {
-    const result = z.safeParse(modelContextSchema, {
-      model: "gemini-3-flash-preview",
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it("should accept context without model (optional)", () => {
+  it("should accept empty context (models is optional)", () => {
     const result = z.safeParse(modelContextSchema, {});
     expect(result.success).toBe(true);
   });
@@ -96,18 +89,26 @@ describe("createConfigurableModelMiddleware — per-role routing", () => {
     expect(typeof capturedModel).toBe("object");
   });
 
-  it("per-role miss falls through to legacy ctx.model", async () => {
+  it("per-role miss passes through to the agent's static model (no cross-agent leak)", async () => {
+    // Regression: previously the middleware fell through to a shared
+    // `ctx.model` slot when the per-role key was missing. That slot was
+    // visible to every agent and leaked the orchestrator's resolved default-
+    // tier model into sub-agents, silently overriding their static models.
+    // The fix: when `ctx.models[agentName]` is missing, pass the request
+    // through untouched so the agent's static model is used.
     vi.stubEnv("GOOGLE_API_KEY", "test-google-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-anthropic-key");
 
     const middleware = createConfigurableModelMiddleware("code");
 
-    let capturedModel: unknown = null;
+    let capturedRequest: unknown = null;
     const handler = vi.fn(async (req: any) => {
-      capturedModel = req.model;
+      capturedRequest = req;
       return { type: "ai", content: "ok" } as any;
     });
 
-    // models map has "research" but NOT "code" — should fall through to ctx.model
+    // models map has "research" and a (now-ignored) legacy `model` field —
+    // neither should affect the `code` middleware.
     const request = makeRequest({
       models: { research: "anthropic:claude-sonnet-4-6" },
       model: "google:gemini-3-flash-preview",
@@ -116,9 +117,38 @@ describe("createConfigurableModelMiddleware — per-role routing", () => {
     await middleware.wrapModelCall!(request as any, handler);
 
     expect(handler).toHaveBeenCalledOnce();
-    // Should have resolved via ctx.model (google:gemini-3-flash-preview)
-    expect(capturedModel).not.toBe("static-model");
-    expect(typeof capturedModel).toBe("object");
+    // Request must be passed through unchanged — static model preserved.
+    expect(capturedRequest).toBe(request);
+    expect((capturedRequest as any).model).toBe("static-model");
+  });
+
+  it("orchestrator's resolved model in ctx.models does not leak into sub-agents", async () => {
+    // Anti-leak regression. `orchestratorNode` writes its resolved model
+    // into `ctx.models["nexus-orchestrator"]`. A sub-agent middleware
+    // (e.g., "research") must NOT pick that up and substitute it for the
+    // sub-agent's static model. Each middleware instance only reads its
+    // own agentName key.
+    vi.stubEnv("ZAI_API_KEY", "test-zai-key");
+
+    const middleware = createConfigurableModelMiddleware("research");
+
+    let capturedRequest: unknown = null;
+    const handler = vi.fn(async (req: any) => {
+      capturedRequest = req;
+      return { type: "ai", content: "ok" } as any;
+    });
+
+    const request = makeRequest({
+      models: { "nexus-orchestrator": "zai:glm-4.7" },
+    });
+
+    await middleware.wrapModelCall!(request as any, handler);
+
+    expect(handler).toHaveBeenCalledOnce();
+    // The research middleware must not have substituted the model — the
+    // static model should still be in place.
+    expect(capturedRequest).toBe(request);
+    expect((capturedRequest as any).model).toBe("static-model");
   });
 
   it("unresolvable override warns and falls back even when providers are available", async () => {
@@ -181,7 +211,7 @@ describe("createConfigurableModelMiddleware — per-role routing", () => {
     expect(capturedRequest).toBe(request);
   });
 
-  it("no models and no ctx.model is a no-op pass-through", async () => {
+  it("empty models map is a no-op pass-through", async () => {
     const middleware = createConfigurableModelMiddleware("research");
 
     let capturedRequest: unknown = null;

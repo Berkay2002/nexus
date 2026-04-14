@@ -3,51 +3,42 @@ import { z } from "zod/v4";
 import { resolveOverride } from "../models/index.js";
 
 /**
- * APPROACH: Closure-per-agent factory (Approach 3)
+ * APPROACH: Closure-per-agent factory
  *
- * WHY: The `wrapModelCall` `request.runtime` object contains only these fields:
+ * WHY: The `wrapModelCall` `request.runtime` object exposes only
  *   { context, store, configurable, writer, interrupt, signal }
- * Neither `runtime` nor `request` carries an `agentName` field. The
- * `configurable` map comes from the LangGraph RunnableConfig and is NOT
- * populated with the calling agent's name by deepagents — deepagents invokes
- * sub-agents with the same config it received (pass-through). The
- * `lc_agent_name` that ReactAgent sets lives in `metadata`, which is never
- * forwarded into the middleware runtime. Approaches 1 and 2 are therefore not
- * viable.
+ * and neither `runtime` nor `request` carries an `agentName`. The
+ * `configurable` map from LangGraph's RunnableConfig is NOT populated with
+ * the calling agent's name by deepagents — sub-agents are invoked with the
+ * same config the orchestrator received. The `lc_agent_name` ReactAgent sets
+ * lives in `metadata`, which is never forwarded into the middleware runtime.
  *
- * SOLUTION: Export a `createConfigurableModelMiddleware(agentName)` factory.
- * Each agent gets its own middleware instance with the agent name captured in
- * the closure. The orchestrator uses `createConfigurableModelMiddleware("nexus-orchestrator")`.
- * Sub-agents call the factory with their own name and attach the result via
- * `SubAgent.middleware`.
+ * SOLUTION: `createConfigurableModelMiddleware(agentName)` captures the
+ * agent's name in a closure so each agent gets its own middleware instance
+ * keyed by the DeepAgent's `name` field. The orchestrator binds to
+ * `"nexus-orchestrator"`; sub-agents bind to their own names
+ * (`"research"`, `"code"`, `"creative"`, `"general-purpose"`).
  *
- * The legacy named export `configurableModelMiddleware` is kept (as a
- * re-export pointing at the orchestrator instance) so no existing imports break.
+ * CONTEXT SHAPE: `ctx.models` is a per-role map of `role → "provider:model-id"`
+ * (or a bare id). Each middleware instance looks up ONLY the key matching
+ * its bound agentName, so the map cannot leak across agents: the research
+ * middleware cannot read the code middleware's override, and the
+ * orchestrator's resolved model under `ctx.models["nexus-orchestrator"]`
+ * cannot bleed into any sub-agent.
+ *
+ * Extra keys in the map are harmless — each middleware ignores anything
+ * that isn't its own agentName.
+ *
+ * LEGACY NOTE: An earlier version of this middleware supported a shared
+ * `ctx.model` single-string slot as a fallback. That slot was visible to
+ * every agent and caused a cross-agent leak (the orchestrator's resolved
+ * default-tier model silently overrode sub-agents' tier-resolved static
+ * models). It has been removed. `orchestratorNode` now writes its resolved
+ * model into `ctx.models["nexus-orchestrator"]` so it hits the same
+ * Priority-1 path as every other agent.
  */
 
-/**
- * Context schema for model selection.
- *
- * `model` — legacy single-string override used by orchestratorNode to pass
- * the classifier-translated model to the orchestrator.
- *
- * `models` — per-role map of `role → "provider:model-id"` (or bare id).
- * Sub-agent role keys match each agent's `name` field: "research", "code",
- * "creative", "general-purpose". The orchestrator is a special case: its
- * middleware instance is bound to "nexus-orchestrator" (the DeepAgent name),
- * but the frontend sends the key as "orchestrator"; `orchestratorNode`
- * unpacks `models.orchestrator` and re-injects it via the legacy `ctx.model`
- * path, so this middleware's Priority-2 branch handles orchestrator overrides.
- * Extra keys are harmless — middleware only looks up the key matching its
- * bound agent name.
- */
 export const modelContextSchema = z.object({
-  model: z
-    .string()
-    .optional()
-    .describe(
-      "Legacy model override — bare id (e.g., 'gemini-3-flash-preview') or 'provider:id'",
-    ),
   models: z
     .record(z.string(), z.string())
     .optional()
@@ -60,10 +51,12 @@ export const modelContextSchema = z.object({
  * Factory that creates a ConfigurableModel middleware instance bound to a
  * specific agent name.
  *
- * Priority inside wrapModelCall:
- *   1. Per-role override from `ctx.models[agentName]`
- *   2. Legacy single-model override from `ctx.model`
- *   3. Pass through (use the agent's static model)
+ * Resolution inside wrapModelCall:
+ *   1. Look up `ctx.models[agentName]` — if set, resolve and use it.
+ *   2. Otherwise pass through and use the agent's static model.
+ *
+ * Unresolvable overrides (provider missing, bad id) warn and pass through
+ * rather than silently picking a different provider via tier-priority.
  *
  * @param agentName - The name of the agent this middleware is attached to
  */
@@ -75,11 +68,7 @@ export function createConfigurableModelMiddleware(agentName: string) {
       const ctx = request.runtime.context;
       if (!ctx) return handler(request);
 
-      // Priority 1: per-role override for this specific agent
-      const perRoleOverride = ctx.models?.[agentName];
-      // Priority 2: legacy single-model override
-      const override = perRoleOverride ?? ctx.model;
-
+      const override = ctx.models?.[agentName];
       if (!override) return handler(request);
 
       // Resolve the override strictly — no tier-priority fallback. If the

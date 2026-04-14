@@ -81,6 +81,16 @@ const reasoningCtx = new AsyncLocalStorage<(string | null)[]>();
 interface CompletionsLike {
   completionWithRetry: (req: unknown, opts?: unknown) => Promise<unknown>;
   _originalCompletionWithRetry?: (req: unknown, opts?: unknown) => Promise<unknown>;
+  _convertCompletionsDeltaToBaseMessageChunk?: (
+    delta: unknown,
+    rawResponse: unknown,
+    defaultRole?: string,
+  ) => unknown;
+  _originalConvertDelta?: (
+    delta: unknown,
+    rawResponse: unknown,
+    defaultRole?: string,
+  ) => unknown;
 }
 
 /**
@@ -110,6 +120,55 @@ function patchCompletionsForReasoning(target: CompletionsLike | undefined): void
   };
 }
 
+/**
+ * Patch the completions facade's streaming delta → BaseMessageChunk converter
+ * so that deltas missing a `role` field default to `"assistant"` instead of
+ * falling through @langchain/openai's generic `ChatMessageChunk` branch.
+ *
+ * WHY: glm-5.1 (and other GLM reasoning models) sometimes emit an initial
+ * streaming delta that carries `reasoning_content` but no `role`. The
+ * upstream converter at `@langchain/openai/.../converters/completions.js`
+ * walks `role === "user" / "assistant" / ...` and falls through to
+ * `new ChatMessageChunk({ role, ... })` when the role is undefined AND the
+ * caller hasn't threaded a `defaultRole` in yet (the caller only updates
+ * `defaultRole` *after* converting each delta). That first ChatMessageChunk
+ * then poisons the whole stream because `BaseMessageChunk.concat()`
+ * preserves the class of the first chunk, so the aggregated final message
+ * comes out as a ChatMessageChunk — which fails the agent framework's
+ * `AIMessage.isInstance(...)` gate with:
+ *
+ *   Invalid response from "wrapModelCall": expected AIMessage or Command,
+ *   got object
+ *
+ * SAFETY: Z.AI's OpenAI-compatible endpoint only ever streams assistant
+ * responses, so coercing the default role to "assistant" when upstream
+ * omits it is loss-free.
+ */
+function patchCompletionsForAssistantRoleDefault(
+  target: CompletionsLike | undefined,
+): void {
+  if (
+    !target ||
+    typeof target._convertCompletionsDeltaToBaseMessageChunk !== "function"
+  ) {
+    return;
+  }
+  if (target._originalConvertDelta) return;
+  const original = target._convertCompletionsDeltaToBaseMessageChunk.bind(
+    target,
+  );
+  target._originalConvertDelta = original;
+  target._convertCompletionsDeltaToBaseMessageChunk = function (
+    this: CompletionsLike,
+    delta: unknown,
+    rawResponse: unknown,
+    defaultRole?: string,
+  ) {
+    const fn = this._originalConvertDelta ?? original;
+    return fn(delta, rawResponse, defaultRole ?? "assistant");
+  };
+}
+
 export class ZaiChatOpenAI extends ChatOpenAI {
   constructor(fields?: ChatOpenAIFields) {
     super(fields);
@@ -119,6 +178,8 @@ export class ZaiChatOpenAI extends ChatOpenAI {
     };
     patchCompletionsForReasoning(facade.completions);
     patchCompletionsForReasoning(facade.responses);
+    patchCompletionsForAssistantRoleDefault(facade.completions);
+    patchCompletionsForAssistantRoleDefault(facade.responses);
     if (
       typeof facade.completions?.completionWithRetry !== "function" &&
       typeof facade.responses?.completionWithRetry !== "function"

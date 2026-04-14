@@ -185,6 +185,18 @@ export async function orchestratorNode(
   const orchestratorOverride = modelsByRole?.["orchestrator"];
   const selectedModel = orchestratorOverride ?? classifierResolvedString;
 
+  // Merge the orchestrator's resolved model into the per-role map under the
+  // DeepAgent's actual name ("nexus-orchestrator" — what the middleware
+  // factory binds to). Do NOT route it through a shared ctx.model slot: that
+  // slot is visible to every sub-agent's ConfigurableModel middleware and
+  // leaks across agents, silently overriding their tier-resolved static
+  // models (observed: research subagent running on the orchestrator's
+  // default-tier model instead of deep-research).
+  const mergedModels: Record<string, string> = { ...(modelsByRole ?? {}) };
+  if (selectedModel) {
+    mergedModels["nexus-orchestrator"] = selectedModel;
+  }
+
   const runtimeInstructions = buildSubagentAvailabilityMessage(
     allowedSubagentTypes,
   );
@@ -196,8 +208,7 @@ export async function orchestratorNode(
 
   const invokeConfig = {
     context: {
-      model: selectedModel,
-      models: modelsByRole,
+      models: mergedModels,
       threadId,
       runtimeInstructions,
     },
@@ -224,8 +235,7 @@ export async function orchestratorNode(
         },
         {
           context: {
-            model: selectedModel,
-            models: modelsByRole,
+            models: mergedModels,
             threadId,
             runtimeInstructions: retryInstructions,
           },
