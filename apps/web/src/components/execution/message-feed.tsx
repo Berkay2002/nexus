@@ -35,6 +35,7 @@ import {
   normalizeTodos,
   normalizeSubagentStatus,
 } from "@/lib/subagent-utils";
+import { stripWorkspacePrefix } from "@/lib/workspace-paths";
 
 function getContentString(content: unknown): string {
   if (typeof content === "string") return content;
@@ -288,7 +289,7 @@ function OrchestratorTurn({
                   ? (() => {
                       const p = item.calls[0].args?.path;
                       return typeof p === "string" && p
-                        ? `Listing ${p}`
+                        ? `Listing ${stripWorkspacePrefix(p) || "/"}`
                         : "Listing directory";
                     })()
                   : `Listing ${item.calls.length} directories`;
@@ -399,8 +400,12 @@ function OrchestratorTurn({
             }
 
             // For other tools (search, extract, etc.)
-            const description =
+            const rawDescription =
               tc.args?.query ?? tc.args?.url ?? tc.args?.description ?? undefined;
+            const description =
+              typeof rawDescription === "string"
+                ? stripWorkspacePrefix(rawDescription)
+                : rawDescription;
             const isExecuteTool = toolName === "execute" || toolName === "execute_code";
             const isGenerateImageTool = toolName === "generate_image";
             const isWriteOrEditTool = toolName === "write_file" || toolName === "edit_file";

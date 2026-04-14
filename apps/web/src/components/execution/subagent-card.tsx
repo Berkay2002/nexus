@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { MarkdownText } from "@/components/thread/markdown-text";
+import { stripWorkspacePrefix } from "@/lib/workspace-paths";
 import { ExecuteToolArtifact } from "./execute-tool-artifact";
 import { FilesystemToolArtifact } from "./filesystem-tool-artifact";
 import { GenerateImageArtifact } from "./generate-image-artifact";
@@ -424,7 +425,7 @@ function CreatedFilesList({ files }: { files: string[] }) {
             key={filePath}
             className="text-xs text-muted-foreground font-mono break-all"
           >
-            {filePath}
+            {stripWorkspacePrefix(filePath) || filePath}
           </p>
         ))}
       </div>
@@ -455,7 +456,11 @@ function StepsList({
         }
         const display = getSubToolDisplay(step.name);
         const Icon = display.icon;
-        const description = describeToolArgs(step.args);
+        const rawDescription = describeToolArgs(step.args);
+        const description =
+          typeof rawDescription === "string"
+            ? stripWorkspacePrefix(rawDescription)
+            : rawDescription;
         const stepActive = isLast && isRunning && !step.done;
         const isExecuteTool = step.name === "execute" || step.name === "execute_code";
         const isGenerateImageTool = step.name === "generate_image";
@@ -548,12 +553,13 @@ export function SubagentCard({
 }) {
   const agentType = subagent.toolCall?.args?.subagent_type ?? "unknown";
   const rawDescription = subagent.toolCall?.args?.description;
-  const description =
+  const descriptionText =
     typeof rawDescription === "string"
       ? rawDescription
       : rawDescription && typeof rawDescription === "object" && typeof rawDescription.content === "string"
         ? rawDescription.content
         : "";
+  const description = stripWorkspacePrefix(descriptionText);
   const status = normalizeSubagentStatus(subagent.status);
   const identitiesBySubagent = useSubagentModelIdentities(
     selectedModelRefsByRole,

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { stripWorkspacePrefix } from "@/lib/workspace-paths";
 
 function parseJson(value: string): unknown | null {
   try {
@@ -82,8 +83,17 @@ export function ExecuteToolArtifact({
   description?: string;
   defaultOpen?: boolean;
 }) {
-  const terminalOutput = output ? getTerminalOutput(output) : null;
+  const rawTerminalOutput = output ? getTerminalOutput(output) : null;
+  const terminalOutput = rawTerminalOutput
+    ? stripWorkspacePrefix(rawTerminalOutput)
+    : null;
   const structuredOutput = output ? getStructuredOutput(output) : null;
+  const displayCommand =
+    typeof command === "string" ? stripWorkspacePrefix(command) : command;
+  const displayDescription =
+    typeof description === "string"
+      ? stripWorkspacePrefix(description)
+      : description;
 
   if (!command && !terminalOutput && !structuredOutput) {
     return null;
@@ -96,9 +106,9 @@ export function ExecuteToolArtifact({
           <ArtifactHeader className="cursor-pointer border-b-0 bg-transparent px-3 py-2.5 hover:bg-accent/50 transition-colors">
             <div className="min-w-0">
               <ArtifactTitle>{title}</ArtifactTitle>
-              {description ? (
+              {displayDescription ? (
                 <ArtifactDescription className="truncate text-xs">
-                  {description}
+                  {displayDescription}
                 </ArtifactDescription>
               ) : null}
             </div>
@@ -111,8 +121,8 @@ export function ExecuteToolArtifact({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <ArtifactContent className="space-y-2 px-3 pb-3 pt-1 border-t border-border/50">
-            {command ? (
-              <CodeBlock code={command} language="bash" showLineNumbers={false} />
+            {displayCommand ? (
+              <CodeBlock code={displayCommand} language="bash" showLineNumbers={false} />
             ) : null}
             {terminalOutput ? (
               <Terminal output={terminalOutput} isStreaming={Boolean(isStreaming)} />

@@ -14,6 +14,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { stripWorkspacePrefix } from "@/lib/workspace-paths";
 import { ChevronDown, FileIcon, FolderIcon } from "lucide-react";
 import type { BundledLanguage } from "shiki";
 
@@ -226,7 +227,8 @@ export function FilesystemToolArtifact({
   defaultOpen?: boolean;
 }) {
   const rawPath = getPath(args, output);
-  const path = toolName === "ls" ? rawPath ?? "/" : rawPath;
+  const displayPath = rawPath ? stripWorkspacePrefix(rawPath) || "/" : rawPath;
+  const path = toolName === "ls" ? displayPath ?? "/" : displayPath;
   const outputSize = toolName === "ls" ? undefined : getOutputSize(output);
   const sizeText = formatBytes(outputSize);
 
