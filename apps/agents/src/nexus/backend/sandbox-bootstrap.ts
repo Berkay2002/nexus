@@ -59,6 +59,20 @@ export async function ensureSandboxFilesystem(
         return false;
       }
 
+      // `AIOSandboxBackend.uploadFiles` writes through `client.file.writeFile`
+      // which has no implicit mkdir, so on a fresh container the upload would
+      // fail with file_not_found. Materialize every target directory up front.
+      const mkdir = await sandbox.execute(
+        `mkdir -p ${collectTargetDirs(entries).map((p) => JSON.stringify(p)).join(" ")}`,
+      );
+      if (mkdir.exitCode !== 0) {
+        console.error(
+          `[nexus-bootstrap] mkdir -p failed (exit ${mkdir.exitCode}):\n${mkdir.output}`,
+        );
+        mcpFilesystemReady = false;
+        return false;
+      }
+
       const uploadResults = await sandbox.uploadFiles(entries);
       const uploadErrors = uploadResults.filter(
         (r): r is FileUploadResponse & { error: NonNullable<FileUploadResponse["error"]> } =>
@@ -127,6 +141,15 @@ function resolveStaticAssetRoot(): string {
   const here = fileURLToPath(import.meta.url);
   // here = .../apps/agents/{src|dist}/nexus/backend/sandbox-bootstrap.{ts|js}
   return resolve(here, "..", "..", "..", "..", "sandbox-files", "servers");
+}
+
+function collectTargetDirs(entries: Array<[string, Uint8Array]>): string[] {
+  const dirs = new Set<string>([TARGET_ROOT]);
+  for (const [absPath] of entries) {
+    const lastSlash = absPath.lastIndexOf("/");
+    if (lastSlash > 0) dirs.add(absPath.substring(0, lastSlash));
+  }
+  return Array.from(dirs).sort();
 }
 
 function collectStaticTree(root: string): Array<[string, Uint8Array]> {

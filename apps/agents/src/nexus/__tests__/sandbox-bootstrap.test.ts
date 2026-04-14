@@ -27,6 +27,11 @@ class FakeSandboxBackend extends BaseSandbox {
       if (result) return result;
     }
 
+    // mkdir -p "path1" "path2" ...
+    if (/^mkdir -p /.test(command)) {
+      return { output: "", exitCode: 0, truncated: false };
+    }
+
     // test -f PATH && echo exists
     const testMatch = command.match(/^test -f (\S+) && echo exists$/);
     if (testMatch) {
@@ -100,6 +105,51 @@ describe("ensureSandboxFilesystem", () => {
         /cd \/home\/gem\/nexus-servers && npm install 2>&1/.test(cmd),
       ),
     ).toBe(true);
+  });
+
+  it("cold start calls mkdir -p with target root + every namespace dir before uploading", async () => {
+    const fake = new FakeSandboxBackend();
+    await ensureSandboxFilesystem(fake);
+
+    const mkdirCmd = fake.executeLog.find((cmd) => cmd.startsWith("mkdir -p "));
+    expect(mkdirCmd).toBeDefined();
+    // Must quote at least the target root and _client subdir (callMCPTool.js lives there)
+    expect(mkdirCmd).toContain('"/home/gem/nexus-servers"');
+    expect(mkdirCmd).toContain('"/home/gem/nexus-servers/_client"');
+
+    // mkdir must come BEFORE the upload
+    const mkdirIdx = fake.executeLog.findIndex((cmd) =>
+      cmd.startsWith("mkdir -p "),
+    );
+    // uploadFiles is not in executeLog, but the bootstrap order is:
+    //   test -f marker → mkdir -p → uploadFiles → npm install → date > marker.
+    // We can at least assert mkdir comes before npm install.
+    const npmIdx = fake.executeLog.findIndex((cmd) => cmd.includes("npm install"));
+    expect(mkdirIdx).toBeGreaterThanOrEqual(0);
+    expect(npmIdx).toBeGreaterThan(mkdirIdx);
+  });
+
+  it("mkdir -p failure: marker not written, flag stays false", async () => {
+    const fake = new FakeSandboxBackend();
+    fake.executeOverrides.push((command) => {
+      if (command.startsWith("mkdir -p ")) {
+        return {
+          output: "mkdir: permission denied\n",
+          exitCode: 1,
+          truncated: false,
+        };
+      }
+      return null;
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const ok = await ensureSandboxFilesystem(fake);
+
+    expect(ok).toBe(false);
+    expect(isMcpFilesystemReady()).toBe(false);
+    expect(fake.uploadBatches).toHaveLength(0);
+    expect(errorSpy).toHaveBeenCalled();
+    const logged = errorSpy.mock.calls.flat().join(" ");
+    expect(logged).toContain("mkdir: permission denied");
   });
 
   it("fast path: marker present → no uploads, no npm install", async () => {
