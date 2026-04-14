@@ -126,6 +126,49 @@ describe("metaRouter", () => {
     );
   });
 
+  it("recovers when parsing failure is thrown as a non-Error object", async () => {
+    const parsingFailureObject = {
+      message: `Failed to parse. Text: "\`\`\`json\n{\n  \"classification\": \"default\"\n}\n\`\`\`". Error: [{\"code\":\"invalid_value\",\"path\":[\"complexity\"]}]`,
+    };
+
+    const structuredInvoker = {
+      invoke: vi.fn().mockRejectedValue(parsingFailureObject),
+    };
+
+    const primaryModel = {
+      withStructuredOutput: vi.fn().mockReturnValue(structuredInvoker),
+      invoke: vi
+        .fn()
+        .mockResolvedValue({
+          content: [
+            {
+              type: "text",
+              text: '```json\n{\n  "classification": "default"\n}\n```',
+            },
+          ],
+        }),
+    };
+
+    vi.spyOn(modelRegistry, "resolveTier").mockImplementation(
+      ((tier: string) =>
+        tier === "classifier" ? (primaryModel as any) : null) as any,
+    );
+    vi.spyOn(modelRegistry, "buildTierFallbacks").mockReturnValue([]);
+
+    const state = {
+      messages: [new HumanMessage("Route this complex request")],
+      routerResult: null,
+    };
+
+    const result = await metaRouter(state as any);
+
+    expect(result.routerResult).not.toBeNull();
+    expect(result.routerResult!.complexity).toBe("default");
+    expect(result.routerResult!.reasoning).toContain(
+      "normalized classification",
+    );
+  });
+
   it("rethrows non-parsing structured-output errors", async () => {
     const nonParsingError = new Error("Provider call failed");
 

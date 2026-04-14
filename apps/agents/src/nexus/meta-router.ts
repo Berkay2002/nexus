@@ -23,11 +23,62 @@ export type RouterOutput = z.infer<typeof routerOutputSchema>;
 
 type ComplexityLabel = RouterOutput["complexity"];
 
+function collectErrorText(error: unknown, seen = new Set<unknown>()): string[] {
+  if (error == null) return [];
+  if (seen.has(error)) return [];
+
+  if (typeof error === "string") {
+    return [error];
+  }
+
+  if (error instanceof Error) {
+    seen.add(error);
+    const parts = [error.message, error.toString()];
+    const cause = (error as Error & { cause?: unknown }).cause;
+    if (cause !== undefined) {
+      parts.push(...collectErrorText(cause, seen));
+    }
+    return parts.filter((part): part is string => Boolean(part));
+  }
+
+  if (typeof error === "object") {
+    seen.add(error);
+    const parts: string[] = [];
+    const record = error as Record<string, unknown>;
+
+    if (typeof record.message === "string") {
+      parts.push(record.message);
+    }
+    if (typeof record.error === "string") {
+      parts.push(record.error);
+    }
+    if (typeof record.toString === "function") {
+      const rendered = record.toString();
+      if (typeof rendered === "string" && rendered !== "[object Object]") {
+        parts.push(rendered);
+      }
+    }
+
+    for (const nestedKey of ["cause", "errors"]) {
+      const nested = record[nestedKey];
+      if (Array.isArray(nested)) {
+        for (const item of nested) {
+          parts.push(...collectErrorText(item, seen));
+        }
+      } else if (nested !== undefined) {
+        parts.push(...collectErrorText(nested, seen));
+      }
+    }
+
+    return parts;
+  }
+
+  return [String(error)];
+}
+
 function isOutputParsingFailure(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  return /OUTPUT_PARSING_FAILURE|Failed to parse|not valid JSON/i.test(
-    error.message,
-  );
+  const corpus = collectErrorText(error).join("\n");
+  return /OUTPUT_PARSING_FAILURE|Failed to parse|not valid JSON/i.test(corpus);
 }
 
 function extractText(value: unknown): string {
@@ -58,7 +109,8 @@ function extractText(value: unknown): string {
  *   - OpenAI-ish:   `additional_kwargs.reasoning` (string)
  *   - Anthropic:    `content` array with blocks of `type: "thinking"`,
  *                   `thinking: string`
- *   - Google / OpenAI o-series: thinking is hidden, returns undefined
+ *   - Google / OpenAI GPT-5 family: internal reasoning is typically hidden in
+ *                   this interface, so extraction often returns undefined
  * Callers must tolerate `undefined` and fall back to the recovery boilerplate.
  */
 function extractReasoningContent(message: unknown): string | undefined {
