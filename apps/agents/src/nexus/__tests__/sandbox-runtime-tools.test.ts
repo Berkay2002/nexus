@@ -52,18 +52,6 @@ import {
   sandboxBrowserConfigSchema,
 } from "../tools/browser-config/tool.js";
 import {
-  sandboxMcpListServers,
-  sandboxMcpListServersSchema,
-} from "../tools/mcp-list-servers/tool.js";
-import {
-  sandboxMcpListTools,
-  sandboxMcpListToolsSchema,
-} from "../tools/mcp-list-tools/tool.js";
-import {
-  sandboxMcpExecuteTool,
-  sandboxMcpExecuteToolSchema,
-} from "../tools/mcp-execute-tool/tool.js";
-import {
   sandboxUtilConvertToMarkdown,
   sandboxUtilConvertToMarkdownSchema,
 } from "../tools/util-convert-to-markdown/tool.js";
@@ -159,28 +147,6 @@ describe("sandbox runtime tools", () => {
     expect(sandboxBrowserConfig.name).toBe("sandbox_browser_config");
     expect(sandboxBrowserConfig.description).toContain("/v1/browser/config");
     expect(sandboxBrowserConfigSchema).toBeDefined();
-  });
-
-  it("should expose sandbox_mcp_list_servers metadata", () => {
-    expect(sandboxMcpListServers.name).toBe("sandbox_mcp_list_servers");
-    expect(sandboxMcpListServers.description).toContain("/v1/mcp/servers");
-    expect(sandboxMcpListServersSchema).toBeDefined();
-  });
-
-  it("should expose sandbox_mcp_list_tools metadata", () => {
-    expect(sandboxMcpListTools.name).toBe("sandbox_mcp_list_tools");
-    expect(sandboxMcpListTools.description).toContain(
-      "/v1/mcp/{server_name}/tools",
-    );
-    expect(sandboxMcpListToolsSchema).toBeDefined();
-  });
-
-  it("should expose sandbox_mcp_execute_tool metadata", () => {
-    expect(sandboxMcpExecuteTool.name).toBe("sandbox_mcp_execute_tool");
-    expect(sandboxMcpExecuteTool.description).toContain(
-      "/v1/mcp/{server_name}/tools/{tool_name}",
-    );
-    expect(sandboxMcpExecuteToolSchema).toBeDefined();
   });
 
   it("should expose sandbox_util_convert_to_markdown metadata", () => {
