@@ -28,10 +28,14 @@ export function PromptBar({
   onSubmit,
   isLoading,
   onStop,
+  placeholder = "Follow up...",
+  size = "sm",
 }: {
   onSubmit: (message: string | PromptInputMessage) => void;
   isLoading: boolean;
-  onStop: () => void;
+  onStop?: () => void;
+  placeholder?: string;
+  size?: "sm" | "lg";
 }) {
   const [input, setInput] = useState("");
   const [files, setFiles] = useState<AttachedFile[]>([]);
@@ -160,6 +164,7 @@ export function PromptBar({
         <div
           className={cn(
             "flex cursor-text flex-col rounded-2xl border border-border bg-card shadow-lg transition-colors",
+            size === "lg" && "min-h-32",
             isDraggingFiles && "border-primary/60 bg-primary/5",
           )}
         >
@@ -209,7 +214,12 @@ export function PromptBar({
             </div>
           ) : null}
 
-          <div className="relative max-h-[180px] flex-1 overflow-y-auto">
+          <div
+            className={cn(
+              "relative flex-1 overflow-y-auto",
+              size === "lg" ? "max-h-64" : "max-h-[180px]",
+            )}
+          >
             <Textarea
               ref={textareaRef}
               value={input}
@@ -224,9 +234,15 @@ export function PromptBar({
                   submit();
                 }
               }}
-              placeholder="Follow up..."
+              placeholder={placeholder}
               rows={1}
-              className="min-h-9 w-full resize-none whitespace-pre-wrap break-words border-0 bg-transparent! px-3 py-2 text-sm text-foreground shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+              className={cn(
+                "w-full resize-none whitespace-pre-wrap break-words border-0 bg-transparent! shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0",
+                size === "lg"
+                  ? "min-h-20 px-4 py-3 text-base"
+                  : "min-h-9 px-3 py-2 text-sm",
+                "text-foreground",
+              )}
             />
           </div>
 
@@ -253,7 +269,7 @@ export function PromptBar({
             </div>
 
             <div className="ml-auto flex items-center gap-2">
-              {isLoading ? (
+              {isLoading && onStop ? (
                 <Button
                   type="button"
                   variant="secondary"
@@ -269,7 +285,11 @@ export function PromptBar({
                   type="submit"
                   variant="ghost"
                   size="icon-sm"
-                  disabled={(!input.trim() && files.length === 0) || isConvertingFiles}
+                  disabled={
+                    (!input.trim() && files.length === 0) ||
+                    isConvertingFiles ||
+                    isLoading
+                  }
                   className={cn(
                     "h-9 w-9 cursor-pointer rounded-full bg-primary transition-colors duration-100 ease-out",
                     (input.trim() || files.length > 0) &&
@@ -277,7 +297,11 @@ export function PromptBar({
                   )}
                   aria-label="Send message"
                 >
-                  <ArrowUp className="h-4 w-4 text-primary-foreground" />
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-primary-foreground" />
+                  ) : (
+                    <ArrowUp className="h-4 w-4 text-primary-foreground" />
+                  )}
                 </Button>
               )}
             </div>

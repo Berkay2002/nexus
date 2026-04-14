@@ -2,12 +2,12 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { NexusPrompt } from "./nexus-prompt";
+import { PromptBar } from "@/components/execution/prompt-bar";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import { SettingsButton } from "@/components/settings/settings-button";
 
 interface LandingPageProps {
-  onSubmit: (message: PromptInputMessage) => void;
+  onSubmit: (message: string | PromptInputMessage) => void;
   isLoading: boolean;
 }
 
@@ -39,7 +39,19 @@ export function LandingPage({ onSubmit, isLoading }: LandingPageProps) {
         </motion.div>
 
         {/* Prompt input */}
-        <NexusPrompt onSubmit={onSubmit} isLoading={isLoading} />
+        <motion.div
+          className="w-full max-w-3xl"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
+        >
+          <PromptBar
+            onSubmit={onSubmit}
+            isLoading={isLoading}
+            placeholder="Ask anything"
+            size="lg"
+          />
+        </motion.div>
       </div>
     </div>
   );
