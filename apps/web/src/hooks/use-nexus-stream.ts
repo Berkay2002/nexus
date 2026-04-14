@@ -19,10 +19,32 @@ function buildHumanContent(
   const imageFiles = message.files.filter(
     (f) => f.url && f.mediaType?.startsWith("image/"),
   );
-  if (imageFiles.length === 0) return message.text;
+  const nonImageFiles = message.files.filter(
+    (f) => !f.mediaType?.startsWith("image/"),
+  );
+
+  const nonImageNote =
+    nonImageFiles.length > 0
+      ? [
+          "Attached files:",
+          ...nonImageFiles.map((file) => {
+            const fileName = file.filename || "Unnamed file";
+            const mediaType = file.mediaType ? ` (${file.mediaType})` : "";
+            return `- ${fileName}${mediaType}`;
+          }),
+        ].join("\n")
+      : "";
+
+  const textWithFileContext = [message.text.trim(), nonImageNote]
+    .filter(Boolean)
+    .join("\n\n");
+
+  if (imageFiles.length === 0) return textWithFileContext;
 
   const parts: HumanContentPart[] = [];
-  if (message.text.trim()) parts.push({ type: "text", text: message.text });
+  if (textWithFileContext) {
+    parts.push({ type: "text", text: textWithFileContext });
+  }
   for (const file of imageFiles) {
     parts.push({ type: "image_url", image_url: { url: file.url! } });
   }
