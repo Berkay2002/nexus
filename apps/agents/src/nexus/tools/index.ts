@@ -86,28 +86,13 @@ export {
 export type { SandboxBrowserConfigInput } from "./browser-config/tool.js";
 
 export {
-	sandboxMcpListServers,
-	sandboxMcpListServersSchema,
-} from "./mcp-list-servers/tool.js";
-export type { SandboxMcpListServersInput } from "./mcp-list-servers/tool.js";
-
-export {
-	sandboxMcpListTools,
-	sandboxMcpListToolsSchema,
-} from "./mcp-list-tools/tool.js";
-export type { SandboxMcpListToolsInput } from "./mcp-list-tools/tool.js";
-
-export {
-	sandboxMcpExecuteTool,
-	sandboxMcpExecuteToolSchema,
-} from "./mcp-execute-tool/tool.js";
-export type { SandboxMcpExecuteToolInput } from "./mcp-execute-tool/tool.js";
-
-export {
 	sandboxUtilConvertToMarkdown,
 	sandboxUtilConvertToMarkdownSchema,
 } from "./util-convert-to-markdown/tool.js";
 export type { SandboxUtilConvertToMarkdownInput } from "./util-convert-to-markdown/tool.js";
+
+export { mcpToolSearch, mcpToolSearchSchema } from "./mcp-tool-search/tool.js";
+export type { McpToolSearchInput } from "./mcp-tool-search/tool.js";
 
 import { tavilySearch } from "./search/tool.js";
 import { tavilyExtract } from "./extract/tool.js";
@@ -126,10 +111,8 @@ import { sandboxBrowserInfo } from "./browser-info/tool.js";
 import { sandboxBrowserScreenshot } from "./browser-screenshot/tool.js";
 import { sandboxBrowserAction } from "./browser-action/tool.js";
 import { sandboxBrowserConfig } from "./browser-config/tool.js";
-import { sandboxMcpListServers } from "./mcp-list-servers/tool.js";
-import { sandboxMcpListTools } from "./mcp-list-tools/tool.js";
-import { sandboxMcpExecuteTool } from "./mcp-execute-tool/tool.js";
 import { sandboxUtilConvertToMarkdown } from "./util-convert-to-markdown/tool.js";
+import { mcpToolSearch } from "./mcp-tool-search/tool.js";
 
 /**
  * Browser automation tools — used by both research (visual web automation)
@@ -143,19 +126,10 @@ export const browserTools = [
 ] as const;
 
 /**
- * MCP gateway tools — discover and invoke any MCP server registered in the sandbox.
- */
-export const mcpTools = [
-	sandboxMcpListServers,
-	sandboxMcpListTools,
-	sandboxMcpExecuteTool,
-] as const;
-
-/**
  * Tools for the Research sub-agent.
- * Tavily web search/extract/map plus the sandbox util converter for turning
- * local PDFs/DOCX/HTML into LLM-readable markdown, and the browser stack for
- * live web automation when Tavily is insufficient.
+ * Tavily web search/extract/map, the sandbox util converter, the browser stack
+ * for live automation, sandbox_nodejs_execute for running scripts that invoke
+ * cold-layer MCP wrappers, and mcp_tool_search for discovering those wrappers.
  */
 export const researchTools = [
 	tavilySearch,
@@ -163,6 +137,8 @@ export const researchTools = [
 	tavilyMap,
 	sandboxUtilConvertToMarkdown,
 	...browserTools,
+	sandboxNodejsExecute,
+	mcpToolSearch,
 ] as const;
 
 /**
@@ -173,9 +149,10 @@ export const creativeTools = [generateImage] as const;
 
 /**
  * Tools for the Code sub-agent.
- * These augment auto-provisioned shell/filesystem tools with the sandbox
- * runtime API: code/nodejs execution, language introspection, Jupyter
- * session management, and the MCP gateway for invoking external tools.
+ * Augments auto-provisioned shell/filesystem tools with the sandbox runtime API:
+ * code/nodejs execution, language introspection, Jupyter session management,
+ * and mcp_tool_search for reaching the sandbox MCP tool catalog via the
+ * filesystem-of-tools pattern (see using-mcp-tools skill).
  */
 export const codeTools = [
 	sandboxCodeExecute,
@@ -187,7 +164,7 @@ export const codeTools = [
 	sandboxJupyterInfo,
 	sandboxJupyterListSessions,
 	sandboxJupyterDeleteSession,
-	...mcpTools,
+	mcpToolSearch,
 ] as const;
 
 /**
@@ -211,5 +188,5 @@ export const allTools = [
 	sandboxJupyterDeleteSession,
 	sandboxUtilConvertToMarkdown,
 	...browserTools,
-	...mcpTools,
+	mcpToolSearch,
 ] as const;

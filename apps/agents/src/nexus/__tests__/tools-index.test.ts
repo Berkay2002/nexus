@@ -17,15 +17,12 @@ import {
   sandboxBrowserScreenshot,
   sandboxBrowserAction,
   sandboxBrowserConfig,
-  sandboxMcpListServers,
-  sandboxMcpListTools,
-  sandboxMcpExecuteTool,
   sandboxUtilConvertToMarkdown,
+  mcpToolSearch,
   researchTools,
   creativeTools,
   codeTools,
   browserTools,
-  mcpTools,
   allTools,
 } from "../tools/index.js";
 
@@ -48,10 +45,8 @@ describe("tools barrel export", () => {
     expect(sandboxBrowserScreenshot).toBeDefined();
     expect(sandboxBrowserAction).toBeDefined();
     expect(sandboxBrowserConfig).toBeDefined();
-    expect(sandboxMcpListServers).toBeDefined();
-    expect(sandboxMcpListTools).toBeDefined();
-    expect(sandboxMcpExecuteTool).toBeDefined();
     expect(sandboxUtilConvertToMarkdown).toBeDefined();
+    expect(mcpToolSearch).toBeDefined();
   });
 
   it("should export browserTools group with 4 tools", () => {
@@ -64,17 +59,8 @@ describe("tools barrel export", () => {
     ]);
   });
 
-  it("should export mcpTools group with 3 tools", () => {
-    expect(mcpTools).toHaveLength(3);
-    expect(mcpTools.map((t) => t.name)).toEqual([
-      "sandbox_mcp_list_servers",
-      "sandbox_mcp_list_tools",
-      "sandbox_mcp_execute_tool",
-    ]);
-  });
-
-  it("should export researchTools array with Tavily, util converter, and browser stack", () => {
-    expect(researchTools).toHaveLength(8);
+  it("should export researchTools array with hot-layer + mcp_tool_search", () => {
+    expect(researchTools).toHaveLength(10);
     expect(researchTools.map((t) => t.name)).toEqual([
       "tavily_search",
       "tavily_extract",
@@ -84,6 +70,8 @@ describe("tools barrel export", () => {
       "sandbox_browser_screenshot",
       "sandbox_browser_action",
       "sandbox_browser_config",
+      "sandbox_nodejs_execute",
+      "mcp_tool_search",
     ]);
   });
 
@@ -92,8 +80,8 @@ describe("tools barrel export", () => {
     expect(creativeTools[0].name).toBe("generate_image");
   });
 
-  it("should export codeTools array with sandbox runtime + MCP tools", () => {
-    expect(codeTools).toHaveLength(12);
+  it("should export codeTools array with sandbox runtime + mcp_tool_search", () => {
+    expect(codeTools).toHaveLength(10);
     expect(codeTools.map((t) => t.name)).toEqual([
       "sandbox_code_execute",
       "sandbox_code_info",
@@ -104,13 +92,11 @@ describe("tools barrel export", () => {
       "sandbox_jupyter_info",
       "sandbox_jupyter_list_sessions",
       "sandbox_jupyter_delete_session",
-      "sandbox_mcp_list_servers",
-      "sandbox_mcp_list_tools",
-      "sandbox_mcp_execute_tool",
+      "mcp_tool_search",
     ]);
   });
 
   it("should export allTools array with every custom tool", () => {
-    expect(allTools).toHaveLength(21);
+    expect(allTools).toHaveLength(19);
   });
 });

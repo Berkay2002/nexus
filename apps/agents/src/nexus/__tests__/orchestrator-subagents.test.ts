@@ -67,7 +67,7 @@ describe("Orchestrator sub-agent wiring", () => {
       tools?: Array<{ name: string }>;
     }>;
     const research = subagents.find((a) => a.name === "research")!;
-    expect(research.tools).toHaveLength(8);
+    expect(research.tools).toHaveLength(10);
   });
 
   it("should include code agent with runtime tools", () => {
@@ -76,7 +76,7 @@ describe("Orchestrator sub-agent wiring", () => {
       tools?: Array<{ name: string }>;
     }>;
     const code = subagents.find((a) => a.name === "code")!;
-    expect(code.tools).toHaveLength(12);
+    expect(code.tools).toHaveLength(10);
     expect(code.tools?.map((tool) => tool.name)).toEqual([
       "sandbox_code_execute",
       "sandbox_code_info",
@@ -87,9 +87,7 @@ describe("Orchestrator sub-agent wiring", () => {
       "sandbox_jupyter_info",
       "sandbox_jupyter_list_sessions",
       "sandbox_jupyter_delete_session",
-      "sandbox_mcp_list_servers",
-      "sandbox_mcp_list_tools",
-      "sandbox_mcp_execute_tool",
+      "mcp_tool_search",
     ]);
   });
 

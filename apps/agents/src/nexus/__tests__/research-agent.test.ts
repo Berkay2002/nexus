@@ -60,7 +60,7 @@ describe("Research Agent factory", () => {
     const agent = createResearchAgent();
     expect(agent).not.toBeNull();
     expect(agent!.name).toBe("research");
-    expect(agent!.tools).toHaveLength(8);
+    expect(agent!.tools).toHaveLength(10);
     const toolNames = agent!.tools!.map((t) => t.name);
     expect(toolNames).toContain("tavily_search");
     expect(toolNames).toContain("tavily_extract");
@@ -70,6 +70,8 @@ describe("Research Agent factory", () => {
     expect(toolNames).toContain("sandbox_browser_screenshot");
     expect(toolNames).toContain("sandbox_browser_action");
     expect(toolNames).toContain("sandbox_browser_config");
+    expect(toolNames).toContain("sandbox_nodejs_execute");
+    expect(toolNames).toContain("mcp_tool_search");
     expect(agent!.model).toBeDefined();
   });
 });
