@@ -7,6 +7,73 @@ import type { NexusTodo } from "@/lib/subagent-utils";
 import { Button } from "@/components/ui/button";
 import { Compass, RotateCcw, Play, FastForward } from "lucide-react";
 
+type ProviderLogoKey = "claude" | "gemini" | "openai" | "zai";
+
+type IdentityBadgeData = {
+  provider: ProviderLogoKey;
+  model: string;
+  role: string;
+};
+
+const PROVIDER_LOGO_PATHS: Record<ProviderLogoKey, string> = {
+  claude: "/logo/providers/claude.svg",
+  gemini: "/logo/providers/gemini.svg",
+  openai: "/logo/providers/openai.svg",
+  zai: "/logo/providers/zai.svg",
+};
+
+const PROVIDER_LOGO_VERSION = "2026-04-14-demo";
+
+const ROUTER_PROTOTYPE_BADGES: IdentityBadgeData[] = [
+  { provider: "claude", model: "Claude Haiku 4.5", role: "Strong" },
+  { provider: "gemini", model: "Gemini 3 Flash", role: "Fast" },
+];
+
+const SUBAGENT_PROTOTYPE_BADGES: IdentityBadgeData[] = [
+  { provider: "gemini", model: "Gemini 3.1 Pro", role: "Research" },
+  { provider: "claude", model: "Claude Sonnet 4.6", role: "Code" },
+  { provider: "gemini", model: "Gemini 3.1 Flash Image", role: "Creative" },
+  { provider: "openai", model: "GPT-5.4 mini", role: "General" },
+];
+
+function ModelIdentityBadge({
+  provider,
+  model,
+  role,
+}: IdentityBadgeData) {
+  const [logoFailed, setLogoFailed] = useState(false);
+  const providerLabel = provider === "zai" ? "Z.AI" : provider;
+  const logoSrc = `${PROVIDER_LOGO_PATHS[provider]}?v=${PROVIDER_LOGO_VERSION}`;
+  const fallbackInitial = providerLabel.charAt(0).toUpperCase();
+  const useThemeAdaptiveMono = provider === "openai" || provider === "zai";
+
+  return (
+    <div className="inline-flex h-7 items-center overflow-hidden rounded-full border border-border/70 bg-background/70">
+      <span className="inline-flex h-full items-center gap-1.5 border-r border-border/60 px-2.5">
+        {logoFailed ? (
+          <span className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-sm bg-muted text-[9px] font-bold text-foreground/80">
+            {fallbackInitial}
+          </span>
+        ) : (
+          <img
+            src={logoSrc}
+            alt={`${providerLabel} logo`}
+            className={[
+              "size-3.5 shrink-0 object-contain",
+              useThemeAdaptiveMono ? "invert-0 dark:invert" : "",
+            ].join(" ")}
+            onError={() => setLogoFailed(true)}
+          />
+        )}
+        <span className="text-[11px] font-medium text-foreground/90">{model}</span>
+      </span>
+      <span className="px-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {role}
+      </span>
+    </div>
+  );
+}
+
 // ─── Mock Data ───────────────────────────────────────────────────────
 
 const MOCK_TODOS: NexusTodo[] = [
@@ -305,26 +372,56 @@ export default function DemoPage() {
   };
 
   const demoToolbar = (
-    <div className="flex items-center justify-between px-4 py-2 bg-primary/10 border-b border-primary/20 shrink-0">
-      <span className="text-xs font-medium text-primary">
-        DEMO MODE — Mock data, no backend required
-      </span>
-      <div className="flex items-center gap-2">
-        <Button size="sm" variant={state === "routing" ? "default" : "outline"} onClick={() => setState("routing")} className="h-7 text-xs">
-          <Compass className="size-3 mr-1" />Routing
-        </Button>
-        <Button size="sm" variant={state === "running" ? "default" : "outline"} onClick={() => setState("running")} className="h-7 text-xs">
-          <Play className="size-3 mr-1" />Running
-        </Button>
-        <Button size="sm" variant={state === "synthesizing" ? "default" : "outline"} onClick={() => setState("synthesizing")} className="h-7 text-xs">
-          <FastForward className="size-3 mr-1" />Synthesizing
-        </Button>
-        <Button size="sm" variant={state === "complete" ? "default" : "outline"} onClick={() => setState("complete")} className="h-7 text-xs">
-          Complete
-        </Button>
-        <Button size="sm" variant="ghost" onClick={() => setState("routing")} className="h-7 text-xs">
-          <RotateCcw className="size-3" />
-        </Button>
+    <div className="bg-primary/10 border-b border-primary/20 px-4 py-2 shrink-0">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-primary">
+          DEMO MODE — Mock data, no backend required
+        </span>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant={state === "routing" ? "default" : "outline"} onClick={() => setState("routing")} className="h-7 text-xs">
+            <Compass className="size-3 mr-1" />Routing
+          </Button>
+          <Button size="sm" variant={state === "running" ? "default" : "outline"} onClick={() => setState("running")} className="h-7 text-xs">
+            <Play className="size-3 mr-1" />Running
+          </Button>
+          <Button size="sm" variant={state === "synthesizing" ? "default" : "outline"} onClick={() => setState("synthesizing")} className="h-7 text-xs">
+            <FastForward className="size-3 mr-1" />Synthesizing
+          </Button>
+          <Button size="sm" variant={state === "complete" ? "default" : "outline"} onClick={() => setState("complete")} className="h-7 text-xs">
+            Complete
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setState("routing")} className="h-7 text-xs">
+            <RotateCcw className="size-3" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-2 rounded-md border border-primary/20 bg-background/40 px-2.5 py-2">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          Badge Prototype
+        </p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Router</span>
+          {ROUTER_PROTOTYPE_BADGES.map((item) => (
+            <ModelIdentityBadge
+              key={`${item.provider}-${item.model}-${item.role}`}
+              provider={item.provider}
+              model={item.model}
+              role={item.role}
+            />
+          ))}
+        </div>
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Subagents</span>
+          {SUBAGENT_PROTOTYPE_BADGES.map((item) => (
+            <ModelIdentityBadge
+              key={`${item.provider}-${item.model}-${item.role}`}
+              provider={item.provider}
+              model={item.model}
+              role={item.role}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
