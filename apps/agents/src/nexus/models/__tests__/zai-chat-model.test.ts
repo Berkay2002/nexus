@@ -6,6 +6,8 @@ import {
   SystemMessage,
   ToolMessage,
 } from "@langchain/core/messages";
+import { tool } from "@langchain/core/tools";
+import { z } from "zod";
 import { buildReasoningMap, injectReasoningContent, ZaiChatOpenAI } from "../zai-chat-model.js";
 
 describe("buildReasoningMap", () => {
@@ -300,6 +302,95 @@ describe("ZaiChatOpenAI streaming", () => {
       expect(assistants[0].reasoning_content).toBe("stream thinking");
     } finally {
       completions._originalCompletionWithRetry = originalRestore;
+    }
+  });
+});
+
+describe("ZaiChatOpenAI.withConfig", () => {
+  it("rebuilds as ZaiChatOpenAI so bindTools preserves the subclass and patches", () => {
+    const model = new ZaiChatOpenAI({
+      model: "glm-5.1",
+      apiKey: "test-key",
+      configuration: { baseURL: "https://example.invalid" },
+    });
+    const noop = tool(async () => "ok", {
+      name: "noop",
+      description: "test tool",
+      schema: z.object({}),
+    });
+    const bound = model.bindTools([noop]);
+    expect(bound).toBeInstanceOf(ZaiChatOpenAI);
+    const boundCompletions = (bound as unknown as {
+      completions: { _originalConvertDelta?: unknown; _originalCompletionWithRetry?: unknown };
+    }).completions;
+    expect(typeof boundCompletions._originalConvertDelta).toBe("function");
+    expect(typeof boundCompletions._originalCompletionWithRetry).toBe("function");
+  });
+
+  it("survives a GLM first-delta without role after bindTools (role defaults to assistant, aggregated msg is AIMessageChunk)", async () => {
+    const model = new ZaiChatOpenAI({
+      model: "glm-5.1",
+      apiKey: "test-key",
+      streaming: true,
+      configuration: { baseURL: "https://example.invalid" },
+    });
+    const noop = tool(async () => "ok", {
+      name: "noop",
+      description: "test tool",
+      schema: z.object({}),
+    });
+    const bound = model.bindTools([noop]) as unknown as ZaiChatOpenAI;
+    const boundCompletions = (bound as unknown as {
+      completions: {
+        _originalCompletionWithRetry: (req: unknown, opts?: unknown) => Promise<unknown>;
+      };
+    }).completions;
+    const originalRestore = boundCompletions._originalCompletionWithRetry;
+    boundCompletions._originalCompletionWithRetry = async function () {
+      return (async function* () {
+        // First delta: reasoning_content only, NO role (the GLM-5.1 bug).
+        yield {
+          id: "s1",
+          model: "glm-5.1",
+          choices: [
+            {
+              index: 0,
+              delta: { reasoning_content: "thinking..." },
+              finish_reason: null,
+            },
+          ],
+        };
+        yield {
+          id: "s1",
+          model: "glm-5.1",
+          choices: [
+            {
+              index: 0,
+              delta: { role: "assistant", content: "hello" },
+              finish_reason: null,
+            },
+          ],
+        };
+        yield {
+          id: "s1",
+          model: "glm-5.1",
+          choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+        };
+      })();
+    };
+    try {
+      const stream = await bound.stream([new HumanMessage("hi")]);
+      let aggregated: AIMessageChunk | undefined;
+      for await (const chunk of stream) {
+        aggregated = aggregated === undefined ? chunk : aggregated.concat(chunk);
+      }
+      expect(aggregated).toBeDefined();
+      expect(aggregated).toBeInstanceOf(AIMessageChunk);
+      expect((aggregated as AIMessageChunk)._getType()).toBe("ai");
+      expect((aggregated as AIMessageChunk).content).toBe("hello");
+    } finally {
+      boundCompletions._originalCompletionWithRetry = originalRestore;
     }
   });
 });

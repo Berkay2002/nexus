@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type { BaseMessage } from "@langchain/core/messages";
 import { AIMessage, AIMessageChunk } from "@langchain/core/messages";
 import { ChatGenerationChunk } from "@langchain/core/outputs";
+import type { RunnableConfig } from "@langchain/core/runnables";
 import { ChatOpenAI, type ChatOpenAIFields } from "@langchain/openai";
 
 /**
@@ -170,8 +171,11 @@ function patchCompletionsForAssistantRoleDefault(
 }
 
 export class ZaiChatOpenAI extends ChatOpenAI {
+  private readonly zaiFields: ChatOpenAIFields | undefined;
+
   constructor(fields?: ChatOpenAIFields) {
     super(fields);
+    this.zaiFields = fields;
     const facade = this as unknown as {
       completions?: CompletionsLike;
       responses?: CompletionsLike;
@@ -188,6 +192,49 @@ export class ZaiChatOpenAI extends ChatOpenAI {
         "[ZaiChatOpenAI] @langchain/openai no longer exposes completionWithRetry on either inner facade — reasoning injection cannot be installed. Check for a @langchain/openai upgrade.",
       );
     }
+  }
+
+  /**
+   * Override `ChatOpenAI.withConfig` so it rebuilds as a `ZaiChatOpenAI`
+   * instead of a plain `ChatOpenAI`.
+   *
+   * WHY: @langchain/openai's `ChatOpenAI.withConfig` hardcodes
+   * `new ChatOpenAI(this.fields)` (see `@langchain/openai/dist/chat_models/
+   * index.js`), discarding the subclass. `bindTools` routes through
+   * `withConfig`, so by the time the agent framework binds tools to our
+   * research / code / creative subagent model, the returned instance is a
+   * vanilla ChatOpenAI with fresh unpatched `completions` / `responses`
+   * facades. That breaks two things:
+   *
+   *   1. The `_convertCompletionsDeltaToBaseMessageChunk` default-role patch
+   *      is gone, so GLM-5.1's first streaming delta (which carries
+   *      `reasoning_content` but no `role`) falls through to
+   *      `ChatMessageChunk`. `BaseMessageChunk.concat` preserves the first
+   *      chunk's class, so the aggregated message surfaces to the
+   *      middleware chain as a generic `ChatMessage`, tripping
+   *      `wrapModelCall`'s `AIMessage | Command` gate:
+   *        "Invalid response from wrapModelCall in middleware
+   *         ConfigurableModel:research: expected AIMessage or Command, got
+   *         object ... type: generic".
+   *   2. The `_generate`/`_streamResponseChunks` subclass overrides that
+   *      establish the `reasoningCtx` AsyncLocalStorage are gone, so
+   *      `reasoning_content` round-tripping is silently disabled on any
+   *      model call that went through `bindTools`.
+   *
+   * Re-instantiating as `ZaiChatOpenAI` in the constructor re-runs both
+   * patches on the new inner facades and restores the subclass methods.
+   */
+  override withConfig(
+    config: Omit<RunnableConfig, "store" | "writer" | "interrupt">,
+  ): this {
+    const newModel = new ZaiChatOpenAI(this.zaiFields) as this;
+    const source = this as unknown as { defaultOptions?: Record<string, unknown> };
+    const target = newModel as unknown as { defaultOptions?: Record<string, unknown> };
+    target.defaultOptions = {
+      ...(source.defaultOptions ?? {}),
+      ...(config as Record<string, unknown>),
+    };
+    return newModel;
   }
 
   async _generate(

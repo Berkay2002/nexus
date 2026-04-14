@@ -27,6 +27,7 @@ import {
   GlobeIcon,
   ImageIcon,
   CodeIcon,
+  FolderIcon,
 } from "lucide-react";
 import {
   getAgentName,
@@ -82,10 +83,46 @@ const TOOL_DISPLAY: Record<string, { label: string; icon: typeof WrenchIcon }> =
   read_file: { label: "Reading file", icon: GlobeIcon },
   write_file: { label: "Writing file", icon: GlobeIcon },
   edit_file: { label: "Editing file", icon: GlobeIcon },
+  ls: { label: "Listing directory", icon: FolderIcon },
 };
 
 function getToolDisplay(toolName: string) {
   return TOOL_DISPLAY[toolName] ?? { label: toolName.replace(/_/g, " "), icon: WrenchIcon };
+}
+
+type ToolCallRenderItem =
+  | { kind: "single"; index: number; call: any }
+  | { kind: "ls-group"; startIndex: number; endIndex: number; calls: any[] };
+
+/**
+ * Collapse runs of consecutive `ls` calls into a single render group so the
+ * CoT doesn't stack up near-empty rows when the orchestrator orients itself
+ * with multiple directory listings in a row.
+ */
+function groupToolCalls(toolCalls: any[]): ToolCallRenderItem[] {
+  const items: ToolCallRenderItem[] = [];
+  let i = 0;
+  while (i < toolCalls.length) {
+    const tc = toolCalls[i];
+    if (tc?.name === "ls") {
+      const group: any[] = [];
+      const startIndex = i;
+      while (i < toolCalls.length && toolCalls[i]?.name === "ls") {
+        group.push(toolCalls[i]);
+        i++;
+      }
+      items.push({
+        kind: "ls-group",
+        startIndex,
+        endIndex: i - 1,
+        calls: group,
+      });
+    } else {
+      items.push({ kind: "single", index: i, call: tc });
+      i++;
+    }
+  }
+  return items;
 }
 
 function TodoInlineStatusIcon({ status }: { status: "pending" | "in_progress" | "completed" }) {
@@ -189,7 +226,50 @@ function OrchestratorMessage({
               : "Working..."}
         </ChainOfThoughtHeader>
         <ChainOfThoughtContent>
-          {toolCalls.map((tc: any, i: number) => {
+          {groupToolCalls(toolCalls).map((item, _itemIdx) => {
+            if (item.kind === "ls-group") {
+              const isGroupActive =
+                isActive && item.endIndex === toolCalls.length - 1;
+              const groupLabel =
+                item.calls.length === 1
+                  ? (() => {
+                      const p = item.calls[0].args?.path;
+                      return typeof p === "string" && p
+                        ? `Listing ${p}`
+                        : "Listing directory";
+                    })()
+                  : `Listing ${item.calls.length} directories`;
+              return (
+                <ChainOfThoughtStep
+                  key={`ls-group-${item.startIndex}-${item.endIndex}`}
+                  icon={FolderIcon}
+                  label={groupLabel}
+                  status={isGroupActive ? "active" : "complete"}
+                >
+                  <div className="mt-1 flex flex-col gap-1.5">
+                    {item.calls.map((tc: any, j: number) => {
+                      const toolOutput = tc.id
+                        ? toolResultByCallId.get(tc.id)
+                        : undefined;
+                      return (
+                        <FilesystemToolArtifact
+                          key={tc.id ?? `ls-${item.startIndex}-${j}`}
+                          args={tc.args}
+                          defaultOpen={
+                            item.calls.length === 1 ||
+                            (isGroupActive && j === item.calls.length - 1)
+                          }
+                          output={toolOutput}
+                          toolName="ls"
+                        />
+                      );
+                    })}
+                  </div>
+                </ChainOfThoughtStep>
+              );
+            }
+
+            const { index: i, call: tc } = item;
             const toolName = tc.name ?? "tool";
             const display = getToolDisplay(toolName);
             const matchedSubagent = subagentByToolCallId.get(tc.id);

@@ -14,10 +14,68 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, FileIcon, FolderIcon } from "lucide-react";
 import type { BundledLanguage } from "shiki";
 
-type FilesystemToolName = "write_file" | "edit_file" | "read_file";
+type FilesystemToolName = "write_file" | "edit_file" | "read_file" | "ls";
+
+type LsEntry = { path: string; isDir: boolean; size?: number };
+
+type LsParseResult = {
+  entries: LsEntry[];
+  error?: string;
+  empty?: boolean;
+  truncated?: boolean;
+};
+
+function parseLsOutput(output: string | undefined): LsParseResult | null {
+  if (!output) return null;
+  const trimmed = output.trim();
+  if (!trimmed) return null;
+
+  if (/^Error listing files:/i.test(trimmed)) {
+    return {
+      entries: [],
+      error: trimmed.replace(/^Error listing files:\s*/i, ""),
+    };
+  }
+  if (/^No files found in/i.test(trimmed)) {
+    return { entries: [], empty: true };
+  }
+
+  const entries: LsEntry[] = [];
+  let truncated = false;
+  for (const raw of trimmed.split("\n")) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (/truncat/i.test(line) && !/\(\d+ bytes\)/.test(line)) {
+      truncated = true;
+      continue;
+    }
+    const dirMatch = line.match(/^(.+?)\s*\(directory\)\s*$/);
+    if (dirMatch) {
+      entries.push({ path: dirMatch[1], isDir: true });
+      continue;
+    }
+    const fileMatch = line.match(/^(.+?)\s*\((\d+)\s*bytes\)\s*$/);
+    if (fileMatch) {
+      entries.push({
+        path: fileMatch[1],
+        isDir: false,
+        size: Number(fileMatch[2]),
+      });
+      continue;
+    }
+    entries.push({ path: line, isDir: false });
+  }
+  return { entries, truncated };
+}
+
+function basename(p: string): string {
+  const cleaned = p.replace(/\/+$/, "");
+  const idx = cleaned.lastIndexOf("/");
+  return idx >= 0 ? cleaned.slice(idx + 1) || cleaned : cleaned;
+}
 
 function parseJson(value: string): unknown | null {
   try {
@@ -149,6 +207,7 @@ function inferLanguage(path: string | undefined, toolName: FilesystemToolName): 
 function toolTitle(toolName: FilesystemToolName): string {
   if (toolName === "write_file") return "Write file";
   if (toolName === "edit_file") return "Edit file";
+  if (toolName === "ls") return "List directory";
   return "Read file";
 }
 
@@ -166,9 +225,12 @@ export function FilesystemToolArtifact({
   output?: string;
   defaultOpen?: boolean;
 }) {
-  const path = getPath(args, output);
-  const outputSize = getOutputSize(output);
+  const rawPath = getPath(args, output);
+  const path = toolName === "ls" ? rawPath ?? "/" : rawPath;
+  const outputSize = toolName === "ls" ? undefined : getOutputSize(output);
   const sizeText = formatBytes(outputSize);
+
+  const lsData = toolName === "ls" ? parseLsOutput(output) : null;
 
   const writeOrEditPreview = getWriteOrEditPreview(toolName, args);
   const readPreview = toolName === "read_file" ? getReadPreview(output) : null;
@@ -178,16 +240,32 @@ export function FilesystemToolArtifact({
       : null;
   const previewLanguage = inferLanguage(path, toolName);
 
-  const fallbackParsed = output ? parseJson(output) : null;
+  const fallbackParsed =
+    toolName === "ls" || !output ? null : parseJson(output);
   const hasFallbackJson =
     !writeOrEditPreview &&
     !readPreview &&
     fallbackParsed !== null &&
     typeof fallbackParsed === "object";
 
-  if (!path && !writeOrEditPreview && !readPreview && !hasFallbackJson) {
+  if (
+    !path &&
+    !writeOrEditPreview &&
+    !readPreview &&
+    !hasFallbackJson &&
+    !lsData
+  ) {
     return null;
   }
+
+  const lsDescription =
+    toolName === "ls" && lsData
+      ? lsData.error
+        ? lsData.error
+        : lsData.empty
+          ? "empty"
+          : `${lsData.entries.length} ${lsData.entries.length === 1 ? "entry" : "entries"}${lsData.truncated ? " (truncated)" : ""}`
+      : null;
 
   return (
     <Collapsible defaultOpen={defaultOpen}>
@@ -197,7 +275,8 @@ export function FilesystemToolArtifact({
             <div className="min-w-0">
               <ArtifactTitle>{toolTitle(toolName)}</ArtifactTitle>
               <ArtifactDescription className="truncate text-xs">
-                {[path, sizeText].filter(Boolean).join(" • ") || "Filesystem operation"}
+                {[path, sizeText, lsDescription].filter(Boolean).join(" • ") ||
+                  "Filesystem operation"}
               </ArtifactDescription>
             </div>
             <ChevronDown
@@ -209,7 +288,50 @@ export function FilesystemToolArtifact({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <ArtifactContent className="space-y-2 px-3 pb-3 pt-1 border-t border-border/50">
-            {toolName !== "read_file" && writeOrEditPreview ? (
+            {toolName === "ls" && lsData ? (
+              lsData.error ? (
+                <div className="text-xs text-destructive font-mono">
+                  {lsData.error}
+                </div>
+              ) : lsData.empty || lsData.entries.length === 0 ? (
+                <div className="text-xs text-muted-foreground italic">
+                  No entries.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-0.5 font-mono text-xs">
+                  {lsData.entries.map((entry, i) => {
+                    const name = basename(entry.path);
+                    return (
+                      <div
+                        key={`${entry.path}-${i}`}
+                        className="flex items-center gap-2 min-w-0"
+                      >
+                        {entry.isDir ? (
+                          <FolderIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                        ) : (
+                          <FileIcon className="size-3.5 shrink-0 text-muted-foreground/60" />
+                        )}
+                        <span className="truncate">
+                          {name}
+                          {entry.isDir ? "/" : ""}
+                        </span>
+                        {typeof entry.size === "number" && !entry.isDir ? (
+                          <span className="ml-auto shrink-0 text-muted-foreground/60">
+                            {formatBytes(entry.size)}
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                  {lsData.truncated ? (
+                    <div className="text-muted-foreground/60 italic pt-1">
+                      … output truncated
+                    </div>
+                  ) : null}
+                </div>
+              )
+            ) : null}
+            {toolName !== "read_file" && toolName !== "ls" && writeOrEditPreview ? (
               <CodeBlock
                 className={WRAPPED_CODEBLOCK_CLASS}
                 code={writeOrEditPreview}
