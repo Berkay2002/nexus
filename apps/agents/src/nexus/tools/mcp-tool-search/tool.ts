@@ -84,9 +84,12 @@ const EXCLUDED_DIRS = new Set(["_client", "node_modules"]);
 
 function buildCatalog(sourceRoot: string): CatalogEntry[] {
   const entries: CatalogEntry[] = [];
-  let rootEntries: ReturnType<typeof readdirSync>;
+  let rootEntries;
   try {
-    rootEntries = readdirSync(sourceRoot, { withFileTypes: true });
+    rootEntries = readdirSync(sourceRoot, {
+      withFileTypes: true,
+      encoding: "utf8",
+    });
   } catch {
     return [];
   }
@@ -142,7 +145,9 @@ function scoreEntry(entry: CatalogEntry, query: string): number {
 }
 
 function structuredEmptyResult(query: string, catalog: CatalogEntry[]): string {
-  const namespaces = [...new Set(catalog.map((e) => e.namespace))].sort();
+  const namespaces = Array.from(
+    new Set(catalog.map((e) => e.namespace)),
+  ).sort();
   const note =
     namespaces.length === 0
       ? `No MCP tools matched '${query}' — the catalog is empty. The sandbox bootstrap may not have populated wrapper files yet.`

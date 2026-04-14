@@ -98,15 +98,19 @@ describe("mcp_tool_search", () => {
   });
 
   it("readyChecker false → short-circuit with catalog-unavailable error, fs untouched", async () => {
-    const tool = makeTool({ ready: false });
-    // Spy on fs.readdir BEFORE invoking — if the short-circuit works, it must not fire.
-    const fs = await import("fs");
-    const spy = vi.spyOn(fs, "readdirSync");
+    // Point sourceRoot at a path that does NOT exist. If the short-circuit
+    // works, the readyChecker false branch returns the unavailable error
+    // BEFORE any fs access. If it were to walk fs, buildCatalog would
+    // swallow the ENOENT and return the structuredEmptyResult instead — a
+    // different, detectable error shape. The error message itself proves
+    // the code path.
+    const tool = createMcpToolSearch({
+      sourceRoot: "/this/path/definitely/does/not/exist",
+      readyChecker: () => false,
+    });
     const result = await invoke(tool, { query: "navigate" });
-
     expect(result.error).toMatch(/MCP tool catalog is unavailable/);
-    // Critical: when short-circuiting the tool must not walk the filesystem.
-    expect(spy).not.toHaveBeenCalled();
+    expect(result.note).toBeUndefined();
   });
 
   it("result paths always use the sandbox-side /home/gem/nexus-servers/ root", async () => {
