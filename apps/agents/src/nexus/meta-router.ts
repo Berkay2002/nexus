@@ -51,6 +51,56 @@ function extractText(value: unknown): string {
   return "";
 }
 
+/**
+ * Pull the model's actual chain-of-thought from the response when available.
+ * This is best-effort and provider-specific — there is no portable shape:
+ *   - Z.AI / GLM:   `additional_kwargs.reasoning_content` (string)
+ *   - OpenAI-ish:   `additional_kwargs.reasoning` (string)
+ *   - Anthropic:    `content` array with blocks of `type: "thinking"`,
+ *                   `thinking: string`
+ *   - Google / OpenAI o-series: thinking is hidden, returns undefined
+ * Callers must tolerate `undefined` and fall back to the recovery boilerplate.
+ */
+function extractReasoningContent(message: unknown): string | undefined {
+  if (!message || typeof message !== "object") return undefined;
+
+  const additional = (message as { additional_kwargs?: unknown })
+    .additional_kwargs;
+  if (additional && typeof additional === "object") {
+    const candidates = [
+      (additional as Record<string, unknown>).reasoning_content,
+      (additional as Record<string, unknown>).reasoning,
+    ];
+    for (const candidate of candidates) {
+      if (typeof candidate === "string" && candidate.trim().length > 0) {
+        return candidate;
+      }
+    }
+  }
+
+  const content = (message as { content?: unknown }).content;
+  if (Array.isArray(content)) {
+    const thinkingParts: string[] = [];
+    for (const part of content) {
+      if (
+        part &&
+        typeof part === "object" &&
+        (part as { type?: unknown }).type === "thinking"
+      ) {
+        const text = (part as { thinking?: unknown }).thinking;
+        if (typeof text === "string" && text.trim().length > 0) {
+          thinkingParts.push(text);
+        }
+      }
+    }
+    if (thinkingParts.length > 0) {
+      return thinkingParts.join("\n\n");
+    }
+  }
+
+  return undefined;
+}
+
 function parseComplexityLabel(text: string): ComplexityLabel {
   const normalized = text.trim().toLowerCase();
   if (/\btrivial\b/.test(normalized)) return "trivial";
@@ -94,21 +144,25 @@ function tryParseJsonObject(text: string): Record<string, unknown> | null {
   return null;
 }
 
-function recoverRouterOutput(rawText: string): RouterOutput {
+function recoverRouterOutput(
+  rawText: string,
+  reasoningContent?: string,
+): RouterOutput {
   const parsed = tryParseJsonObject(rawText);
   if (parsed) {
     const complexity = coerceComplexity(
       parsed.complexity ?? parsed.classification,
     );
-    const reasoningRaw = parsed.reasoning;
+    const parsedReasoning = parsed.reasoning;
     const reasoning =
-      typeof reasoningRaw === "string" && reasoningRaw.trim().length > 0
-        ? reasoningRaw
+      reasoningContent ??
+      (typeof parsedReasoning === "string" && parsedReasoning.trim().length > 0
+        ? parsedReasoning
         : `Recovered from non-JSON classifier shape; normalized ${
             parsed.classification !== undefined && parsed.complexity === undefined
               ? "classification"
               : "complexity"
-          } to ${complexity}.`;
+          } to ${complexity}.`);
     return { complexity, reasoning };
   }
 
@@ -116,9 +170,10 @@ function recoverRouterOutput(rawText: string): RouterOutput {
   return {
     complexity,
     reasoning:
-      complexity === "trivial"
+      reasoningContent ??
+      (complexity === "trivial"
         ? "Recovered from non-JSON classifier output; interpreted label as trivial."
-        : "Recovered from non-JSON classifier output; interpreted label as default.",
+        : "Recovered from non-JSON classifier output; interpreted label as default."),
   };
 }
 
@@ -213,7 +268,8 @@ export async function metaRouter(
     );
 
     const rawText = extractText(rawResult.content);
-    result = recoverRouterOutput(rawText);
+    const reasoningContent = extractReasoningContent(rawResult);
+    result = recoverRouterOutput(rawText, reasoningContent);
   }
 
   return {

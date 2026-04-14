@@ -226,10 +226,31 @@ const SYNTHESIS_MESSAGE = {
 
 // ─── Mock Router Result ──────────────────────────────────────────────
 
+// Mocked to look like real GLM `additional_kwargs.reasoning_content` —
+// numbered analysis steps, bullets, bold callouts. Lets us verify the
+// routing card body renders multi-line markdown cleanly.
 const MOCK_ROUTER_RESULT = {
   complexity: "default" as const,
-  reasoning:
-    "Multi-step research request that needs the orchestrator to plan, delegate to research/code/creative sub-agents, and synthesize a final deliverable.",
+  reasoning: `1. **Analyze the user's prompt:** "Research AI in K-12 education — adoption rates, top platforms, trends. Create a comparison table and a visualization of adoption growth. Write an executive summary."
+
+2. **Evaluate Intent Complexity:**
+   - The prompt asks to "Research…" (implies web search / tool usage).
+   - It asks to "Create a comparison table" (structured data extraction).
+   - It asks to "Create a visualization of adoption growth" (image generation).
+   - It asks to "Write an executive summary" (long-form synthesis).
+   - These are distinct steps that benefit from delegation: research → code → creative → write.
+
+3. **Evaluate Implied Scope:**
+   - Needs web access (research sub-agent).
+   - Needs code/tabular work (code sub-agent).
+   - Needs visualization (creative sub-agent).
+   - This clearly fits the "needs sub-agents and multi-step planning" category.
+
+4. **Compare against Labels:**
+   - **trivial**: One-shot, no planning, no delegation. *Definitely not.*
+   - **default**: Needs orchestrator, planning, tools, or delegation. *Yes.*
+
+**Conclusion:** The label is \`default\`.`,
 };
 
 // Alternate body to demo the recovery-message variant — swap into the
