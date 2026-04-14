@@ -6,6 +6,50 @@ project uses [semver](https://semver.org/) while pre-1.0.
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-04-14 — Thread-scoped workspaces & UI polish
+
+Workspace templating resolves per-thread across the orchestrator stack, with
+message feed and workspace outputs panel refinements.
+
+### Added
+- Thread-scoped templating for the orchestrator prompt, skills, and sub-agent
+  workspace paths
+- Format-on-edit `PostToolUse` hook and `.claude/rules/` workspace conventions
+- Workspace outputs panel `FileTree` rendering
+- `ls` filesystem-tool output parsing and grouping
+
+### Changed
+- `MessageFeed` renders multiple AI messages per orchestrator turn with manual
+  open state and cleaner synthesis handling
+- Model-context middleware isolates per-agent state to prevent cross-agent
+  leaks
+- Rendered tool paths hide the workspace-root prefix in the web UI
+- Removed the unused `FolderActions` component from the workspace outputs
+  panel
+
+## [0.11.0] — 2026-04-14 — Meta-router visualization & OpenAI Responses API
+
+Routing card in the web UI, OpenAI Responses API support in the meta-router,
+and provider identity across sub-agents.
+
+### Added
+- Routing card UI that visualizes the meta-router classification phase and
+  surfaces the real reasoning trace
+- Provider logos and identity badge components for model attribution
+- `PromptBar` component replacing `NexusPrompt` with richer input handling
+- Migration guide for the OpenAI Responses API, streaming responses, and
+  structured model outputs
+
+### Changed
+- Meta-router supports the OpenAI Responses API with reasoning extraction and
+  fallback-JSON output normalization
+- Meta-router drives model selection and identity handling for sub-agents
+
+### Fixed
+- Classifier chat-model no longer leaks into the user-facing messages stream
+- Routing card stops auto-collapsing before the reasoning trace arrives
+- Meta-router handles non-`Error` parsing failures without crashing
+
 ## [0.10.0] — 2026-04-14 — MCP filesystem-of-tools pattern
 
 Cold-layer MCP wrapper catalog seeded into the sandbox at boot, with a hot-layer
@@ -200,7 +244,9 @@ stack, with build and test plumbing in place.
 - Upgraded LangChain ecosystem to latest majors
 - Upgraded zod to v4 for LangChain JS compatibility
 
-[Unreleased]: https://github.com/Berkay2002/nexus/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/Berkay2002/nexus/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/Berkay2002/nexus/compare/v0.11.0...v0.12.0
+[0.11.0]: https://github.com/Berkay2002/nexus/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/Berkay2002/nexus/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/Berkay2002/nexus/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/Berkay2002/nexus/compare/v0.7.0...v0.8.0
