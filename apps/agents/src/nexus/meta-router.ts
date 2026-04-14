@@ -245,19 +245,23 @@ function recoverRouterOutput(
 ): RouterOutput {
   const parsed = tryParseJsonObject(rawText);
   if (parsed) {
+    const normalizedSource =
+      parsed.complexity !== undefined
+        ? "complexity"
+        : parsed.classification !== undefined
+          ? "classification"
+          : parsed.label !== undefined
+            ? "label"
+            : "complexity";
     const complexity = coerceComplexity(
-      parsed.complexity ?? parsed.classification,
+      parsed.complexity ?? parsed.classification ?? parsed.label,
     );
     const parsedReasoning = parsed.reasoning;
     const reasoning =
       reasoningContent ??
       (typeof parsedReasoning === "string" && parsedReasoning.trim().length > 0
         ? parsedReasoning
-        : `Recovered from non-JSON classifier shape; normalized ${
-            parsed.classification !== undefined && parsed.complexity === undefined
-              ? "classification"
-              : "complexity"
-          } to ${complexity}.`);
+        : `Recovered from non-JSON classifier shape; normalized ${normalizedSource} to ${complexity}.`);
     return { complexity, reasoning };
   }
 

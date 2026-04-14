@@ -126,6 +126,42 @@ describe("metaRouter", () => {
     );
   });
 
+  it("normalizes label-shaped JSON from fallback output", async () => {
+    const parsingError = new Error(
+      `Failed to parse. Text: "\`\`\`json\n{\n  \"label\": \"default\"\n}\n\`\`\`". Error: schema mismatch`,
+    );
+
+    const structuredInvoker = {
+      invoke: vi.fn().mockRejectedValue(parsingError),
+    };
+
+    const primaryModel = {
+      withStructuredOutput: vi.fn().mockReturnValue(structuredInvoker),
+      invoke: vi
+        .fn()
+        .mockResolvedValue({
+          content: [{ type: "text", text: '```json\n{\n  "label": "default"\n}\n```' }],
+        }),
+    };
+
+    vi.spyOn(modelRegistry, "resolveTier").mockImplementation(
+      ((tier: string) =>
+        tier === "classifier" ? (primaryModel as any) : null) as any,
+    );
+    vi.spyOn(modelRegistry, "buildTierFallbacks").mockReturnValue([]);
+
+    const state = {
+      messages: [new HumanMessage("Plan this project")],
+      routerResult: null,
+    };
+
+    const result = await metaRouter(state as any);
+
+    expect(result.routerResult).not.toBeNull();
+    expect(result.routerResult!.complexity).toBe("default");
+    expect(result.routerResult!.reasoning).toContain("normalized label");
+  });
+
   it("recovers when parsing failure is thrown as a non-Error object", async () => {
     const parsingFailureObject = {
       message: `Failed to parse. Text: "\`\`\`json\n{\n  \"classification\": \"default\"\n}\n\`\`\`". Error: [{\"code\":\"invalid_value\",\"path\":[\"complexity\"]}]`,
