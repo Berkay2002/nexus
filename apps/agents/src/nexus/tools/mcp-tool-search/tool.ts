@@ -7,8 +7,6 @@ import { isMcpFilesystemReady } from "../../backend/sandbox-bootstrap.js";
 import { MCP_TOOL_SEARCH_NAME, MCP_TOOL_SEARCH_DESCRIPTION } from "./prompt.js";
 
 const SANDBOX_ROOT = "/home/gem/nexus-servers";
-const NAMESPACES = ["chrome_devtools", "browser", "sandbox"] as const;
-type Namespace = (typeof NAMESPACES)[number];
 
 export const mcpToolSearchSchema = z.object({
   query: z
@@ -16,10 +14,10 @@ export const mcpToolSearchSchema = z.object({
     .min(1)
     .describe("Keyword or phrase describing the capability you need."),
   namespace: z
-    .enum(NAMESPACES)
+    .string()
     .optional()
     .describe(
-      "Restrict the search to one MCP namespace. Useful when you already know you want a browser or chrome_devtools tool.",
+      "Restrict the search to one MCP namespace directory (e.g. 'browser', 'chrome_devtools'). Unknown namespaces simply return zero matches.",
     ),
   limit: z
     .number()
@@ -37,7 +35,7 @@ interface CatalogEntry {
   path: string; // sandbox-side path — what the agent uses
   name: string; // MCP tool name (e.g. "chrome_devtools_navigate")
   summary: string; // first sentence of the JSDoc leading block
-  namespace: Namespace;
+  namespace: string;
   haystack: string; // lowercased name + summary + prop names for ranking
 }
 
@@ -82,9 +80,24 @@ function collectPropNames(body: string): string[] {
   return names;
 }
 
+const EXCLUDED_DIRS = new Set(["_client", "node_modules"]);
+
 function buildCatalog(sourceRoot: string): CatalogEntry[] {
   const entries: CatalogEntry[] = [];
-  for (const namespace of NAMESPACES) {
+  let rootEntries: ReturnType<typeof readdirSync>;
+  try {
+    rootEntries = readdirSync(sourceRoot, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const namespaceDirs = rootEntries.filter(
+    (d) =>
+      d.isDirectory() &&
+      !EXCLUDED_DIRS.has(d.name) &&
+      !d.name.startsWith("."),
+  );
+  for (const nsEntry of namespaceDirs) {
+    const namespace = nsEntry.name;
     const nsDir = resolve(sourceRoot, namespace);
     let files: string[];
     try {
@@ -128,14 +141,13 @@ function scoreEntry(entry: CatalogEntry, query: string): number {
   return score;
 }
 
-function structuredEmptyResult(query: string): string {
-  return JSON.stringify({
-    results: [],
-    note:
-      `No MCP tools matched '${query}'. The catalog covers browser automation ` +
-      `(chrome_devtools/, browser/) and sandbox introspection (sandbox/). ` +
-      `See the using-mcp-tools skill for examples of the available categories.`,
-  });
+function structuredEmptyResult(query: string, catalog: CatalogEntry[]): string {
+  const namespaces = [...new Set(catalog.map((e) => e.namespace))].sort();
+  const note =
+    namespaces.length === 0
+      ? `No MCP tools matched '${query}' — the catalog is empty. The sandbox bootstrap may not have populated wrapper files yet.`
+      : `No MCP tools matched '${query}'. The catalog currently covers these namespaces: ${namespaces.join(", ")}. See the using-mcp-tools skill for usage patterns.`;
+  return JSON.stringify({ results: [], note });
 }
 
 function structuredUnavailableResult(): string {
@@ -176,7 +188,7 @@ export function createMcpToolSearch(opts: CreateOptions = {}) {
           summary: entry.summary,
         }));
       if (scored.length === 0) {
-        return structuredEmptyResult(input.query);
+        return structuredEmptyResult(input.query, catalog);
       }
       return JSON.stringify({ results: scored });
     },

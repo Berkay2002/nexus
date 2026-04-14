@@ -1,4 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs";
+import { tmpdir } from "os";
 import { resolve } from "path";
 import { fileURLToPath } from "url";
 import { createMcpToolSearch } from "../tools/mcp-tool-search/tool.js";
@@ -116,5 +118,59 @@ describe("mcp_tool_search", () => {
       expect(entry.path).not.toContain("sandbox-files");
       expect(entry.path).not.toContain("fixtures");
     }
+  });
+
+  it("empty-result note lists dynamically discovered namespaces", async () => {
+    const tool = makeTool();
+    const result = await invoke(tool, { query: "xyzzy-definitely-no-match" });
+    expect(result.results).toEqual([]);
+    const note = result.note as string;
+    // The fixture has three namespace subdirs — all must appear in the note.
+    expect(note).toContain("chrome_devtools");
+    expect(note).toContain("browser");
+    expect(note).toContain("sandbox");
+  });
+
+  describe("walks newly-added namespace subdir without code changes", () => {
+    let tmpDir: string;
+
+    afterAll(() => {
+      rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it("finds tools in a new namespace created at runtime", async () => {
+      tmpDir = mkdtempSync(resolve(tmpdir(), "mcp-tool-search-test-"));
+      // Create a fake new namespace: filesystem/readFile.js
+      const nsDir = resolve(tmpDir, "filesystem");
+      mkdirSync(nsDir);
+      writeFileSync(
+        resolve(nsDir, "readFile.js"),
+        `
+/**
+ * Reads the contents of a file from the sandbox filesystem.
+ * @property {string} path Path to the file
+ */
+export async function filesystem_readFile(params) {
+  return callMCPTool("filesystem_read_file", params);
+}
+`.trim(),
+      );
+
+      const tool = createMcpToolSearch({
+        sourceRoot: tmpDir,
+        readyChecker: () => true,
+      });
+      const result = await invoke(tool, { query: "read_file" });
+      expect(result.results).toBeInstanceOf(Array);
+      const names = (result.results as Array<{ name: string }>).map(
+        (r) => r.name,
+      );
+      expect(names).toContain("filesystem_read_file");
+      // Sandbox path should reflect the new namespace
+      const paths = (result.results as Array<{ path: string }>).map(
+        (r) => r.path,
+      );
+      expect(paths[0]).toMatch(/\/home\/gem\/nexus-servers\/filesystem\//);
+    });
   });
 });
