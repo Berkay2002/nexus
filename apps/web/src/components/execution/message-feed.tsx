@@ -1,7 +1,7 @@
 // apps/web/src/components/execution/message-feed.tsx
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { SubagentCard } from "./subagent-card";
 import { FilesystemToolArtifact } from "./filesystem-tool-artifact";
 import { SynthesisIndicator } from "./synthesis-indicator";
@@ -169,28 +169,39 @@ function OrchestratorTurn({
   isLoading,
   toolResultByCallId,
   selectedModelRefsByRole,
+  open,
+  onOpenChange,
 }: {
   messages: any[];
   subagentsByMessageId: Map<string, any[]>;
   isLoading: boolean;
   toolResultByCallId: Map<string, string>;
   selectedModelRefsByRole?: SelectedModelRefsByRole;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   if (messages.length === 0) return null;
 
   // Peel off the final synthesis message so collapsing the CoT doesn't hide
   // the orchestrator's answer. A message qualifies as "final synthesis" if it
   // is the last AI message in the turn, carries text content, and has no
-  // tool calls of its own.
+  // tool calls of its own. To avoid mid-stream flicker (a message briefly
+  // looking text-only before tool_calls arrive), we ONLY peel when there is
+  // an earlier tool call in the turn OR the turn is no longer loading.
   const lastMessage = messages[messages.length - 1];
   const lastMessageToolCalls = lastMessage ? getToolCalls(lastMessage) : [];
   const lastMessageText = lastMessage
     ? getContentString(lastMessage.content).trim()
     : "";
-  const hasFinalSynthesis =
+  const hasEarlierToolCalls = messages
+    .slice(0, -1)
+    .some((m) => getToolCalls(m).length > 0);
+  const trailingLooksLikeSynthesis =
     messages.length >= 1 &&
     lastMessageToolCalls.length === 0 &&
     lastMessageText.length > 0;
+  const hasFinalSynthesis =
+    trailingLooksLikeSynthesis && (hasEarlierToolCalls || !isLoading);
   const thinkingMessages = hasFinalSynthesis
     ? messages.slice(0, -1)
     : messages;
@@ -237,7 +248,11 @@ function OrchestratorTurn({
     ? `Running ${totalToolCalls} tasks`
     : firstToolName
       ? getToolDisplay(firstToolName).label
-      : "Working...";
+      : totalToolCalls === 0 && hasAnyThinkingText
+        ? isLoading
+          ? "Thinking"
+          : "Reasoning"
+        : "Working...";
 
   // Track unmatched subagents across all messages in the turn (fallback rail).
   const matchedToolCallIds = new Set<string>();
@@ -245,7 +260,7 @@ function OrchestratorTurn({
   return (
     <div className="flex flex-col gap-4">
       {(hasAnyToolCalls || hasAnyThinkingText) && (
-      <ChainOfThought defaultOpen={true}>
+      <ChainOfThought open={open} onOpenChange={onOpenChange}>
       <ChainOfThoughtHeader>{headerLabel}</ChainOfThoughtHeader>
       <ChainOfThoughtContent>
         {thinkingMessages.map((message, mIdx) => {
@@ -491,6 +506,10 @@ function OrchestratorTurn({
         <div className="text-sm">
           <MarkdownText>{lastMessageText}</MarkdownText>
         </div>
+      ) : (hasAnyToolCalls || hasAnyThinkingText) && !isLoading ? (
+        <div className="text-xs text-muted-foreground/60 italic">
+          No final answer.
+        </div>
       ) : null}
     </div>
   );
@@ -513,6 +532,13 @@ export function MessageFeed({
     allSubagents.length > 0 &&
     allSubagents.every((s) => isSubagentTerminalStatus(s.status));
   const showSynthesis = allSubagentsDone && isLoading;
+
+  // Manual per-turn open state keyed by stable turn id. An entry exists only
+  // if the user has manually toggled that turn; otherwise the default (derived
+  // from isLastTurn / synthesis presence) wins.
+  const [manualOpenState, setManualOpenState] = useState<Map<string, boolean>>(
+    () => new Map(),
+  );
 
   const filteredMessages = messages.filter(
     (m) => !m.id?.startsWith(DO_NOT_RENDER_ID_PREFIX),
@@ -545,6 +571,39 @@ export function MessageFeed({
     <div className="flex flex-col gap-5 py-6 px-4 w-full max-w-3xl mx-auto">
       {turns.map((turn, tIdx) => {
         const isLastTurn = tIdx === turns.length - 1;
+        const turnIsLoading = isLoading && isLastTurn;
+
+        // Stable turn id: human message id when present, else an index-based
+        // fallback for the rare assistant-initiated first turn.
+        const turnId: string = turn.human?.id ?? `turn-${tIdx}`;
+
+        // Mirror the peel logic used inside OrchestratorTurn so we can decide
+        // whether the last turn should auto-collapse after synthesis arrives.
+        const lastAi = turn.aiMessages[turn.aiMessages.length - 1];
+        const lastAiToolCalls = lastAi ? getToolCalls(lastAi) : [];
+        const lastAiText = lastAi
+          ? getContentString(lastAi.content).trim()
+          : "";
+        const earlierHasToolCalls = turn.aiMessages
+          .slice(0, -1)
+          .some((m) => getToolCalls(m).length > 0);
+        const turnHasFinalSynthesis =
+          turn.aiMessages.length >= 1 &&
+          lastAiToolCalls.length === 0 &&
+          lastAiText.length > 0 &&
+          (earlierHasToolCalls || !turnIsLoading);
+
+        // Default-open logic:
+        // - Past turns: collapsed.
+        // - Last turn: open while loading; collapsed once a synthesis is
+        //   available (so the answer is visible, thinking hidden).
+        const defaultOpenForTurn = isLastTurn
+          ? !turnHasFinalSynthesis || turnIsLoading
+          : false;
+
+        // Manual state wins when present.
+        const manual = manualOpenState.get(turnId);
+        const resolvedOpen = manual !== undefined ? manual : defaultOpenForTurn;
 
         // Build per-message subagent map for this turn, with a fallback that
         // attaches the global subagent list to the latest `task` call when
@@ -582,9 +641,17 @@ export function MessageFeed({
               <OrchestratorTurn
                 messages={turn.aiMessages}
                 subagentsByMessageId={subagentsByMessageId}
-                isLoading={isLoading && isLastTurn}
+                isLoading={turnIsLoading}
                 toolResultByCallId={toolResultByCallId}
                 selectedModelRefsByRole={selectedModelRefsByRole}
+                open={resolvedOpen}
+                onOpenChange={(o) =>
+                  setManualOpenState((prev) => {
+                    const next = new Map(prev);
+                    next.set(turnId, o);
+                    return next;
+                  })
+                }
               />
             ) : null}
           </Fragment>
