@@ -42,7 +42,7 @@ describe.skipIf(!hasFlag)("call-mcp-tool integration", () => {
     );
     const script = `
       import { sandboxConvertToMarkdown } from "/home/gem/nexus-servers/sandbox/convert_to_markdown.js";
-      const r = await sandboxConvertToMarkdown({ path: "/home/gem/workspace/it/hi.html" });
+      const r = await sandboxConvertToMarkdown({ uri: "file:///home/gem/workspace/it/hi.html" });
       const text = r.content?.[0]?.text ?? r.structuredContent?.markdown ?? "";
       console.log(text);
     `;
@@ -56,7 +56,7 @@ describe.skipIf(!hasFlag)("call-mcp-tool integration", () => {
     const script = `
       import { sandboxConvertToMarkdown } from "/home/gem/nexus-servers/sandbox/convert_to_markdown.js";
       try {
-        await sandboxConvertToMarkdown({ path: "/tmp/definitely-does-not-exist.html" });
+        await sandboxConvertToMarkdown({ uri: "file:///tmp/definitely-does-not-exist.html" });
         console.log("UNEXPECTED_SUCCESS");
       } catch (err) {
         console.error("CAUGHT:" + err.message);
