@@ -7,7 +7,7 @@ import { callMCPTool } from "../_client/callMCPTool.js";
  * @typedef {object} ChromeDevtoolsListNetworkRequestsInput
  * @property {number} [pageSize] Maximum number of requests to return. When omitted, returns all requests.
  * @property {number} [pageIdx] Page number to return (0-based). When omitted, returns the first page.
- * @property {"document"|"stylesheet"|"image"|"media"|"font"|"script"|"texttrack"|"xhr"|"fetch"|"prefetch"|"eventsource"|"websocket"|"manifest"|"signedexchange"|"ping"|"cspviolationreport"|"preflight"|"fedcm"|"other"[]} [resourceTypes] Filter requests to only return requests of the specified resource types. When omitted or empty, returns all requests.
+ * @property {("document"|"stylesheet"|"image"|"media"|"font"|"script"|"texttrack"|"xhr"|"fetch"|"prefetch"|"eventsource"|"websocket"|"manifest"|"signedexchange"|"ping"|"cspviolationreport"|"preflight"|"fedcm"|"other")[]} [resourceTypes] Filter requests to only return requests of the specified resource types. When omitted or empty, returns all requests.
  * @property {boolean} [includePreservedRequests] Set to true to return the preserved requests over the last 3 navigations.
  */
 

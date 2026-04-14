@@ -138,8 +138,13 @@ function propertyTypeString(prop: McpToolSchemaProperty): string {
       return "boolean";
     case "object":
       return "object";
-    case "array":
-      return prop.items ? `${propertyTypeString(prop.items)}[]` : "unknown[]";
+    case "array": {
+      if (!prop.items) return "unknown[]";
+      const inner = propertyTypeString(prop.items);
+      // Wrap unions in parens so "a"|"b"[] becomes ("a"|"b")[] — otherwise
+      // JSDoc parses the [] as belonging only to the last alternative.
+      return inner.includes("|") ? `(${inner})[]` : `${inner}[]`;
+    }
     default:
       return "unknown";
   }

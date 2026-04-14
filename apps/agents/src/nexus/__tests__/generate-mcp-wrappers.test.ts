@@ -95,6 +95,36 @@ describe("generate-mcp-wrappers", () => {
     expect(body).toContain('import { callMCPTool } from "../_client/callMCPTool.js"');
   });
 
+  it("wraps array-of-enum types in parens so the [] binds correctly", () => {
+    const toolWithArrayOfEnum = {
+      name: "chrome_devtools_list_network_requests",
+      description: "Lists network requests, optionally filtered by resource type.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          resourceTypes: {
+            type: "array",
+            description: "Filter by these resource kinds.",
+            items: {
+              type: "string",
+              enum: ["document", "script", "image", "other"],
+            },
+          },
+        },
+      },
+    };
+    generateWrappers({ tools: [toolWithArrayOfEnum], outputRoot });
+    const body = readFileSync(
+      join(outputRoot, "chrome_devtools/list_network_requests.js"),
+      "utf-8",
+    );
+    expect(body).toContain(
+      '@property {("document"|"script"|"image"|"other")[]} [resourceTypes]',
+    );
+    // The unwrapped form would be ambiguous JSDoc — make sure it's NOT emitted.
+    expect(body).not.toContain('"document"|"script"|"image"|"other"[]');
+  });
+
   it("throws with a useful message when it encounters an unsupported schema", () => {
     expect(() =>
       generateWrappers({ tools: [badTool], outputRoot }),
