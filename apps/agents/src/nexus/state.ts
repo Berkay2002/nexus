@@ -12,6 +12,22 @@ export interface RouterResult {
   complexity: "trivial" | "default";
   /** Brief reasoning for the classification */
   reasoning: string;
+  /**
+   * Concrete model reference chosen for the orchestrator (e.g. "zai:glm-4.7").
+   * Optional for backwards compatibility with earlier router payloads.
+   */
+  selectedModel?: string;
+  /**
+   * Backend-selected concrete model refs by role (e.g. "research" ->
+   * "openai:gpt-5.4"). Used by the frontend to render accurate per-subagent
+   * badges without guessing from local env.
+   */
+  selectedModels?: Partial<
+    Record<
+      "orchestrator" | "research" | "code" | "creative" | "general-purpose",
+      string
+    >
+  >;
 }
 
 /**

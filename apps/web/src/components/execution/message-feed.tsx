@@ -124,12 +124,19 @@ function OrchestratorMessage({
   isLastMessage,
   isLoading,
   toolResultByCallId,
+  selectedModelRefsByRole,
 }: {
   message: any;
   subagents: any[];
   isLastMessage: boolean;
   isLoading: boolean;
   toolResultByCallId: Map<string, string>;
+  selectedModelRefsByRole?: Partial<
+    Record<
+      "orchestrator" | "research" | "code" | "creative" | "general-purpose",
+      string
+    >
+  >;
 }) {
   const content = getContentString(message.content);
   const toolCalls: any[] =
@@ -210,6 +217,7 @@ function OrchestratorMessage({
                   <div className="mt-1">
                     <SubagentCard
                       subagent={matchedSubagent}
+                      selectedModelRefsByRole={selectedModelRefsByRole}
                       defaultOpen={
                         normalizeSubagentStatus(matchedSubagent.status) === "running" ||
                         normalizeSubagentStatus(matchedSubagent.status) === "error" ||
@@ -333,6 +341,7 @@ function OrchestratorMessage({
                   <div className="mt-1">
                     <SubagentCard
                       subagent={sub}
+                      selectedModelRefsByRole={selectedModelRefsByRole}
                       defaultOpen={
                         normalizeSubagentStatus(sub.status) === "running" ||
                         normalizeSubagentStatus(sub.status) === "error" ||
@@ -380,6 +389,7 @@ export function MessageFeed({
   const showRoutingCard =
     routing !== undefined &&
     (routing.isClassifying || routing.result !== null);
+  const selectedModelRefsByRole = routing?.result?.selectedModels;
 
   return (
     <div className="flex flex-col gap-5 py-6 px-4 w-full max-w-3xl mx-auto">
@@ -428,6 +438,7 @@ export function MessageFeed({
             isLastMessage={index === filteredMessages.length - 1}
             isLoading={isLoading}
             toolResultByCallId={toolResultByCallId}
+            selectedModelRefsByRole={selectedModelRefsByRole}
           />
         );
       })}

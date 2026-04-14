@@ -8,15 +8,23 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Badge } from "@/components/ui/badge";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { cn } from "@/lib/utils";
+import { useRoutingModelIdentity } from "@/lib/subagent-utils";
+import { ModelIdentityBadge } from "./model-identity-badge";
 
 export type RoutingComplexity = "trivial" | "default";
 
 export type RoutingResult = {
   complexity: RoutingComplexity;
   reasoning: string;
+  selectedModel?: string;
+  selectedModels?: Partial<
+    Record<
+      "orchestrator" | "research" | "code" | "creative" | "general-purpose",
+      string
+    >
+  >;
 };
 
 export type RoutingState = {
@@ -81,6 +89,10 @@ export function RoutingCard({
   const tierLabel = result ? TIER_LABEL[result.complexity] : null;
   const tierTagline = result ? TIER_TAGLINE[result.complexity] : null;
   const tierDescription = result ? TIER_DESCRIPTION[result.complexity] : null;
+  const routingIdentity = useRoutingModelIdentity(
+    result?.complexity,
+    result?.selectedModel,
+  );
 
   return (
     <Collapsible
@@ -101,12 +113,12 @@ export function RoutingCard({
                   : "Routed"}
               </span>
               {tierLabel ? (
-                <Badge
-                  variant="secondary"
-                  className="h-4 shrink-0 px-1.5 text-[10px] font-medium uppercase tracking-wide"
-                >
-                  {tierLabel}
-                </Badge>
+                <ModelIdentityBadge
+                  provider={routingIdentity?.provider}
+                  modelLabel={routingIdentity?.modelLabel ?? "Auto model"}
+                  roleLabel={routingIdentity?.roleLabel ?? tierLabel}
+                  className="shrink-0"
+                />
               ) : null}
               {tierTagline ? (
                 <span className="hidden truncate text-xs text-muted-foreground/80 sm:inline">

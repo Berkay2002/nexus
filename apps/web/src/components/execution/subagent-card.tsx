@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import {
   Collapsible,
   CollapsibleContent,
@@ -10,10 +9,9 @@ import { cn } from "@/lib/utils";
 import {
   getAgentName,
   getElapsedTime,
-  getModelBadge,
   normalizeSubagentStatus,
   type SubagentStatus,
-  useSubagentModelLabels,
+  useSubagentModelIdentities,
 } from "@/lib/subagent-utils";
 import {
   ChevronDown,
@@ -34,6 +32,7 @@ import { MarkdownText } from "@/components/thread/markdown-text";
 import { ExecuteToolArtifact } from "./execute-tool-artifact";
 import { FilesystemToolArtifact } from "./filesystem-tool-artifact";
 import { GenerateImageArtifact } from "./generate-image-artifact";
+import { ModelIdentityBadge } from "./model-identity-badge";
 
 function getContentString(content: unknown): string {
   if (typeof content === "string") return content;
@@ -536,9 +535,16 @@ function StepsList({
 export function SubagentCard({
   subagent,
   defaultOpen = true,
+  selectedModelRefsByRole,
 }: {
   subagent: any;
   defaultOpen?: boolean;
+  selectedModelRefsByRole?: Partial<
+    Record<
+      "orchestrator" | "research" | "code" | "creative" | "general-purpose",
+      string
+    >
+  >;
 }) {
   const agentType = subagent.toolCall?.args?.subagent_type ?? "unknown";
   const rawDescription = subagent.toolCall?.args?.description;
@@ -549,7 +555,13 @@ export function SubagentCard({
         ? rawDescription.content
         : "";
   const status = normalizeSubagentStatus(subagent.status);
-  const labelBySubagent = useSubagentModelLabels();
+  const identitiesBySubagent = useSubagentModelIdentities(
+    selectedModelRefsByRole,
+  );
+  const modelIdentity = identitiesBySubagent[agentType];
+  const fallbackRoleLabel = agentType
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (m: string) => m.toUpperCase());
 
   return (
     <Collapsible defaultOpen={defaultOpen}>
@@ -567,12 +579,12 @@ export function SubagentCard({
               <span className="text-sm font-medium truncate">
                 {getAgentName(agentType)}
               </span>
-              <Badge
-                variant="outline"
-                className="text-[0.6rem] h-4 px-1.5 font-mono shrink-0"
-              >
-                {getModelBadge(agentType, labelBySubagent)}
-              </Badge>
+              <ModelIdentityBadge
+                provider={modelIdentity?.provider}
+                modelLabel={modelIdentity?.modelLabel ?? "Auto model"}
+                roleLabel={modelIdentity?.roleLabel ?? fallbackRoleLabel}
+                className="shrink-0"
+              />
             </div>
             {description && (
               <span className="text-xs text-muted-foreground truncate w-full text-left">

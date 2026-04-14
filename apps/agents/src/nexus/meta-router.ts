@@ -1,6 +1,11 @@
 import { z } from "zod/v4";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { resolveTier, buildTierFallbacks } from "./models/index.js";
+import {
+  resolveTier,
+  buildTierFallbacks,
+  getTierDefault,
+  listAvailableModels,
+} from "./models/index.js";
 import type { NexusState } from "./state.js";
 
 /**
@@ -22,6 +27,46 @@ export const routerOutputSchema = z.object({
 export type RouterOutput = z.infer<typeof routerOutputSchema>;
 
 type ComplexityLabel = RouterOutput["complexity"];
+
+interface NexusRunnableConfig {
+  configurable?: {
+    models?: Record<string, string>;
+    [key: string]: unknown;
+  };
+}
+
+type RouterRole =
+  | "orchestrator"
+  | "research"
+  | "code"
+  | "creative"
+  | "general-purpose";
+
+function canonicalRef(provider: string, id: string): string {
+  return `${provider}:${id}`;
+}
+
+function normalizeOverrideModelRef(
+  override: string | undefined,
+): string | undefined {
+  if (typeof override !== "string") return undefined;
+  const trimmed = override.trim();
+  if (!trimmed) return undefined;
+
+  const available = listAvailableModels();
+  const colonIdx = trimmed.indexOf(":");
+  if (colonIdx > 0) {
+    const provider = trimmed.slice(0, colonIdx);
+    const id = trimmed.slice(colonIdx + 1);
+    const match = available.find(
+      (entry) => entry.provider === provider && entry.id === id,
+    );
+    return match ? canonicalRef(match.provider, match.id) : undefined;
+  }
+
+  const match = available.find((entry) => entry.id === trimmed);
+  return match ? canonicalRef(match.provider, match.id) : undefined;
+}
 
 function collectErrorText(error: unknown, seen = new Set<unknown>()): string[] {
   if (error == null) return [];
@@ -300,6 +345,7 @@ Respond ONLY with the structured output. Do not include any other text.`;
  */
 export async function metaRouter(
   state: NexusState,
+  config?: NexusRunnableConfig,
 ): Promise<Pick<NexusState, "routerResult">> {
   // Prefer the classifier tier; fall through to default if no classifier is
   // available. The fallback chain follows the tier we actually picked.
@@ -371,10 +417,56 @@ export async function metaRouter(
     result = recoverRouterOutput(rawText, reasoningContent);
   }
 
+  const orchestratorOverride = config?.configurable?.models?.orchestrator;
+  const tierForComplexity =
+    result.complexity === "trivial" ? "classifier" : "default";
+  const defaultDescriptor = getTierDefault(tierForComplexity);
+  const normalizedOrchestratorOverride = normalizeOverrideModelRef(
+    orchestratorOverride,
+  );
+  const selectedModel =
+    normalizedOrchestratorOverride
+      ? normalizedOrchestratorOverride
+      : defaultDescriptor
+        ? `${defaultDescriptor.provider}:${defaultDescriptor.id}`
+        : undefined;
+
+  const modelOverrides = config?.configurable?.models;
+  const selectedModels: Partial<Record<RouterRole, string>> = {};
+
+  if (selectedModel) {
+    selectedModels.orchestrator = selectedModel;
+  }
+
+  const roleTierDefaults: Array<{
+    role: Exclude<RouterRole, "orchestrator">;
+    tier: "deep-research" | "code" | "image" | "default";
+  }> = [
+    { role: "research", tier: "deep-research" },
+    { role: "code", tier: "code" },
+    { role: "creative", tier: "image" },
+    { role: "general-purpose", tier: "default" },
+  ];
+
+  for (const { role, tier } of roleTierDefaults) {
+    const overrideRef = normalizeOverrideModelRef(modelOverrides?.[role]);
+    if (overrideRef) {
+      selectedModels[role] = overrideRef;
+      continue;
+    }
+
+    const descriptor = getTierDefault(tier);
+    if (descriptor) {
+      selectedModels[role] = canonicalRef(descriptor.provider, descriptor.id);
+    }
+  }
+
   return {
     routerResult: {
       complexity: result.complexity,
       reasoning: result.reasoning,
+      selectedModel,
+      selectedModels,
     },
   };
 }
