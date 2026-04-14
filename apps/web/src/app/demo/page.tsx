@@ -26,6 +26,11 @@ const COMPLETED_TODOS: NexusTodo[] = [
   { content: "Compile final deliverable", status: "completed" },
 ];
 
+const MOCK_OUTPUT_PATHS = [
+  "/home/gem/workspace/creative/task_sa3/adoption-chart.png",
+  "/home/gem/workspace/shared/executive-summary.md",
+];
+
 function createMockSubagent(
   id: string,
   type: string,
@@ -232,6 +237,7 @@ export default function DemoPage() {
   const subagentMap = new Map(subagentList.map((s) => [s.id, s]));
   const allSubagents = [...subagentMap.values()];
   const isLoading = state === "running" || state === "synthesizing";
+  const outputPaths = state === "complete" ? MOCK_OUTPUT_PATHS : [];
 
   const messages = state === "complete"
     ? [...MOCK_MESSAGES_RUNNING, SYNTHESIS_MESSAGE]
@@ -271,9 +277,13 @@ export default function DemoPage() {
       todos={todos}
       subagents={subagentMap}
       allSubagents={allSubagents}
+      outputPaths={outputPaths}
       getSubagentsByMessage={getSubagentsByMessage}
       isLoading={isLoading}
-      onSubmit={(text) => alert(`Would submit: ${text}`)}
+      onSubmit={(message) => {
+        const text = typeof message === "string" ? message : message.text;
+        alert(`Would submit: ${text}`);
+      }}
       onStop={() => setState("complete")}
       topSlot={demoToolbar}
     />

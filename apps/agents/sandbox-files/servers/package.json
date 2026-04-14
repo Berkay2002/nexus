@@ -1,0 +1,10 @@
+{
+  "name": "nexus-sandbox-servers",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Bootstrapped MCP wrapper tree copied into /home/gem/nexus-servers/ inside the AIO sandbox. Never imported by apps/agents runtime.",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  }
+}

@@ -67,7 +67,7 @@ describe("Code Agent factory", () => {
     expect(agent!.name).toBe("code");
     expect(agent!.description).toBeTruthy();
     expect(agent!.systemPrompt).toBeTruthy();
-    expect(agent!.tools).toHaveLength(12);
+    expect(agent!.tools).toHaveLength(10);
     expect(agent!.tools?.map((tool) => tool.name)).toEqual([
       "sandbox_code_execute",
       "sandbox_code_info",
@@ -78,9 +78,7 @@ describe("Code Agent factory", () => {
       "sandbox_jupyter_info",
       "sandbox_jupyter_list_sessions",
       "sandbox_jupyter_delete_session",
-      "sandbox_mcp_list_servers",
-      "sandbox_mcp_list_tools",
-      "sandbox_mcp_execute_tool",
+      "mcp_tool_search",
     ]);
     expect(agent!.model).toBeDefined();
   });

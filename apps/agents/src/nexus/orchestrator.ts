@@ -2,6 +2,7 @@ import { createDeepAgent } from "deepagents";
 import { AIMessage } from "@langchain/core/messages";
 import { AIOSandboxBackend } from "./backend/aio-sandbox.js";
 import { createNexusBackend } from "./backend/composite.js";
+import { ensureSandboxFilesystem } from "./backend/sandbox-bootstrap.js";
 import { getWorkspaceRootForThread } from "./backend/workspace.js";
 import { configurableModelMiddleware } from "./middleware/configurable-model.js";
 import { createModelFallbackMiddleware } from "./middleware/model-fallback.js";
@@ -88,6 +89,13 @@ export function createNexusOrchestrator(
 ) {
   const sandbox = new AIOSandboxBackend(sandboxUrl, workspaceRoot);
   const backend = createNexusBackend(sandbox);
+
+  // Fire-and-forget: seed /home/gem/nexus-servers/ with the MCP wrapper tree.
+  // Idempotent, dedup'd process-wide, returns fast after the first success.
+  // Failures are logged to stderr and flip isMcpFilesystemReady() to false —
+  // mcp_tool_search then short-circuits with a structured "catalog unavailable"
+  // error so the agent falls back to hot-layer tools.
+  void ensureSandboxFilesystem(sandbox);
 
   const defaultModel = resolveTier("default");
   if (!defaultModel) {

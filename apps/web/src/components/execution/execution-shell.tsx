@@ -12,6 +12,7 @@ import { MessageFeed } from "./message-feed";
 import { PromptBar } from "./prompt-bar";
 import { WorkspaceOutputsPanel } from "./workspace-outputs-panel";
 import type { NexusTodo } from "@/lib/subagent-utils";
+import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import {
   Conversation,
   ConversationContent,
@@ -26,7 +27,7 @@ type ExecutionShellProps = {
   outputPaths: string[];
   getSubagentsByMessage: ((messageId: string) => any[]) | undefined;
   isLoading: boolean;
-  onSubmit: (text: string) => void;
+  onSubmit: (message: string | PromptInputMessage) => void;
   onStop: () => void;
   topSlot?: ReactNode;
   error?: unknown;

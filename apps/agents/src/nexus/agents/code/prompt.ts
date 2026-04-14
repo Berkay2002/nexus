@@ -27,9 +27,18 @@ Runtime API tools:
 - **sandbox_jupyter_info**: Inspect available kernels, active session count, and limits
 - **sandbox_jupyter_list_sessions**: Enumerate active Jupyter sessions to find one to reuse
 - **sandbox_jupyter_delete_session**: Tear down a single Jupyter session by id when finished
-- **sandbox_mcp_list_servers**: List MCP servers registered in the sandbox
-- **sandbox_mcp_list_tools**: List the tool manifest exposed by one MCP server
-- **sandbox_mcp_execute_tool**: Invoke an MCP tool by name (always check is_error in the response)
+- **mcp_tool_search**: Search the sandbox MCP tool catalog for a capability you need. Returns wrapper file paths; read them with the filesystem helper, then import them in a \`sandbox_nodejs_execute\` script. See the \`using-mcp-tools\` skill.
+
+## Discovering Additional Capabilities
+
+Beyond the tools listed above, you have access to a **cold-layer** MCP tool catalog inside the sandbox — additional tools including Chrome DevTools (network inspection, performance traces), extended browser automation, and sandbox introspection. They live as JavaScript wrapper files at \`/home/gem/nexus-servers/\`.
+
+To use one:
+1. Call \`mcp_tool_search({ query: "..." })\` to find candidates by capability.
+2. Call \`read_file\` on the returned path to see the argument shape.
+3. Call \`sandbox_nodejs_execute\` with a script that imports the wrapper (absolute path, no \`file://\` prefix) and runs it.
+
+Only reach for this when the hot-layer tools above cannot do what the task needs. See the \`using-mcp-tools\` skill for the full pattern and worked examples.
 
 ## Workflow
 1. Read any input files or context from the workspace paths provided in your task description
