@@ -133,11 +133,13 @@ const FileTreeFolderContext = createContext<FileTreeFolderContextType>({
 export type FileTreeFolderProps = HTMLAttributes<HTMLDivElement> & {
   path: string;
   name: string;
+  actions?: ReactNode;
 };
 
 export const FileTreeFolder = ({
   path,
   name,
+  actions,
   className,
   children,
   ...props
@@ -177,7 +179,8 @@ export const FileTreeFolder = ({
           >
             <CollapsibleTrigger asChild>
               <button
-                className="flex shrink-0 cursor-pointer items-center border-none bg-transparent p-0"
+                className="flex min-w-0 flex-1 cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-left"
+                onDoubleClick={handleSelect}
                 type="button"
               >
                 <ChevronRightIcon
@@ -186,22 +189,17 @@ export const FileTreeFolder = ({
                     isExpanded && "rotate-90"
                   )}
                 />
+                <FileTreeIcon>
+                  {isExpanded ? (
+                    <FolderOpenIcon className="size-4 text-blue-500" />
+                  ) : (
+                    <FolderIcon className="size-4 text-blue-500" />
+                  )}
+                </FileTreeIcon>
+                <FileTreeName>{name}</FileTreeName>
               </button>
             </CollapsibleTrigger>
-            <button
-              className="flex min-w-0 flex-1 cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-left"
-              onClick={handleSelect}
-              type="button"
-            >
-              <FileTreeIcon>
-                {isExpanded ? (
-                  <FolderOpenIcon className="size-4 text-blue-500" />
-                ) : (
-                  <FolderIcon className="size-4 text-blue-500" />
-                )}
-              </FileTreeIcon>
-              <FileTreeName>{name}</FileTreeName>
-            </button>
+            {actions}
           </div>
           <CollapsibleContent>
             <div className="ml-4 border-l pl-2">{children}</div>
@@ -226,12 +224,14 @@ export type FileTreeFileProps = HTMLAttributes<HTMLDivElement> & {
   path: string;
   name: string;
   icon?: ReactNode;
+  actions?: ReactNode;
 };
 
 export const FileTreeFile = ({
   path,
   name,
   icon,
+  actions,
   className,
   children,
   ...props
@@ -276,6 +276,7 @@ export const FileTreeFile = ({
               {icon ?? <FileIcon className="size-4 text-muted-foreground" />}
             </FileTreeIcon>
             <FileTreeName>{name}</FileTreeName>
+            {actions}
           </>
         )}
       </div>
