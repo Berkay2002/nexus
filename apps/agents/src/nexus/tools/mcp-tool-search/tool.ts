@@ -110,24 +110,34 @@ function buildCatalog(sourceRoot: string): CatalogEntry[] {
     }
     for (const fname of files) {
       if (!fname.endsWith(".js")) continue;
-      const abs = resolve(nsDir, fname);
-      const stat = statSync(abs);
-      if (!stat.isFile()) continue;
-      const body = readFileSync(abs, "utf-8");
-      const basenameNoExt = fname.replace(/\.js$/, "");
-      const toolName = parseToolNameFromBody(body, `${namespace}_${basenameNoExt}`);
-      const summary = parseJsdocSummary(body, toolName);
-      const propNames = collectPropNames(body);
-      const haystack = [toolName, summary, propNames.join(" ")]
-        .join(" ")
-        .toLowerCase();
-      entries.push({
-        path: `${SANDBOX_ROOT}/${namespace}/${fname}`,
-        name: toolName,
-        summary,
-        namespace,
-        haystack,
-      });
+      // Per-file try/catch: a wrapper renamed, deleted, or permission-broken
+      // mid-walk must not crash the whole search tool. Skip it instead and
+      // return partial results.
+      try {
+        const abs = resolve(nsDir, fname);
+        const stat = statSync(abs);
+        if (!stat.isFile()) continue;
+        const body = readFileSync(abs, "utf-8");
+        const basenameNoExt = fname.replace(/\.js$/, "");
+        const toolName = parseToolNameFromBody(
+          body,
+          `${namespace}_${basenameNoExt}`,
+        );
+        const summary = parseJsdocSummary(body, toolName);
+        const propNames = collectPropNames(body);
+        const haystack = [toolName, summary, propNames.join(" ")]
+          .join(" ")
+          .toLowerCase();
+        entries.push({
+          path: `${SANDBOX_ROOT}/${namespace}/${fname}`,
+          name: toolName,
+          summary,
+          namespace,
+          haystack,
+        });
+      } catch {
+        continue;
+      }
     }
   }
   return entries;
