@@ -25,6 +25,8 @@ This project has a wikillm knowledge base at `.kb/`. **For ANY question — abou
 
 The comprehensive design specification lives at `docs/superpowers/specs/2026-04-10-nexus-design.md`. It covers architecture, technology choices, meta-router, orchestrator, sub-agents, workspace conventions, tools, skills, and frontend. **Consult this before making architectural decisions.**
 
+The MCP filesystem-of-tools pattern (how sub-agents reach the sandbox's MCP tool catalog without binding every tool to LangChain) has its own spec at `docs/superpowers/specs/2026-04-13-mcp-filesystem-of-tools-design.md` and implementation plan at `docs/superpowers/plans/2026-04-14-mcp-filesystem-of-tools.md`. **Do NOT adopt `@langchain/mcp-adapters` anywhere in `apps/agents/` runtime** — that library was explicitly rejected in favor of the custom filesystem pattern. The generator at `apps/agents/scripts/generate-mcp-wrappers.ts` emits committed wrapper files; `apps/agents/src/nexus/backend/sandbox-bootstrap.ts` seeds them into `/home/gem/nexus-servers/` inside the sandbox at LangGraph startup; `apps/agents/src/nexus/tools/mcp-tool-search/` indexes the host-side tree and returns sandbox-side paths that agents read + execute via `sandbox_nodejs_execute`.
+
 ## Three-Process Architecture
 
 ```
@@ -106,6 +108,8 @@ Key infrastructure files to **preserve** during UI rewrites:
 - `FileData` from `deepagents` is a union of `FileDataV1` (`content: string[]`) and `FileDataV2` (`content: string | Uint8Array`). Skills use V1 format (line array).
 - Skills are seeded via `orchestrator.invoke({ files: nexusSkillFiles })` — the barrel export at `skills/index.ts` recursively collects all skill files as a `FileData` map with virtual POSIX paths (`/skills/{name}/...`)
 - `apps/agents` has pre-existing TypeScript build errors (test files, db/index.ts) — use `npx next build` in `apps/web/` directly instead of `npm run build` from root
+- `apps/agents/vitest.config.ts` has a `setupFiles` entry pointing at `src/nexus/__tests__/setup-fs-mock.ts`. That shim calls `vi.mock("fs", ...)` with a real-implementation spread so `vi.spyOn(fs, "readdirSync")` can work on the native `fs` namespace in ESM mode — required by `mcp-tool-search.test.ts`'s "readyChecker false → fs untouched" assertion. The shim re-exports every real implementation, so it doesn't change behavior. **Do not remove it** unless you've first rewritten the affected test to not spy on native `fs`.
+- Three integration tests fail on every local run without live services and API keys, and this is expected (not a regression): `__tests__/integration.test.ts > Meta-Router` (needs Google/Anthropic/OpenAI key), `__tests__/tools-integration.test.ts > Tavily` (needs `TAVILY_API_KEY`), `backend/__tests__/aio-sandbox.test.ts` (needs a running `ghcr.io/agent-infra/sandbox` container). When verifying a change, the pass bar is "everything green except these three files".
 
 ## Workspace Convention
 
