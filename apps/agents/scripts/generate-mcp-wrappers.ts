@@ -60,7 +60,7 @@ export function generateWrappers(opts: GenerateOptions): void {
   for (const tool of opts.tools) {
     const { namespace, basename } = resolveNamespaceAndBasename(tool.name);
     const relPath = `${namespace}/${basename}.js`;
-    const body = renderWrapper(tool, namespace, basename);
+    const body = renderWrapper(tool);
     rendered.set(join(opts.outputRoot, relPath), body);
   }
 
@@ -167,11 +167,7 @@ function renderTypedef(
   return lines.join("\n");
 }
 
-function renderWrapper(
-  tool: McpTool,
-  namespace: Namespace,
-  basename: string,
-): string {
+function renderWrapper(tool: McpTool): string {
   assertSchemaSupported(tool.name, tool.inputSchema);
 
   const functionName = toCamelCase(tool.name);
