@@ -20,8 +20,8 @@ describe("Code Agent prompt", () => {
     expect(CODE_SYSTEM_PROMPT.length).toBeGreaterThan(100);
   });
 
-  it("should include workspace path in system prompt", () => {
-    expect(CODE_SYSTEM_PROMPT).toContain("/home/gem/workspace/code/");
+  it("should include templated workspace path in system prompt", () => {
+    expect(CODE_SYSTEM_PROMPT).toContain("{workspaceRoot}/code/");
   });
 
   it("should mention execute tool in system prompt", () => {

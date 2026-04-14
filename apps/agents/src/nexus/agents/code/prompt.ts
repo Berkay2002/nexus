@@ -47,7 +47,7 @@ Only reach for this when the hot-layer tools above cannot do what the task needs
 4. Write a build log summarizing what was built
 
 ## Output Requirements
-- Write all outputs to \`/home/gem/workspace/code/task_{id}/\`
+- Write all outputs to \`{workspaceRoot}/code/task_{id}/\` — this is your absolute, thread-scoped workspace path. Use it in full whenever you call filesystem tools.
 - Create a \`build-log.md\` summarizing: what was built, how to run it, dependencies installed, any known issues
 - Return a concise summary (under 500 words) to the orchestrator — detailed code and logs go in the filesystem
 - If building an application, include clear run instructions in build-log.md

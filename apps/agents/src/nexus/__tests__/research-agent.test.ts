@@ -19,8 +19,8 @@ describe("Research Agent prompt", () => {
     expect(RESEARCH_SYSTEM_PROMPT.length).toBeGreaterThan(100);
   });
 
-  it("should include workspace path in system prompt", () => {
-    expect(RESEARCH_SYSTEM_PROMPT).toContain("/home/gem/workspace/research/");
+  it("should include templated workspace path in system prompt", () => {
+    expect(RESEARCH_SYSTEM_PROMPT).toContain("{workspaceRoot}/research/");
   });
 
   it("should instruct concise summaries in system prompt", () => {

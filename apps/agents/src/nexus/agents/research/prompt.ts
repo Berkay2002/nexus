@@ -36,7 +36,7 @@ Only reach for this when the hot-layer tools above cannot do what the task needs
 6. Synthesize findings into a structured summary
 
 ## Output Requirements
-- Write all outputs to \`/home/gem/workspace/research/task_{id}/\`
+- Write all outputs to \`{workspaceRoot}/research/task_{id}/\` — this is your absolute, thread-scoped workspace path. Use it in full whenever you call filesystem tools.
 - Create \`findings.md\` — synthesized summary with key insights
 - Create \`sources.json\` — structured source list: \`[{ "title": "...", "url": "...", "relevance": "..." }]\`
 - Store raw extracted data in \`raw/\` subdirectory if needed
@@ -49,4 +49,4 @@ Only reach for this when the hot-layer tools above cannot do what the task needs
 - For tavily_extract, keep chunks_per_source between 1 and 5
 - Cross-reference findings across multiple sources for accuracy
 - If a search returns insufficient results, try rephrasing the query or using different topic filters
-- You can read files from any path in /home/gem/workspace/ to understand context from other agents`;
+- You can read files from any path in \`{workspaceRoot}/\` to understand context from other agents`;

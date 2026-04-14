@@ -68,3 +68,16 @@ export function remapWorkspaceCommand(
   // Replace legacy workspace roots, but leave already-threaded paths intact.
   return command.replace(/\/home\/gem\/workspace(?!\/threads\/)/g, normalizedRoot);
 }
+
+/**
+ * Substitutes the literal `{workspaceRoot}` placeholder with the thread's
+ * actual workspace root. Used to render static prompt/skill templates at
+ * runtime so agents learn their full, thread-scoped filesystem paths.
+ */
+export function renderWorkspaceTemplate(
+  template: string,
+  workspaceRoot: string,
+): string {
+  const normalizedRoot = normalizeWorkspaceRoot(workspaceRoot);
+  return template.replace(/\{workspaceRoot\}/g, normalizedRoot);
+}

@@ -19,8 +19,8 @@ describe("Creative Agent prompt", () => {
     expect(CREATIVE_SYSTEM_PROMPT.length).toBeGreaterThan(100);
   });
 
-  it("should include workspace path in system prompt", () => {
-    expect(CREATIVE_SYSTEM_PROMPT).toContain("/home/gem/workspace/creative/");
+  it("should include templated workspace path in system prompt", () => {
+    expect(CREATIVE_SYSTEM_PROMPT).toContain("{workspaceRoot}/creative/");
   });
 
   it("should instruct concise summaries in system prompt", () => {

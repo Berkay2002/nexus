@@ -4,6 +4,10 @@ import { resolveTier, buildTierFallbacks } from "../../models/index.js";
 import { createConfigurableModelMiddleware } from "../../middleware/configurable-model.js";
 import { createModelFallbackMiddleware } from "../../middleware/model-fallback.js";
 import {
+  DEFAULT_WORKSPACE_ROOT,
+  renderWorkspaceTemplate,
+} from "../../backend/workspace.js";
+import {
   CREATIVE_AGENT_NAME,
   CREATIVE_AGENT_DESCRIPTION,
   CREATIVE_SYSTEM_PROMPT,
@@ -13,8 +17,14 @@ import {
  * Creative sub-agent factory.
  *
  * Returns `null` if no provider is available for the image tier.
+ *
+ * @param workspaceRoot - Thread-scoped absolute workspace root. `{workspaceRoot}`
+ *   placeholders in the system prompt are substituted with this value so the
+ *   agent learns its full, real filesystem path.
  */
-export function createCreativeAgent(): SubAgent | null {
+export function createCreativeAgent(
+  workspaceRoot: string = DEFAULT_WORKSPACE_ROOT,
+): SubAgent | null {
   const model = resolveTier("image");
   if (!model) return null;
   const fallbacks = buildTierFallbacks("image");
@@ -27,7 +37,10 @@ export function createCreativeAgent(): SubAgent | null {
   return {
     name: CREATIVE_AGENT_NAME,
     description: CREATIVE_AGENT_DESCRIPTION,
-    systemPrompt: CREATIVE_SYSTEM_PROMPT,
+    systemPrompt: renderWorkspaceTemplate(
+      CREATIVE_SYSTEM_PROMPT,
+      workspaceRoot,
+    ),
     tools: [...creativeTools],
     model,
     middleware,
