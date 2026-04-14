@@ -7,11 +7,22 @@ import {
   type DragEvent,
   type FormEvent,
 } from "react";
-import { ArrowUp, File, Loader2, Plus, X } from "lucide-react";
+import { ArrowUp, File as FileIcon, Loader2, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+
+// Local attachment shape: images carry their Data URL, non-images only carry
+// the metadata. FileUIPart (from `ai`) requires `url`, so we carry the optional
+// form in state and fill an empty string at the submit boundary — consumers
+// (PromptBar thumbnails, buildHumanContent) already guard on truthy+image.
+type AttachedFile = {
+  type: "file";
+  filename: string;
+  mediaType: string;
+  url?: string;
+};
 
 export function PromptBar({
   onSubmit,
@@ -23,7 +34,7 @@ export function PromptBar({
   onStop: () => void;
 }) {
   const [input, setInput] = useState("");
-  const [files, setFiles] = useState<PromptInputMessage["files"]>([]);
+  const [files, setFiles] = useState<AttachedFile[]>([]);
   const [isConvertingFiles, setIsConvertingFiles] = useState(false);
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -45,27 +56,34 @@ export function PromptBar({
 
     setIsConvertingFiles(true);
     try {
+      // Only image files need a Data URL (they're sent as image_url parts to
+      // the model). Non-images are only referenced by filename/mediaType in
+      // buildHumanContent — base64-ing them would waste memory and stall the UI
+      // on large attachments.
       const converted = await Promise.all(
         selectedFiles.map(async (file) => {
-          const dataUrl = await toDataUrl(file);
-          if (!dataUrl) {
-            return null;
+          const isImage = file.type.startsWith("image/");
+          if (isImage) {
+            const dataUrl = await toDataUrl(file);
+            if (!dataUrl) return null;
+            return {
+              type: "file" as const,
+              filename: file.name,
+              mediaType: file.type,
+              url: dataUrl,
+            };
           }
-
           return {
             type: "file" as const,
             filename: file.name,
             mediaType: file.type,
-            url: dataUrl,
           };
         }),
       );
 
       setFiles((previous) => [
         ...previous,
-        ...converted.filter(
-          (file): file is PromptInputMessage["files"][number] => file !== null,
-        ),
+        ...converted.filter((file): file is AttachedFile => file !== null),
       ]);
     } finally {
       setIsConvertingFiles(false);
@@ -112,7 +130,15 @@ export function PromptBar({
 
   const submit = () => {
     if ((!input.trim() && files.length === 0) || isLoading || isConvertingFiles) return;
-    onSubmit({ text: input.trim(), files });
+    const outgoing: PromptInputMessage["files"] = files.map((f) => ({
+      type: "file",
+      filename: f.filename,
+      mediaType: f.mediaType,
+      // FileUIPart.url is required; non-image attachments get an empty
+      // placeholder (buildHumanContent ignores url for non-image parts).
+      url: f.url ?? "",
+    }));
+    onSubmit({ text: input.trim(), files: outgoing });
     setInput("");
     setFiles([]);
   };
@@ -161,7 +187,7 @@ export function PromptBar({
                       />
                     ) : (
                       <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-1 text-[10px] text-muted-foreground">
-                        <File className="h-3.5 w-3.5" />
+                        <FileIcon className="h-3.5 w-3.5" />
                         <span className="max-w-full truncate text-center leading-tight">
                           {file.filename ?? "File"}
                         </span>

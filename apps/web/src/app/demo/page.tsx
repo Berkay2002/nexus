@@ -273,7 +273,10 @@ export default function DemoPage() {
       allSubagents={allSubagents}
       getSubagentsByMessage={getSubagentsByMessage}
       isLoading={isLoading}
-      onSubmit={(text) => alert(`Would submit: ${text}`)}
+      onSubmit={(message) => {
+        const text = typeof message === "string" ? message : message.text;
+        alert(`Would submit: ${text}`);
+      }}
       onStop={() => setState("complete")}
       topSlot={demoToolbar}
     />
