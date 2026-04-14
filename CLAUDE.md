@@ -2,118 +2,85 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+Nexus is a Turborepo npm-workspaces monorepo with two apps:
+- `apps/agents/` — LangGraph server (Node 20, DeepAgents-based meta-router + orchestrator + sub-agents)
+- `apps/web/` — Next.js 16 / React 19 frontend, streams via `@langchain/react`
 
-Nexus is a local-first AI agent platform that takes a single user prompt, orchestrates multiple AI agents (research, code, creative) to work in parallel, and assembles a deliverable. Inspired by Perplexity Computer. Full TypeScript end-to-end. Turborepo monorepo scaffolded from `npx create-agent-chat-app`.
+The source of truth for architecture is `docs/superpowers/specs/2026-04-10-nexus-design.md`. Topic-scoped rules live in `.claude/rules/` (`architecture.md`, `agents.md`, `frontend.md`) and are auto-loaded — read them before touching the relevant subsystem.
 
-## Knowledge Base — read this before doing anything else
+## Dev commands
 
-This project has a wikillm knowledge base at `.kb/`. **For ANY question — about libraries, APIs, architecture, conventions, design decisions, framework behavior, or "how does X work" — call `/wikillm:query` BEFORE grepping code, reading files, or answering from training-data memory.** The wiki is the project's compiled understanding of its third-party stack; re-deriving answers from raw sources defeats the entire compile step.
+All from repo root unless noted. Turbo fans out to the relevant workspace.
 
-**Anti-patterns (do not do these):**
+- `npm run dev` — runs `turbo dev --filter=web` + `turbo dev --filter=agents` concurrently (Next.js :3000 + LangGraph :2024)
+- `npm run lint` / `npm run lint:fix` — ESLint flat config in both apps
+- `npm run format` — Prettier (printWidth 80, 2-space, semis, trailing-comma es5, LF)
+- `cd apps/agents && npm test` — Vitest unit tests
+- `cd apps/agents && npm run generate:mcp-wrappers` — regenerates cold MCP tool wrappers (`tsx scripts/generate-mcp-wrappers.ts`)
 
-- **Do not grep or read `.kb/raw/` directly.** Raw sources are the INPUT to the wiki, not a reference. Go through `/wikillm:query`.
-- **Do not answer from training-data memory of LangChain, DeepAgents, AIO Sandbox, Tavily, or any library in the stack.** Your training-data memory is stale and underspecified; the wiki has the version-current API shapes and the Nexus-specific gotchas.
-- **Do not spelunk code when a wiki article exists.** Querying the wiki for "how does CompositeBackend route /memories/" is faster and more accurate than reading `backend/composite.ts` + its tests.
-- **Do not paste library docs into `CLAUDE.md` or `docs/`.** Reference material goes in `.kb/raw/` followed by `/wikillm:ingest`.
+**Build gotcha:** `npm run build` from the root fails because `apps/agents` has pre-existing TS errors in test files and `db/index.ts`. To build the web app, run `npx next build` inside `apps/web/` directly.
 
-**Obsidian desktop is always running on this machine.** For any direct vault operation (search, read, list tags, find orphans, write a note) use `/wikillm:obsidian-cli` — never Grep or Read on `.kb/wiki/` directly. Direct file access bypasses Obsidian's index and breaks backlinks on edits.
+## Verification pass-bar
 
-**Scope.** The KB covers third-party reference material only. Nothing in `apps/` imports from `.kb/`, and the KB does NOT cover Nexus's own code — for project-specific wiring (function names, which file exports what), read the source directly. Human-authored specs and plans live in `docs/superpowers/` and are NOT part of the KB.
+When verifying a change, "green" means everything passes **except** these three integration tests, which require live services / API keys and are expected to fail locally:
 
-## Design Spec
+- `apps/agents/src/nexus/__tests__/integration.test.ts` (Meta-Router — needs a model provider key)
+- `apps/agents/src/nexus/__tests__/tools-integration.test.ts` (Tavily — needs `TAVILY_API_KEY`)
+- `apps/agents/src/nexus/backend/__tests__/aio-sandbox.test.ts` (needs the `ghcr.io/agent-infra/sandbox` container running)
 
-The comprehensive design specification lives at `docs/superpowers/specs/2026-04-10-nexus-design.md`. It covers architecture, technology choices, meta-router, orchestrator, sub-agents, workspace conventions, tools, skills, and frontend. **Consult this before making architectural decisions.**
+Don't rewrite these or treat their failure as a regression.
 
-The MCP filesystem-of-tools pattern (how sub-agents reach the sandbox's MCP tool catalog without binding every tool to LangChain) has its own spec at `docs/superpowers/specs/2026-04-13-mcp-filesystem-of-tools-design.md` and implementation plan at `docs/superpowers/plans/2026-04-14-mcp-filesystem-of-tools.md`. **Do NOT adopt `@langchain/mcp-adapters` anywhere in `apps/agents/` runtime** — that library was explicitly rejected in favor of the custom filesystem pattern. The generator at `apps/agents/scripts/generate-mcp-wrappers.ts` emits committed wrapper files; `apps/agents/src/nexus/backend/sandbox-bootstrap.ts` seeds them into `/home/gem/nexus-servers/` inside the sandbox at LangGraph startup; `apps/agents/src/nexus/tools/mcp-tool-search/` indexes the host-side tree and returns sandbox-side paths that agents read + execute via `sandbox_nodejs_execute`.
+## Runtime prerequisites
 
-## Three-Process Architecture
+Agents fail fast without a resolvable model tier — preflight diagnostics print at startup from `apps/agents/src/nexus/preflight.ts`. Always read that output before debugging "why isn't the agent responding".
 
+Required env (in `.env`):
+- At least one provider: `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `ZAI_API_KEY`, or Vertex via `GOOGLE_CLOUD_PROJECT` + `gcloud auth application-default login`
+- `TAVILY_API_KEY`
+- `SANDBOX_URL=http://localhost:8080`
+- `NEXT_PUBLIC_API_URL=http://localhost:2024`
+- Image generation (creative sub-agent) requires Google credentials or it's disabled
+- **Z.AI base URL**: default is `https://api.z.ai/api/paas/v4` (pay-as-you-go). On the GLM Coding Plan set `ZAI_BASE_URL=https://api.z.ai/api/coding/paas/v4`. See `apps/agents/src/nexus/models/registry.ts` for tier priority.
+
+AIO Sandbox runs in a separate container:
 ```
-AIO Sandbox (Docker :8080) <-- HTTP --> LangGraph Server (:2024) <-- useStream --> Next.js (:3000)
-```
-
-1. **AIO Sandbox** — Docker container providing shell, browser, filesystem, Jupyter. Shared by all agents.
-2. **LangGraph Dev Server** — Runs meta-router (Flash classifier), orchestrator (DeepAgent), and sub-agents (Research, Code, Creative).
-3. **Next.js Frontend** — Streams agent execution via `useStream` from `@langchain/langgraph-sdk/react`. Landing page (full-width prompt) → Execution view (30/70 split with todo list + agent cards).
-
-## Build and Dev Commands
-
-All commands from this directory (`nexus/`):
-
-```bash
-# Prerequisite: start AIO Sandbox
 docker run --security-opt seccomp=unconfined --rm -it -p 8080:8080 ghcr.io/agent-infra/sandbox:latest
-
-# Start both LangGraph server and Next.js concurrently
-npm run dev
-
-# Build all workspaces
-npm run build
-
-# Lint / format
-npm run lint
-npm run format
 ```
 
-`npm run dev` uses `concurrently` to run `turbo dev --filter=web` (Next.js :3000) and `turbo dev --filter=agents` (LangGraph :2024).
+Vitest does not auto-load `.env` — for integration tests that need keys, `source .env && export VAR_NAME` before running.
 
-## Monorepo Structure
+## Gotchas
 
-- **Package manager:** npm 11.2.1 with workspaces
-- **Build orchestration:** Turborepo
-- **Workspaces:** `apps/agents` and `apps/web`
-- **Shared override:** `@langchain/core` pinned to `^0.3.42`
+Things that are easy to get wrong and not obvious from the code alone.
 
-### apps/agents — LangGraph Agent Server
+**Frontend streaming**
+- `useStream` must come from `@langchain/react` (≥0.3.3), **not** `@langchain/langgraph-sdk/react` — the sdk version lacks `filterSubagentMessages`, `stream.subagents`, `getSubagentsByMessage`.
+- `filterSubagentMessages: true` is typed on `AnyStreamOptions` but not on the `UseStreamOptions` overload → cast options as `any`.
+- `stream.values` can be `undefined` initially — always optional-chain (`stream.values?.todos`).
+- `SubagentStreamInterface` has no `model` field — derive from `toolCall.args.subagent_type` via the static mapping.
 
-`langgraph.json` at root registers graphs. Currently points to scaffold's `research-agent` — will be replaced with `nexus` graph.
+**Icons**
+- shadcn icon library is **hugeicons**. Import `HugeiconsIcon` from `@hugeicons/react` (not `HugeIcon`) and icons like `ArrowUp01Icon` from `@hugeicons/core-free-icons` (not `ArrowUpIcon`).
 
-Structure: `src/nexus/` — `graph.ts` (entry), `meta-router.ts`, `orchestrator.ts`, `state.ts`, `backend/` (aio-sandbox, composite, store), `middleware/` (configurable-model), `prompts/` (orchestrator-system), `tools/` (search, extract, map, generate-image — each with prompt.ts + tool.ts), `__tests__/`. 46 unit tests, 3 Tavily integration tests.
+**Sandbox workspace**
+- Home is `/home/gem/`; workspace root is `/home/gem/workspace/`. Layout convention is in `.claude/rules/agents.md`.
 
-### apps/web — Next.js Frontend
+**Model providers**
+- Auto-detected from env. At least one provider is required for the `default` tier. Image generation needs Google.
+- Z.AI uses `ZaiChatOpenAI` (`apps/agents/src/nexus/models/zai-chat-model.ts`), a `ChatOpenAI` subclass that round-trips `reasoning_content` to preserve GLM thinking across multi-turn tool calls — no per-call config needed.
 
-Next.js 15 with React 19, Tailwind CSS, shadcn/ui, `@langchain/langgraph-sdk`.
+**DeepAgents**
+- `createDeepAgent()` always adds a general-purpose sub-agent alongside custom ones — address it explicitly when wiring orchestration.
+- `FileData` from `deepagents` is a union of `FileDataV1` (`content: string[]`) and `FileDataV2` (`content: string | Uint8Array`). Skills use V1 (line array).
+- Skills are seeded via `orchestrator.invoke({ files: nexusSkillFiles })`; the `apps/agents/src/nexus/skills/index.ts` barrel recursively collects files as a `FileData` map with virtual POSIX paths (`/skills/{name}/...`).
 
-Key infrastructure files to **preserve** during UI rewrites:
-- `src/providers/Stream.tsx` — useStream hook, connects to LangGraph server, manages thread state
-- `src/providers/client.ts` — LangGraph SDK client
-- `src/providers/Thread.tsx` — thread list management
-- `src/components/ui/` — shadcn/ui base components
+**Tool folder shape**
+- Each custom tool lives under `apps/agents/src/nexus/tools/{name}/` with `prompt.ts` (`TOOL_NAME` + `TOOL_DESCRIPTION`) and `tool.ts` (Zod schema + impl). Folder names are short: `search/`, `extract/`, `map/`, `generate-image/`.
+- Tavily Map response shape: returns `results` (array of URL strings) and `base_url`, **not** `urls`. Check `docs/custom/` OpenAPI specs for actual shapes before inferring.
 
-## Technology Stack
+## Working style in this repo
 
-| Concern | Technology |
-|---------|-----------|
-| Orchestration | DeepAgents (`createDeepAgent`, `SubAgent`, `CompositeBackend`, `BaseSandbox`) |
-| Models | Tier-based, provider-agnostic. Tiers: `classifier`, `default`, `code`, `deep-research`, `image`. Providers auto-detected from env: Google (`@langchain/google`), Anthropic (`@langchain/anthropic`), OpenAI (`@langchain/openai`), Z.AI/GLM (via `@langchain/openai` pointed at z.ai's OpenAI-compatible endpoint). Priority: `classifier` / `deep-research` Google→Anthropic→OpenAI→Z.AI; `default` Anthropic→OpenAI→Z.AI→Google; `code` Anthropic→Google→OpenAI→Z.AI; `image` Google only. See `apps/agents/src/nexus/models/registry.ts`. |
-| Execution | AIO Sandbox Docker + `@agent-infra/sandbox` TS SDK |
-| Search | Tavily (Search, Extract, Map) — no Exa |
-| Frontend streaming | `@langchain/react` `useStream` hook (subagent streaming, filterSubagentMessages) |
-| UI components | shadcn/ui + AI Elements (`@ai-elements/react`) |
-| Persistence | SQLite + Drizzle ORM via LangGraph StoreBackend |
-
-## Known Gotchas
-
-- `useStream` comes from `@langchain/react` (v0.3.3+) for subagent features (`filterSubagentMessages`, `stream.subagents`, `getSubagentsByMessage`). The `@langchain/langgraph-sdk/react` version lacks these. `filterSubagentMessages` is typed on `AnyStreamOptions` but not on the `UseStreamOptions` overload — requires `as any` on the options object.
-- shadcn icon library is `hugeicons` — import `HugeiconsIcon` from `@hugeicons/react` (not `HugeIcon`), icons like `ArrowUp01Icon` from `@hugeicons/core-free-icons` (not `ArrowUpIcon`)
-- AIO Sandbox home directory is `/home/gem/` — workspace lives at `/home/gem/workspace/`
-- Model providers are auto-detected from env vars (Google / Anthropic / OpenAI / Z.AI). At least one is required for the default tier; Google is required for image generation. Z.AI reuses `ChatOpenAI` via `ZaiChatOpenAI` (`apps/agents/src/nexus/models/zai-chat-model.ts`), a subclass that round-trips `reasoning_content` to preserve GLM thinking across multi-turn tool calls — no per-call configuration needed. Defaults to `https://api.z.ai/api/paas/v4`; set `ZAI_BASE_URL=https://api.z.ai/api/coding/paas/v4` when on the GLM Coding Plan. See `apps/agents/src/nexus/preflight.ts` for the runtime check and `models/registry.ts` for the tier priority.
-- `SubagentStreamInterface` has no `model` field — derive from `subagent_type` via static mapping
-- `stream.values` can be undefined initially — always use `stream.values?.todos` with optional chaining
-- DeepAgents always adds a general-purpose subagent alongside custom ones — must be addressed
-- Custom tools live in `tools/{name}/prompt.ts` (TOOL_NAME + TOOL_DESCRIPTION) + `tool.ts` (Zod schema + implementation). Short folder names: `search/`, `extract/`, `map/`, `generate-image/`
-- Tavily Map API returns `results` (array of URL strings) and `base_url`, NOT `urls` — check `docs/custom/` OpenAPI specs for actual response shapes
-- Vitest does not auto-load `.env` — for integration tests needing API keys: `source .env && export VAR_NAME` before running
-- `FileData` from `deepagents` is a union of `FileDataV1` (`content: string[]`) and `FileDataV2` (`content: string | Uint8Array`). Skills use V1 format (line array).
-- Skills are seeded via `orchestrator.invoke({ files: nexusSkillFiles })` — the barrel export at `skills/index.ts` recursively collects all skill files as a `FileData` map with virtual POSIX paths (`/skills/{name}/...`)
-- `apps/agents` has pre-existing TypeScript build errors (test files, db/index.ts) — use `npx next build` in `apps/web/` directly instead of `npm run build` from root
-- Three integration tests fail on every local run without live services and API keys, and this is expected (not a regression): `__tests__/integration.test.ts > Meta-Router` (needs Google/Anthropic/OpenAI key), `__tests__/tools-integration.test.ts > Tavily` (needs `TAVILY_API_KEY`), `backend/__tests__/aio-sandbox.test.ts` (needs a running `ghcr.io/agent-infra/sandbox` container). When verifying a change, the pass bar is "everything green except these three files".
-
-## Workspace Convention
-
-All agents share the AIO Sandbox filesystem. Workspace root: `/home/gem/workspace/`. Folders by agent type, subfolders by task call ID:
-```
-/home/gem/workspace/{research|code|creative|orchestrator}/task_{id}/
-/home/gem/workspace/shared/   ← final deliverables
-```
+- Be terse. Don't restate diffs or summarize at the end.
+- Propose a plan before non-trivial edits (multi-file changes, refactors, new subsystems) and wait for confirmation.
+- Run lint / typecheck / relevant tests before claiming work is done — evidence before assertions.
+- On refactors, surface alternatives and state why the chosen path wins.

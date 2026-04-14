@@ -62,6 +62,7 @@ desktop.ini
 
 # Claude Code local
 .claude.local.md
+CLAUDE.local.md
 
 # wikillm KB — per-machine noise (.kb/.gitignore handles Obsidian state;
 # _index/ churn is excluded from the Obsidian graph via userIgnoreFilters)
