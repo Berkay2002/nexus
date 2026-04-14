@@ -232,6 +232,13 @@ export default function DemoPage() {
   const subagentMap = new Map(subagentList.map((s) => [s.id, s]));
   const allSubagents = [...subagentMap.values()];
   const isLoading = state === "running" || state === "synthesizing";
+  const outputPaths =
+    state === "complete"
+      ? [
+          "/home/gem/workspace/creative/task_sa3/adoption-chart.png",
+          "/home/gem/workspace/shared/executive-summary.md",
+        ]
+      : [];
 
   const messages = state === "complete"
     ? [...MOCK_MESSAGES_RUNNING, SYNTHESIS_MESSAGE]
@@ -271,6 +278,7 @@ export default function DemoPage() {
       todos={todos}
       subagents={subagentMap}
       allSubagents={allSubagents}
+      outputPaths={outputPaths}
       getSubagentsByMessage={getSubagentsByMessage}
       isLoading={isLoading}
       onSubmit={(message) => {
