@@ -11,6 +11,7 @@ export const SKILL_NAMES = [
   "generate-image",
   "data-analysis",
   "write-report",
+  "using-mcp-tools",
 ] as const;
 
 function createFileData(content: string): FileData {

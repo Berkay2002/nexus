@@ -32,13 +32,14 @@ describe("Skills barrel export", () => {
     }
   });
 
-  it("should export SKILL_NAMES constant with all 5 names", () => {
+  it("should export SKILL_NAMES constant with all 6 names", () => {
     expect(SKILL_NAMES).toEqual([
       "deep-research",
       "build-app",
       "generate-image",
       "data-analysis",
       "write-report",
+      "using-mcp-tools",
     ]);
   });
 
