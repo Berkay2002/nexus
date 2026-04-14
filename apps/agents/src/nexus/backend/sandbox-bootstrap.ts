@@ -38,7 +38,7 @@ export async function ensureSandboxFilesystem(
   bootstrapPromise = (async () => {
     try {
       const markerCheck = await sandbox.execute(
-        `test -f ${MARKER} && echo exists`,
+        `test -f ${JSON.stringify(MARKER)} && echo exists`,
       );
       if (
         markerCheck.exitCode === 0 &&
@@ -99,7 +99,7 @@ export async function ensureSandboxFilesystem(
       }
 
       const markerWrite = await sandbox.execute(
-        `date -u +%Y-%m-%dT%H:%M:%SZ > ${MARKER}`,
+        `date -u +%Y-%m-%dT%H:%M:%SZ > ${JSON.stringify(MARKER)}`,
       );
       if (markerWrite.exitCode !== 0) {
         console.error(

@@ -11,6 +11,13 @@ import {
   __resetBootstrapStateForTests,
 } from "../backend/sandbox-bootstrap.js";
 
+function unquote(s: string): string {
+  if (s.length >= 2 && s.startsWith('"') && s.endsWith('"')) {
+    return s.slice(1, -1);
+  }
+  return s;
+}
+
 class FakeSandboxBackend extends BaseSandbox {
   readonly id = "fake-sandbox";
   files = new Map<string, Uint8Array>();
@@ -32,10 +39,11 @@ class FakeSandboxBackend extends BaseSandbox {
       return { output: "", exitCode: 0, truncated: false };
     }
 
-    // test -f PATH && echo exists
+    // test -f PATH && echo exists (PATH may be JSON-quoted)
     const testMatch = command.match(/^test -f (\S+) && echo exists$/);
     if (testMatch) {
-      const present = this.files.has(testMatch[1]);
+      const path = unquote(testMatch[1]);
+      const present = this.files.has(path);
       return {
         output: present ? "exists\n" : "",
         exitCode: present ? 0 : 1,
@@ -48,10 +56,11 @@ class FakeSandboxBackend extends BaseSandbox {
       return { output: "added 1 package\n", exitCode: 0, truncated: false };
     }
 
-    // date ... > PATH
+    // date ... > PATH (PATH may be JSON-quoted)
     const dateMatch = command.match(/^date .* > (\S+)$/);
     if (dateMatch) {
-      this.files.set(dateMatch[1], new TextEncoder().encode("2026-04-14T00:00:00Z\n"));
+      const path = unquote(dateMatch[1]);
+      this.files.set(path, new TextEncoder().encode("2026-04-14T00:00:00Z\n"));
       return { output: "", exitCode: 0, truncated: false };
     }
 
