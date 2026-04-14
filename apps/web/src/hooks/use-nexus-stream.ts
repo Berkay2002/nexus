@@ -2,7 +2,7 @@
 "use client";
 
 import { useStreamContext } from "@/providers/Stream";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { ensureToolCallsHaveResponses } from "@/lib/ensure-tool-responses";
 import type { Message } from "@langchain/langgraph-sdk";
@@ -58,6 +58,24 @@ function buildHumanContent(
 export function useNexusStream() {
   const stream = useStreamContext();
 
+  // Sticky routing result, scoped to the current turn. We can't read this
+  // straight off `stream.values` because once the orchestrator subgraph starts
+  // emitting `values` events (we use streamSubgraphs: true for subagent
+  // streaming), the merged stream values no longer carry the parent's
+  // `routerResult` key — the card would blink out the moment orchestration
+  // begins. Pin it locally instead and clear on the next submit.
+  const [stickyRouterResult, setStickyRouterResult] =
+    useState<RoutingResult | null>(null);
+
+  useEffect(() => {
+    const fromStream = (
+      stream.values as Record<string, unknown> | undefined
+    )?.routerResult as RoutingResult | null | undefined;
+    if (fromStream) {
+      setStickyRouterResult(fromStream);
+    }
+  }, [stream.values]);
+
   const submitPrompt = useCallback(
     (input: string | PromptInputMessage) => {
       const message: PromptInputMessage =
@@ -73,6 +91,9 @@ export function useNexusStream() {
         stream.messages as Message[],
       );
       const modelsByRole = getModelsByRole();
+      // Reset the sticky routing result so the next turn starts fresh —
+      // the card returns to its shimmer state until metaRouter writes again.
+      setStickyRouterResult(null);
       stream.submit(
         { messages: [...toolMessages, newMessage] },
         {
@@ -92,9 +113,6 @@ export function useNexusStream() {
               ...toolMessages,
               newMessage,
             ],
-            // Clear the previous turn's routerResult so the routing card
-            // returns to its shimmer state until metaRouter writes a fresh
-            // result for this turn.
             routerResult: null,
           }),
         } as any,
@@ -117,24 +135,34 @@ export function useNexusStream() {
 
   // Meta-router visualization. The graph writes routerResult to state at the
   // end of the metaRouter node — there's no streaming during classification,
-  // just a null → result transition. We cleared routerResult in
-  // optimisticValues on submit, so:
+  // just a null → result transition. The sticky local copy survives subgraph
+  // value updates that would otherwise clobber the parent's routerResult.
   //   - Just after submit, before metaRouter completes:
-  //       routerResult == null && lastMessage is human → isClassifying
-  //   - After metaRouter writes: routerResult is set → card resolves to
-  //     "Routed in Ns · {tier}" and auto-collapses 1s later
-  const routerResult =
-    ((stream.values as Record<string, unknown> | undefined)?.routerResult as
-      | RoutingResult
-      | null
-      | undefined) ?? null;
+  //       sticky == null && lastMessage is human → isClassifying
+  //   - After metaRouter writes: sticky is set → card resolves to
+  //     "Routed in Ns · {tier}" and stays visible for the rest of the turn
   const lastMessageType =
     stream.messages[stream.messages.length - 1]?.type ?? null;
   const isClassifying =
-    stream.isLoading && routerResult == null && lastMessageType === "human";
+    stream.isLoading && stickyRouterResult == null && lastMessageType === "human";
+  // Orchestrator considered "started" once any non-human message exists after
+  // the latest human message — that's the signal for the routing card to
+  // surrender the viewport and auto-collapse.
+  const lastHumanIndex = (() => {
+    for (let i = stream.messages.length - 1; i >= 0; i--) {
+      if (stream.messages[i]?.type === "human") return i;
+    }
+    return -1;
+  })();
+  const hasOrchestratorStarted =
+    lastHumanIndex >= 0 && lastHumanIndex < stream.messages.length - 1;
   const routing: RoutingState | undefined =
-    routerResult || isClassifying
-      ? { result: routerResult, isClassifying }
+    stickyRouterResult || isClassifying
+      ? {
+          result: stickyRouterResult,
+          isClassifying,
+          hasOrchestratorStarted,
+        }
       : undefined;
 
   return {
