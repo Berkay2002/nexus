@@ -7,7 +7,14 @@
  *
  * Exports `generateWrappers` for unit tests and runs as a CLI script for dev use.
  */
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "fs";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 
@@ -229,7 +236,11 @@ async function main(): Promise<void> {
   );
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+const invokedDirectly =
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === realpathSync(process.argv[1]);
+
+if (invokedDirectly) {
   main().catch((err) => {
     console.error(err);
     process.exit(1);
