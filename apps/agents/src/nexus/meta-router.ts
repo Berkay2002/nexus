@@ -106,7 +106,8 @@ function extractText(value: unknown): string {
  * Pull the model's actual chain-of-thought from the response when available.
  * This is best-effort and provider-specific — there is no portable shape:
  *   - Z.AI / GLM:   `additional_kwargs.reasoning_content` (string)
- *   - OpenAI-ish:   `additional_kwargs.reasoning` (string)
+ *   - OpenAI Chat Completions: `additional_kwargs.reasoning_content` (string)
+ *   - OpenAI Responses API: `additional_kwargs.reasoning.summary[].text` (object)
  *   - Anthropic:    `content` array with blocks of `type: "thinking"`,
  *                   `thinking: string`
  *   - Google / OpenAI GPT-5 family: internal reasoning is typically hidden in
@@ -119,13 +120,55 @@ function extractReasoningContent(message: unknown): string | undefined {
   const additional = (message as { additional_kwargs?: unknown })
     .additional_kwargs;
   if (additional && typeof additional === "object") {
-    const candidates = [
-      (additional as Record<string, unknown>).reasoning_content,
-      (additional as Record<string, unknown>).reasoning,
-    ];
+    const record = additional as Record<string, unknown>;
+    const candidates = [record.reasoning_content, record.reasoning];
     for (const candidate of candidates) {
       if (typeof candidate === "string" && candidate.trim().length > 0) {
         return candidate;
+      }
+    }
+
+    const rawReasoning = record.reasoning;
+    if (rawReasoning && typeof rawReasoning === "object") {
+      const reasoning = rawReasoning as Record<string, unknown>;
+
+      const summary = reasoning.summary;
+      if (Array.isArray(summary)) {
+        const summaryText = summary
+          .map((entry) => {
+            if (typeof entry === "string") return entry;
+            if (
+              entry &&
+              typeof entry === "object" &&
+              typeof (entry as { text?: unknown }).text === "string"
+            ) {
+              return (entry as { text: string }).text;
+            }
+            return "";
+          })
+          .filter((text) => text.trim().length > 0);
+        if (summaryText.length > 0) {
+          return summaryText.join("\n\n");
+        }
+      }
+
+      const content = reasoning.content;
+      if (Array.isArray(content)) {
+        const contentText = content
+          .map((entry) => {
+            if (
+              entry &&
+              typeof entry === "object" &&
+              typeof (entry as { text?: unknown }).text === "string"
+            ) {
+              return (entry as { text: string }).text;
+            }
+            return "";
+          })
+          .filter((text) => text.trim().length > 0);
+        if (contentText.length > 0) {
+          return contentText.join("\n\n");
+        }
       }
     }
   }

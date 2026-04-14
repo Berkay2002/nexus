@@ -169,6 +169,46 @@ describe("metaRouter", () => {
     );
   });
 
+  it("extracts reasoning from OpenAI Responses-style reasoning summary object", async () => {
+    const parsingError = new Error(
+      `Failed to parse. Text: "{\n  \"classification\": \"default\"\n}". Error: schema mismatch`,
+    );
+
+    const structuredInvoker = {
+      invoke: vi.fn().mockRejectedValue(parsingError),
+    };
+
+    const primaryModel = {
+      withStructuredOutput: vi.fn().mockReturnValue(structuredInvoker),
+      invoke: vi.fn().mockResolvedValue({
+        content: [{ type: "text", text: '{\n  "classification": "default"\n}' }],
+        additional_kwargs: {
+          reasoning: {
+            type: "reasoning",
+            summary: [{ type: "summary_text", text: "Multi-step intent detected." }],
+          },
+        },
+      }),
+    };
+
+    vi.spyOn(modelRegistry, "resolveTier").mockImplementation(
+      ((tier: string) =>
+        tier === "classifier" ? (primaryModel as any) : null) as any,
+    );
+    vi.spyOn(modelRegistry, "buildTierFallbacks").mockReturnValue([]);
+
+    const state = {
+      messages: [new HumanMessage("Build and deploy a production app")],
+      routerResult: null,
+    };
+
+    const result = await metaRouter(state as any);
+
+    expect(result.routerResult).not.toBeNull();
+    expect(result.routerResult!.complexity).toBe("default");
+    expect(result.routerResult!.reasoning).toBe("Multi-step intent detected.");
+  });
+
   it("rethrows non-parsing structured-output errors", async () => {
     const nonParsingError = new Error("Provider call failed");
 
