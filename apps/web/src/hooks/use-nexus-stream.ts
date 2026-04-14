@@ -7,6 +7,10 @@ import { v4 as uuidv4 } from "uuid";
 import { ensureToolCallsHaveResponses } from "@/lib/ensure-tool-responses";
 import type { Message } from "@langchain/langgraph-sdk";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
+import type {
+  RoutingResult,
+  RoutingState,
+} from "@/components/execution/routing-card";
 import { getModelsByRole } from "@/stores/model-settings";
 
 type HumanContentPart =
@@ -88,6 +92,10 @@ export function useNexusStream() {
               ...toolMessages,
               newMessage,
             ],
+            // Clear the previous turn's routerResult so the routing card
+            // returns to its shimmer state until metaRouter writes a fresh
+            // result for this turn.
+            routerResult: null,
           }),
         } as any,
       );
@@ -107,6 +115,28 @@ export function useNexusStream() {
     | ((messageId: string) => any[])
     | undefined;
 
+  // Meta-router visualization. The graph writes routerResult to state at the
+  // end of the metaRouter node — there's no streaming during classification,
+  // just a null → result transition. We cleared routerResult in
+  // optimisticValues on submit, so:
+  //   - Just after submit, before metaRouter completes:
+  //       routerResult == null && lastMessage is human → isClassifying
+  //   - After metaRouter writes: routerResult is set → card resolves to
+  //     "Routed in Ns · {tier}" and auto-collapses 1s later
+  const routerResult =
+    ((stream.values as Record<string, unknown> | undefined)?.routerResult as
+      | RoutingResult
+      | null
+      | undefined) ?? null;
+  const lastMessageType =
+    stream.messages[stream.messages.length - 1]?.type ?? null;
+  const isClassifying =
+    stream.isLoading && routerResult == null && lastMessageType === "human";
+  const routing: RoutingState | undefined =
+    routerResult || isClassifying
+      ? { result: routerResult, isClassifying }
+      : undefined;
+
   return {
     messages: stream.messages,
     isLoading: stream.isLoading,
@@ -119,5 +149,6 @@ export function useNexusStream() {
     hasMessages,
     subagents,
     getSubagentsByMessage,
+    routing,
   };
 }

@@ -11,6 +11,7 @@ import { AgentStatusPanel } from "./agent-status-panel";
 import { MessageFeed } from "./message-feed";
 import { PromptBar } from "./prompt-bar";
 import { WorkspaceOutputsPanel } from "./workspace-outputs-panel";
+import type { RoutingState } from "./routing-card";
 import type { NexusTodo } from "@/lib/subagent-utils";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import {
@@ -27,6 +28,7 @@ type ExecutionShellProps = {
   outputPaths: string[];
   getSubagentsByMessage: ((messageId: string) => any[]) | undefined;
   isLoading: boolean;
+  routing?: RoutingState;
   onSubmit: (message: string | PromptInputMessage) => void;
   onStop: () => void;
   topSlot?: ReactNode;
@@ -41,6 +43,7 @@ export function ExecutionShell({
   outputPaths,
   getSubagentsByMessage,
   isLoading,
+  routing,
   onSubmit,
   onStop,
   topSlot,
@@ -91,9 +94,11 @@ export function ExecutionShell({
               {todos.length === 0 && allSubagents.length === 0 && outputPaths.length === 0 && (
                 <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
                   <p className="text-sm text-muted-foreground">
-                    {isLoading
-                      ? "Planning..."
-                      : "Waiting for agent activity..."}
+                    {!isLoading
+                      ? "Waiting for agent activity..."
+                      : routing?.isClassifying
+                        ? "Routing your request..."
+                        : "Planning..."}
                   </p>
                 </div>
               )}
@@ -112,6 +117,7 @@ export function ExecutionShell({
             <ConversationContent className="gap-5 p-0">
               <MessageFeed
                 messages={messages}
+                routing={routing}
                 getSubagentsByMessage={getSubagentsByMessage}
                 allSubagents={allSubagents}
                 isLoading={isLoading}

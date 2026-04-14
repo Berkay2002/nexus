@@ -20,6 +20,7 @@ export function ExecutionView() {
     submitPrompt,
     stop,
     error,
+    routing,
   } = useNexusStream();
 
   const todosFromValues = extractTodosFromValues(values as any);
@@ -42,6 +43,7 @@ export function ExecutionView() {
       outputPaths={outputPaths}
       getSubagentsByMessage={getSubagentsByMessage}
       isLoading={isLoading}
+      routing={routing}
       onSubmit={submitPrompt}
       onStop={stop}
       error={error}

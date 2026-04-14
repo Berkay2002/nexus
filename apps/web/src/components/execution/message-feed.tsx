@@ -1,10 +1,12 @@
 // apps/web/src/components/execution/message-feed.tsx
 "use client";
 
+import { Fragment } from "react";
 import { SubagentCard } from "./subagent-card";
 import { FilesystemToolArtifact } from "./filesystem-tool-artifact";
 import { SynthesisIndicator } from "./synthesis-indicator";
 import { GenerateImageArtifact } from "./generate-image-artifact";
+import { RoutingCard, type RoutingState } from "./routing-card";
 import { MarkdownText } from "@/components/thread/markdown-text";
 import { ExecuteToolArtifact } from "./execute-tool-artifact";
 import { DO_NOT_RENDER_ID_PREFIX } from "@/lib/ensure-tool-responses";
@@ -349,11 +351,13 @@ function OrchestratorMessage({
 
 export function MessageFeed({
   messages,
+  routing,
   getSubagentsByMessage,
   allSubagents,
   isLoading,
 }: {
   messages: any[];
+  routing?: RoutingState;
   getSubagentsByMessage: ((messageId: string) => any[]) | undefined;
   allSubagents: any[];
   isLoading: boolean;
@@ -367,19 +371,33 @@ export function MessageFeed({
     (m) => !m.id?.startsWith(DO_NOT_RENDER_ID_PREFIX),
   );
   const toolResultByCallId = buildToolResultMap(filteredMessages);
+  const lastHumanIndex = (() => {
+    for (let i = filteredMessages.length - 1; i >= 0; i--) {
+      if (filteredMessages[i]?.type === "human") return i;
+    }
+    return -1;
+  })();
+  const showRoutingCard =
+    routing !== undefined &&
+    (routing.isClassifying || routing.result !== null);
 
   return (
     <div className="flex flex-col gap-5 py-6 px-4 w-full max-w-3xl mx-auto">
       {filteredMessages.map((message, index) => {
         const isHuman = message.type === "human";
         const isTool = message.type === "tool";
+        const key = message.id || `msg-${index}`;
+        const routingSlot =
+          showRoutingCard && index === lastHumanIndex ? (
+            <RoutingCard {...routing!} />
+          ) : null;
 
         if (isHuman) {
           return (
-            <HumanBubble
-              key={message.id || `msg-${index}`}
-              content={getContentString(message.content)}
-            />
+            <Fragment key={key}>
+              <HumanBubble content={getContentString(message.content)} />
+              {routingSlot}
+            </Fragment>
           );
         }
 
@@ -404,7 +422,7 @@ export function MessageFeed({
 
         return (
           <OrchestratorMessage
-            key={message.id || `msg-${index}`}
+            key={key}
             message={message}
             subagents={subs}
             isLastMessage={index === filteredMessages.length - 1}
@@ -418,13 +436,16 @@ export function MessageFeed({
         <SynthesisIndicator subagentCount={allSubagents.length} />
       )}
 
-      {isLoading && allSubagents.length === 0 && messages.length > 0 && (
-        <div className="flex items-center gap-1.5 py-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-foreground/50 animate-[pulse_1.5s_ease-in-out_infinite]" />
-          <div className="w-1.5 h-1.5 rounded-full bg-foreground/50 animate-[pulse_1.5s_ease-in-out_0.5s_infinite]" />
-          <div className="w-1.5 h-1.5 rounded-full bg-foreground/50 animate-[pulse_1.5s_ease-in-out_1s_infinite]" />
-        </div>
-      )}
+      {isLoading &&
+        allSubagents.length === 0 &&
+        messages.length > 0 &&
+        !routing?.isClassifying && (
+          <div className="flex items-center gap-1.5 py-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-foreground/50 animate-[pulse_1.5s_ease-in-out_infinite]" />
+            <div className="w-1.5 h-1.5 rounded-full bg-foreground/50 animate-[pulse_1.5s_ease-in-out_0.5s_infinite]" />
+            <div className="w-1.5 h-1.5 rounded-full bg-foreground/50 animate-[pulse_1.5s_ease-in-out_1s_infinite]" />
+          </div>
+        )}
     </div>
   );
 }
