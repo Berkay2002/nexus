@@ -272,8 +272,8 @@ export class CodexChatModel extends BaseChatModel {
         const retryable = status === 429 || status === 500 || status === 529;
         if (!retryable || attempt >= this.retryMaxAttempts) throw err;
         const base = 2000 * Math.pow(2, attempt - 1);
-        const jitter = Math.floor(base * 0.2);
-        let waitMs = base + jitter;
+        const jitterFactor = 0.8 + Math.random() * 0.4;
+        let waitMs = Math.floor(base * jitterFactor);
         const retryAfter = (err as { response?: Response }).response?.headers?.get?.(
           "Retry-After",
         );
