@@ -124,6 +124,62 @@ export class CodexChatModel extends BaseChatModel {
     return { instructions, input };
   }
 
+  _convertTools(tools: unknown[]): Array<Record<string, unknown>> {
+    const result: Array<Record<string, unknown>> = [];
+    for (const tool of tools) {
+      if (!tool || typeof tool !== "object") continue;
+      const t = tool as Record<string, unknown>;
+      if (t.type === "function" && t.function && typeof t.function === "object") {
+        const fn = t.function as Record<string, unknown>;
+        result.push({
+          type: "function",
+          name: fn.name,
+          description: fn.description ?? "",
+          parameters: fn.parameters ?? {},
+        });
+      } else if (typeof t.name === "string") {
+        result.push({
+          type: "function",
+          name: t.name,
+          description: t.description ?? "",
+          parameters: t.parameters ?? {},
+        });
+      }
+    }
+    return result;
+  }
+
+  override bindTools(
+    tools: Parameters<BaseChatModel["bindTools"]>[0],
+    kwargs?: Partial<this["ParsedCallOptions"]>,
+  ): ReturnType<BaseChatModel["bindTools"]> {
+    const formatted: Array<Record<string, unknown>> = [];
+    for (const t of tools) {
+      if (t && typeof t === "object") {
+        if ("lc_serializable" in t || "name" in t) {
+          const asAny = t as unknown as {
+            name?: string;
+            description?: string;
+            schema?: unknown;
+          };
+          if (typeof asAny.name === "string") {
+            formatted.push({
+              type: "function",
+              name: asAny.name,
+              description: asAny.description ?? "",
+              parameters: asAny.schema ?? { type: "object", properties: {} },
+            });
+            continue;
+          }
+        }
+        formatted.push(...this._convertTools([t]));
+      }
+    }
+    return this.withConfig({ tools: formatted, ...(kwargs ?? {}) } as unknown as Partial<
+      this["ParsedCallOptions"]
+    >);
+  }
+
   async _generate(
     _messages: BaseMessage[],
     _options: this["ParsedCallOptions"],

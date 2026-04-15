@@ -107,3 +107,41 @@ describe("CodexChatModel._convertMessages", () => {
     ]);
   });
 });
+
+describe("CodexChatModel._convertTools", () => {
+  const model = new CodexChatModel({ accessToken: "tok", accountId: "acct" });
+
+  it("flattens wrapped function-calling tool shape", () => {
+    const tools = [
+      {
+        type: "function",
+        function: {
+          name: "bash",
+          description: "Run a shell command",
+          parameters: { type: "object", properties: { cmd: { type: "string" } } },
+        },
+      },
+    ];
+    const result = (
+      model as unknown as { _convertTools: (t: unknown[]) => unknown[] }
+    )._convertTools(tools);
+    expect(result).toEqual([
+      {
+        type: "function",
+        name: "bash",
+        description: "Run a shell command",
+        parameters: { type: "object", properties: { cmd: { type: "string" } } },
+      },
+    ]);
+  });
+
+  it("passes through already-flat tools", () => {
+    const tools = [
+      { type: "function", name: "search", description: "Search the web", parameters: {} },
+    ];
+    const result = (
+      model as unknown as { _convertTools: (t: unknown[]) => unknown[] }
+    )._convertTools(tools);
+    expect(result).toEqual(tools);
+  });
+});
