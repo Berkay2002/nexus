@@ -1,4 +1,5 @@
 import { BaseChatModel, type BaseChatModelParams } from "@langchain/core/language_models/chat_models";
+import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
 import type { ChatResult } from "@langchain/core/outputs";
 import type { CallbackManagerForLLMRun } from "@langchain/core/callbacks/manager";
@@ -50,6 +51,77 @@ export class CodexChatModel extends BaseChatModel {
 
   _llmType(): string {
     return "codex-responses";
+  }
+
+  static _normalizeContent(content: unknown): string {
+    if (typeof content === "string") return content;
+    if (Array.isArray(content)) {
+      return content
+        .map((item) => CodexChatModel._normalizeContent(item))
+        .filter((s) => s.length > 0)
+        .join("\n");
+    }
+    if (content && typeof content === "object") {
+      const obj = content as Record<string, unknown>;
+      for (const key of ["text", "output"]) {
+        const value = obj[key];
+        if (typeof value === "string") return value;
+      }
+      if (obj.content !== undefined) return CodexChatModel._normalizeContent(obj.content);
+      try {
+        return JSON.stringify(obj);
+      } catch {
+        return String(obj);
+      }
+    }
+    try {
+      return JSON.stringify(content);
+    } catch {
+      return String(content);
+    }
+  }
+
+  _convertMessages(messages: BaseMessage[]): {
+    instructions: string;
+    input: Array<Record<string, unknown>>;
+  } {
+    const instructionParts: string[] = [];
+    const input: Array<Record<string, unknown>> = [];
+
+    for (const msg of messages) {
+      if (msg instanceof SystemMessage) {
+        const text = CodexChatModel._normalizeContent(msg.content);
+        if (text) instructionParts.push(text);
+      } else if (msg instanceof HumanMessage) {
+        input.push({ role: "user", content: CodexChatModel._normalizeContent(msg.content) });
+      } else if (msg instanceof AIMessage) {
+        const text = CodexChatModel._normalizeContent(msg.content);
+        if (text) input.push({ role: "assistant", content: text });
+        for (const tc of msg.tool_calls ?? []) {
+          input.push({
+            type: "function_call",
+            name: tc.name,
+            arguments:
+              typeof tc.args === "object" && tc.args !== null
+                ? JSON.stringify(tc.args)
+                : String(tc.args ?? ""),
+            call_id: tc.id ?? "",
+          });
+        }
+      } else if (msg instanceof ToolMessage) {
+        input.push({
+          type: "function_call_output",
+          call_id: msg.tool_call_id,
+          output: CodexChatModel._normalizeContent(msg.content),
+        });
+      }
+    }
+
+    const instructions = instructionParts.length > 0
+      ? instructionParts.join("\n\n")
+      : "You are a helpful assistant.";
+
+    return { instructions, input };
   }
 
   async _generate(
