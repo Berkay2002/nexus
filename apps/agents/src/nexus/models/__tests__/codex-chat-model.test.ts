@@ -9,6 +9,8 @@ import {
 } from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
 import { ChatGenerationChunk } from "@langchain/core/outputs";
+import { tool } from "@langchain/core/tools";
+import { z } from "zod";
 
 describe("CodexChatModel constructor", () => {
   it("rejects retryMaxAttempts < 1", () => {
@@ -175,6 +177,61 @@ describe("CodexChatModel._convertTools", () => {
       model as unknown as { _convertTools: (t: unknown[]) => unknown[] }
     )._convertTools(tools);
     expect(result).toEqual(tools);
+  });
+});
+
+describe("CodexChatModel.bindTools with Zod schemas", () => {
+  it("converts Zod schemas to JSON Schema via convertToOpenAIFunction", () => {
+    const bashTool = tool(({ cmd }: { cmd: string }) => `ran ${cmd}`, {
+      name: "bash",
+      description: "Run a shell command",
+      schema: z.object({ cmd: z.string().describe("The command to run") }),
+    });
+    const model = new CodexChatModel({ accessToken: "tok", accountId: "acct" });
+    const bound = model.bindTools([bashTool]);
+    // The bound runnable is a RunnableBinding whose `config` carries the
+    // formatted tools array we stuffed in via withConfig({ tools, ...kwargs }).
+    // (Runnable.withConfig sets `config`, not `kwargs`, on the returned binding.)
+    const cfg =
+      (bound as unknown as { config?: Record<string, unknown> }).config ?? {};
+    const tools = cfg.tools as Array<Record<string, unknown>> | undefined;
+    expect(tools).toBeDefined();
+    expect(tools).toHaveLength(1);
+    const fn = tools![0];
+    expect(fn.type).toBe("function");
+    expect(fn.name).toBe("bash");
+    expect(fn.description).toBe("Run a shell command");
+    // parameters MUST be JSON Schema, not a Zod ZodObject.
+    const params = fn.parameters as Record<string, unknown>;
+    expect(params.type).toBe("object");
+    expect(params.properties).toBeDefined();
+    const props = params.properties as Record<string, unknown>;
+    expect(props.cmd).toBeDefined();
+    const cmdSchema = props.cmd as Record<string, unknown>;
+    expect(cmdSchema.type).toBe("string");
+    // Sanity: it should NOT carry Zod internals.
+    expect(params).not.toHaveProperty("_def");
+    expect(params).not.toHaveProperty("_zod");
+  });
+
+  it("still handles already-flat wrapped function tool shape", () => {
+    const model = new CodexChatModel({ accessToken: "tok", accountId: "acct" });
+    const bound = model.bindTools([
+      {
+        type: "function",
+        function: {
+          name: "echo",
+          description: "Echo input",
+          parameters: { type: "object", properties: { msg: { type: "string" } } },
+        },
+      } as unknown as Parameters<typeof model.bindTools>[0][number],
+    ]);
+    const cfg =
+      (bound as unknown as { config?: Record<string, unknown> }).config ?? {};
+    const tools = cfg.tools as Array<Record<string, unknown>> | undefined;
+    expect(tools).toHaveLength(1);
+    expect(tools![0].name).toBe("echo");
+    expect((tools![0].parameters as Record<string, unknown>).type).toBe("object");
   });
 });
 

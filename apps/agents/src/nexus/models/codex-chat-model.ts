@@ -15,6 +15,8 @@ import { ChatGenerationChunk, type ChatResult } from "@langchain/core/outputs";
 import type { CallbackManagerForLLMRun } from "@langchain/core/callbacks/manager";
 import type { Runnable } from "@langchain/core/runnables";
 import type { BaseLanguageModelInput } from "@langchain/core/language_models/base";
+import { convertToOpenAIFunction } from "@langchain/core/utils/function_calling";
+import type { StructuredToolInterface } from "@langchain/core/tools";
 
 export type CodexReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 
@@ -183,25 +185,34 @@ export class CodexChatModel extends BaseChatModel {
   ): Runnable<BaseLanguageModelInput, AIMessageChunk, this["ParsedCallOptions"]> {
     const formatted: Array<Record<string, unknown>> = [];
     for (const t of tools) {
-      if (t && typeof t === "object") {
-        if ("lc_serializable" in t || "name" in t) {
-          const asAny = t as unknown as {
-            name?: string;
-            description?: string;
-            schema?: unknown;
-          };
-          if (typeof asAny.name === "string") {
-            formatted.push({
-              type: "function",
-              name: asAny.name,
-              description: asAny.description ?? "",
-              parameters: asAny.schema ?? { type: "object", properties: {} },
-            });
-            continue;
-          }
+      if (!t || typeof t !== "object") continue;
+
+      // Case 1: StructuredTool-like (has lc_serializable + name/description/schema,
+      // e.g. created via LangChain's `tool()` helper with a Zod schema).
+      // Convert via LangChain's helper so Zod schemas become JSON Schema — the
+      // Codex Responses API expects JSON Schema for `parameters`, NOT raw Zod.
+      const maybe = t as {
+        lc_serializable?: unknown;
+        name?: unknown;
+        schema?: unknown;
+      };
+      if ((maybe.lc_serializable || maybe.schema) && typeof maybe.name === "string") {
+        try {
+          const openaiFn = convertToOpenAIFunction(t as StructuredToolInterface);
+          formatted.push({
+            type: "function",
+            name: openaiFn.name,
+            description: openaiFn.description ?? "",
+            parameters: openaiFn.parameters ?? { type: "object", properties: {} },
+          });
+          continue;
+        } catch {
+          // Fall through to generic handling if conversion fails.
         }
-        formatted.push(...this._convertTools([t]));
       }
+
+      // Case 2: Already-flat or wrapped OpenAI-function shape — use _convertTools.
+      formatted.push(...this._convertTools([t]));
     }
     return this.withConfig({ tools: formatted, ...(kwargs ?? {}) } as unknown as Partial<
       this["ParsedCallOptions"]
