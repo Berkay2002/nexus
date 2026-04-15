@@ -257,25 +257,51 @@ Full design spec: [`docs/superpowers/specs/2026-04-10-nexus-design.md`](docs/sup
 ## Project Layout
 
 ```
-apps/
-  agents/src/nexus/
-    graph.ts                  meta-router + orchestrator wiring
-    models/                   tier-based provider registry
-    agents/{research,code,creative,general-purpose}/
-    tools/{search,extract,map,generate-image,
-           code-execute,code-info,nodejs-execute,nodejs-info,
-           jupyter-*,browser-*,util-convert-to-markdown}/
-    skills/{deep-research,build-app,...}/   SKILL.md + templates
-    backend/                  aio-sandbox + composite + store
-    middleware/               configurable per-role model swap
-  web/src/
-    app/page.tsx              landing <-> execution switch
-    app/demo/page.tsx         mocked demo view (Vercel-deployable)
-    components/execution/     todo panel, agent cards, prompt bar,
-                              workspace outputs, artifact renderers
-    components/landing/       logo, tagline, prompt input
-    components/settings/      runtime model override panel
-    providers/                LangGraph client + Stream provider
+nexus/
+├── apps/
+│   ├── agents/                        # LangGraph server (Node 20, DeepAgents)
+│   │   └── src/nexus/
+│   │       ├── graph.ts               # Meta-router + orchestrator wiring
+│   │       ├── models/                # Tier-based provider registry
+│   │       ├── agents/                # Sub-agent definitions
+│   │       │   ├── research/
+│   │       │   ├── code/
+│   │       │   ├── creative/
+│   │       │   └── general-purpose/
+│   │       ├── tools/                 # LangChain tool wrappers
+│   │       │   ├── search/
+│   │       │   ├── extract/
+│   │       │   ├── map/
+│   │       │   ├── generate-image/
+│   │       │   ├── browser-*/
+│   │       │   ├── code-*/
+│   │       │   ├── nodejs-*/
+│   │       │   ├── jupyter-*/
+│   │       │   └── util-convert-to-markdown/
+│   │       ├── skills/                # Orchestrator skills (SKILL.md + templates)
+│   │       │   ├── deep-research/
+│   │       │   ├── build-app/
+│   │       │   ├── generate-image/
+│   │       │   ├── data-analysis/
+│   │       │   └── write-report/
+│   │       ├── backend/               # AIO Sandbox + Composite + Store
+│   │       ├── middleware/            # Per-role model swap, runtime instructions
+│   │       └── db/                    # SQLite schema (Drizzle ORM)
+│   │
+│   └── web/                           # Next.js 16 / React 19 frontend
+│       └── src/
+│           ├── app/
+│           │   ├── page.tsx           # Landing <-> execution switch
+│           │   └── demo/page.tsx      # Mocked demo (Vercel-deployable)
+│           ├── components/
+│           │   ├── execution/         # Todo panel, agent cards, prompt bar,
+│           │   │                      # workspace outputs, artifact renderers
+│           │   ├── landing/           # Logo, tagline, prompt input
+│           │   └── settings/          # Runtime model override panel
+│           ├── hooks/                 # useNexusStream, etc.
+│           └── providers/             # LangGraph client + Stream provider
+│
+└── docs/                              # Design specs and plans
 ```
 
 ## Commands
