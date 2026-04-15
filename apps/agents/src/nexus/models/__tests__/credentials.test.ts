@@ -6,6 +6,7 @@ import {
   __resetCredentialCacheForTesting,
   isClaudeOAuthToken,
   loadClaudeOAuthCredential,
+  loadCodexCliCredential,
   OAUTH_ANTHROPIC_BETAS,
 } from "../credentials.js";
 
@@ -132,5 +133,57 @@ describe("OAUTH_ANTHROPIC_BETAS", () => {
     expect(OAUTH_ANTHROPIC_BETAS).toBe(
       "oauth-2025-04-20,claude-code-20250219,interleaved-thinking-2025-05-14",
     );
+  });
+});
+
+describe("loadCodexCliCredential", () => {
+  let tmp: string;
+  const CODEX_ENV = ["CODEX_ACCESS_TOKEN", "CODEX_ACCOUNT_ID", "CODEX_AUTH_PATH", "HOME", "USERPROFILE"];
+
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), "nexus-codex-"));
+    for (const v of CODEX_ENV) delete process.env[v];
+    process.env.HOME = tmp;
+    __resetCredentialCacheForTesting();
+  });
+
+  afterEach(() => {
+    rmSync(tmp, { recursive: true, force: true });
+    for (const v of CODEX_ENV) delete process.env[v];
+    __resetCredentialCacheForTesting();
+  });
+
+  it("loads from env vars when both are set", () => {
+    process.env.CODEX_ACCESS_TOKEN = "codex-env-token";
+    process.env.CODEX_ACCOUNT_ID = "acct_env";
+    const cred = loadCodexCliCredential();
+    expect(cred?.accessToken).toBe("codex-env-token");
+    expect(cred?.accountId).toBe("acct_env");
+    expect(cred?.source).toBe("codex-cli-env");
+  });
+
+  it("loads from nested tokens shape", () => {
+    const authPath = join(tmp, "auth.json");
+    writeFileSync(authPath, JSON.stringify({
+      tokens: { access_token: "codex-access-token", account_id: "acct_123" },
+    }));
+    process.env.CODEX_AUTH_PATH = authPath;
+    const cred = loadCodexCliCredential();
+    expect(cred?.accessToken).toBe("codex-access-token");
+    expect(cred?.accountId).toBe("acct_123");
+    expect(cred?.source).toBe("codex-cli-file");
+  });
+
+  it("loads from legacy top-level shape", () => {
+    const authPath = join(tmp, "auth.json");
+    writeFileSync(authPath, JSON.stringify({ access_token: "legacy-token" }));
+    process.env.CODEX_AUTH_PATH = authPath;
+    const cred = loadCodexCliCredential();
+    expect(cred?.accessToken).toBe("legacy-token");
+    expect(cred?.accountId).toBe("");
+  });
+
+  it("returns null when auth.json is missing", () => {
+    expect(loadCodexCliCredential()).toBeNull();
   });
 });

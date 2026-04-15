@@ -131,8 +131,46 @@ function doLoadClaudeOAuthCredential(): ClaudeOAuthCredential | null {
   return null;
 }
 
-// Codex loader added in Task 2.
 export function loadCodexCliCredential(): CodexCliCredential | null {
-  void _codexCache;
-  return null;
+  if (_codexCache) return _codexCache.cred;
+  const result = doLoadCodexCliCredential();
+  _codexCache = { cred: result };
+  return result;
+}
+
+function doLoadCodexCliCredential(): CodexCliCredential | null {
+  // 1. Env vars
+  const envToken = process.env.CODEX_ACCESS_TOKEN?.trim();
+  const envAccount = process.env.CODEX_ACCOUNT_ID?.trim();
+  if (envToken) {
+    return {
+      accessToken: envToken,
+      accountId: envAccount ?? "",
+      source: "codex-cli-env",
+    };
+  }
+
+  // 2. File paths
+  const path = process.env.CODEX_AUTH_PATH ?? join(getHome(), ".codex", "auth.json");
+  const data = readJsonFile(path);
+  if (!data) return null;
+
+  const tokens = (data.tokens as Record<string, unknown> | undefined) ?? {};
+  const accessToken =
+    (typeof data.access_token === "string" && data.access_token) ||
+    (typeof data.token === "string" && data.token) ||
+    (typeof tokens.access_token === "string" && tokens.access_token) ||
+    "";
+  if (!accessToken) return null;
+
+  const accountId =
+    (typeof data.account_id === "string" && data.account_id) ||
+    (typeof tokens.account_id === "string" && tokens.account_id) ||
+    "";
+
+  return {
+    accessToken,
+    accountId,
+    source: "codex-cli-file",
+  };
 }
