@@ -113,6 +113,31 @@ describe("CodexChatModel._convertMessages", () => {
       { type: "function_call_output", call_id: "call_1", output: "file1\nfile2" },
     ]);
   });
+
+  it("emits only function_call items for a tool-only AIMessage with empty content", () => {
+    const ai = new AIMessage({
+      content: "",
+      tool_calls: [
+        { name: "bash", args: { cmd: "ls" }, id: "call_1", type: "tool_call" },
+      ],
+    });
+    const { input } = (
+      model as unknown as {
+        _convertMessages: (msgs: BaseMessage[]) => { instructions: string; input: unknown[] };
+      }
+    )._convertMessages([ai]);
+    // No assistant message block should be emitted — the Responses API gets
+    // confused if we hand it an empty-content assistant turn before a
+    // function_call. This test documents the current (correct) behavior.
+    expect(input).toEqual([
+      {
+        type: "function_call",
+        name: "bash",
+        arguments: JSON.stringify({ cmd: "ls" }),
+        call_id: "call_1",
+      },
+    ]);
+  });
 });
 
 describe("CodexChatModel._convertTools", () => {
@@ -504,6 +529,38 @@ describe("CodexChatModel _streamResponseChunks + _generate (mocked fetch)", () =
       ]);
     } finally {
       fetchSpy.mockRestore();
+    }
+  });
+
+  it("retries once on 429 then succeeds (honors Retry-After: 0)", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchSpy = vi.spyOn(global, "fetch");
+      fetchSpy.mockResolvedValueOnce(
+        new Response("rate limited", {
+          status: 429,
+          headers: { "Retry-After": "0" },
+        }),
+      );
+      fetchSpy.mockResolvedValueOnce(
+        makeSseResponse([
+          `data: {"type":"response.output_text.delta","delta":"ok"}`,
+          `data: {"type":"response.completed","response":{"model":"gpt-5.4","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}}`,
+        ]),
+      );
+      const model = new CodexChatModel({
+        accessToken: "tok",
+        accountId: "acct",
+        retryMaxAttempts: 2,
+      });
+      const promise = model.invoke([new HumanMessage("hi")]);
+      await vi.runAllTimersAsync();
+      const result = await promise;
+      expect(result.content).toBe("ok");
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      fetchSpy.mockRestore();
+    } finally {
+      vi.useRealTimers();
     }
   });
 
