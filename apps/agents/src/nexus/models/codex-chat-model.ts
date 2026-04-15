@@ -1,8 +1,14 @@
-import { BaseChatModel, type BaseChatModelParams } from "@langchain/core/language_models/chat_models";
+import {
+  BaseChatModel,
+  type BaseChatModelParams,
+  type BindToolsInput,
+} from "@langchain/core/language_models/chat_models";
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
-import type { BaseMessage } from "@langchain/core/messages";
+import type { BaseMessage, AIMessageChunk } from "@langchain/core/messages";
 import type { ChatGeneration, ChatResult } from "@langchain/core/outputs";
 import type { CallbackManagerForLLMRun } from "@langchain/core/callbacks/manager";
+import type { Runnable } from "@langchain/core/runnables";
+import type { BaseLanguageModelInput } from "@langchain/core/language_models/base";
 
 export type CodexReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 
@@ -246,9 +252,9 @@ export class CodexChatModel extends BaseChatModel {
   }
 
   override bindTools(
-    tools: Parameters<BaseChatModel["bindTools"]>[0],
+    tools: BindToolsInput[],
     kwargs?: Partial<this["ParsedCallOptions"]>,
-  ): ReturnType<BaseChatModel["bindTools"]> {
+  ): Runnable<BaseLanguageModelInput, AIMessageChunk, this["ParsedCallOptions"]> {
     const formatted: Array<Record<string, unknown>> = [];
     for (const t of tools) {
       if (t && typeof t === "object") {
@@ -368,11 +374,80 @@ export class CodexChatModel extends BaseChatModel {
     };
   }
 
-  async _generate(
-    _messages: BaseMessage[],
-    _options: this["ParsedCallOptions"],
+  protected _buildHeaders(): Record<string, string> {
+    return {
+      Authorization: `Bearer ${this.accessToken}`,
+      "ChatGPT-Account-ID": this.accountId,
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+      originator: "codex_cli_rs",
+    };
+  }
+
+  protected _buildPayload(
+    messages: BaseMessage[],
+    tools?: Array<Record<string, unknown>>,
+  ): Record<string, unknown> {
+    const { instructions, input } = this._convertMessages(messages);
+    const payload: Record<string, unknown> = {
+      model: this.model,
+      instructions,
+      input,
+      store: false,
+      stream: true,
+      reasoning:
+        this.reasoningEffort === "none"
+          ? { effort: "none" }
+          : { effort: this.reasoningEffort, summary: "detailed" },
+    };
+    if (tools && tools.length > 0) {
+      payload.tools = this._convertTools(tools);
+    }
+    return payload;
+  }
+
+  protected async _callCodexApi(
+    messages: BaseMessage[],
+    tools?: Array<Record<string, unknown>>,
+  ): Promise<Record<string, unknown>> {
+    const headers = this._buildHeaders();
+    const payload = this._buildPayload(messages, tools);
+
+    let lastError: unknown = null;
+    for (let attempt = 1; attempt <= this.retryMaxAttempts; attempt++) {
+      try {
+        return await this._streamResponse(headers, payload);
+      } catch (err) {
+        lastError = err;
+        const status = (err as { status?: number }).status;
+        const retryable = status === 429 || status === 500 || status === 529;
+        if (!retryable || attempt >= this.retryMaxAttempts) throw err;
+        const base = 2000 * Math.pow(2, attempt - 1);
+        const jitter = Math.floor(base * 0.2);
+        let waitMs = base + jitter;
+        const retryAfter = (err as { response?: Response }).response?.headers?.get?.(
+          "Retry-After",
+        );
+        if (retryAfter) {
+          const parsed = Number.parseInt(retryAfter, 10);
+          if (Number.isFinite(parsed)) waitMs = parsed * 1000;
+        }
+        console.warn(
+          `[CodexChatModel] HTTP ${status}, retrying ${attempt}/${this.retryMaxAttempts} after ${waitMs}ms`,
+        );
+        await new Promise((r) => setTimeout(r, waitMs));
+      }
+    }
+    throw lastError;
+  }
+
+  override async _generate(
+    messages: BaseMessage[],
+    options: this["ParsedCallOptions"],
     _runManager?: CallbackManagerForLLMRun,
   ): Promise<ChatResult> {
-    throw new Error("CodexChatModel._generate not implemented yet (Task 11)");
+    const tools = (options as unknown as { tools?: Array<Record<string, unknown>> }).tools;
+    const response = await this._callCodexApi(messages, tools);
+    return this._parseResponse(response);
   }
 }
