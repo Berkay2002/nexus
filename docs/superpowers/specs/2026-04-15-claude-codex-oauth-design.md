@@ -498,7 +498,7 @@ End-to-end sanity checks before calling this done:
 - Docker compose: bind-mount `~/.claude` and `~/.codex` as directories (not single-file binds) into the agents container. Matches Deer-flow's `docker-compose.yaml` change in #1166.
 - macOS Keychain helper: port Deer-flow's `scripts/export_claude_code_oauth.py` as an optional utility for Mac users. Not needed on Windows/Linux.
 - Token refresh flow: call Anthropic's `/oauth/token/refresh` endpoint when `refreshToken` is present and `expiresAt` is past. Non-trivial; separate spec.
-- Incremental streaming: `CodexChatModel._streamResponseChunks()` to emit token-level chunks instead of buffering the full response. Current implementation buffers because Deer-flow does, and the LangGraph → frontend channel already handles message-level streaming.
+- Streaming follow-up: `CodexChatModel._streamResponseChunks()` already emits token-level chunks from the Codex SSE response in this design (implemented as part of Task 16 — `response.output_text.delta`, `response.reasoning_summary_text.delta`, `response.function_call_arguments.delta`, `response.output_item.added/done`, and `response.completed` are all handled directly in the generator). Any later follow-up should focus on downstream streaming parity / UX validation (for example, confirming LangGraph → frontend propagation semantics), not on adding `_streamResponseChunks()` itself.
 - Copy the four additional reference files from Deer-flow PR #1166 (`factory.py`, `test_cli_auth_providers.py`, `test_credential_loader.py`, and the `scripts/export_claude_code_oauth.py` helper) into `docs/references/deerflow-oauth/` alongside the three already dropped.
 
 ## Files touched (summary)
