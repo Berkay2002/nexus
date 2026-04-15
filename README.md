@@ -32,6 +32,7 @@
   - [Sub-Agents](#sub-agents)
   - [Sandbox & File System](#sandbox--file-system)
   - [Provider-Agnostic Models](#provider-agnostic-models)
+  - [Bring Your Own Subscription](#bring-your-own-subscription)
 - [Quick Start](#quick-start)
   - [Prerequisites](#prerequisites)
   - [Configuration](#configuration)
@@ -131,6 +132,19 @@ Agents ask for a **tier**, not a specific model. Five tiers cover every role:
 | `image`         | Image generation         | Gemini 3.1 Flash Image                                |
 
 Set one provider and you're good. Set several and the tier router picks a sensible model per role. The priority order lives in `apps/agents/src/nexus/models/registry.ts`.
+
+### Bring Your Own Subscription
+
+Nexus supports **Claude OAuth** and **Codex CLI** as model providers — meaning you can run agents against your existing **Claude Max** or **ChatGPT Plus/Pro** subscription instead of paying per-token through the API.
+
+| Provider | What it reuses | How to configure |
+| -------- | -------------- | ---------------- |
+| **Claude OAuth** | Claude Max subscription | Set `CLAUDE_CODE_OAUTH_TOKEN` or drop credentials at `~/.claude/.credentials.json` |
+| **Codex CLI** | ChatGPT Plus/Pro subscription | Set `CODEX_ACCESS_TOKEN` + `CODEX_ACCOUNT_ID`, or log in via `codex` CLI |
+
+When present, Claude OAuth takes priority over `ANTHROPIC_API_KEY` in all tier resolutions. Codex CLI is wired into the `code` tier only. Both are reported in preflight diagnostics at startup.
+
+> **Note:** Prompt caching is disabled on the Claude OAuth path due to the 4-block `cache_control` cap. Use the API-key path if you need caching.
 
 ## Quick Start
 

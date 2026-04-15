@@ -2,6 +2,20 @@
 
 MVP is done. This file sketches what comes next, grouped by how soon I plan to get to it. "Now" items are commitments. "Later" items are directions.
 
+## Recently shipped
+
+### Claude OAuth & Codex CLI providers
+Two new model providers that reuse existing subscriptions instead of API-key billing. Claude OAuth reuses a Claude Max subscription (`CLAUDE_CODE_OAUTH_TOKEN` or `~/.claude/.credentials.json`); Codex CLI reuses a ChatGPT Plus/Pro subscription (`CODEX_ACCESS_TOKEN` + `CODEX_ACCOUNT_ID` or `~/.codex/auth.json`). Both are wired into the tier registry and reported in preflight diagnostics. Prompt caching is disabled on the OAuth path due to the 4-block `cache_control` cap.
+
+### MCP filesystem-of-tools
+A two-layer tool surface: ~20 hot tools bound to sub-agents every turn, plus 60 cold MCP tools exposed as TypeScript wrapper files inside the sandbox. Agents discover them via `mcp_tool_search`, read the schema, and execute through `sandbox_nodejs_execute`. Provider-agnostic by construction. Design: `docs/superpowers/specs/2026-04-13-mcp-filesystem-of-tools-design.md`.
+
+### Thread-scoped workspaces
+Workspace paths, orchestrator prompts, skills, and sub-agent templates now resolve per thread. Each conversation gets its own isolated workspace in the sandbox. Workspace outputs panel renders a file tree.
+
+### Meta-router visualization
+The web UI shows the classification phase in a routing card with the real reasoning trace, provider identity badges, and model attribution across sub-agents.
+
 ## Now
 
 ### docker compose up
@@ -9,6 +23,9 @@ One file that starts the AIO Sandbox, LangGraph server, Next.js, and SQLite with
 
 ### Cost and token meter
 A running total in the header, broken down per sub-agent, with an optional budget that pauses the run when hit.
+
+### Async / resumable runs
+Long-running agent tasks should survive page reloads and continue in the background. The frontend reconnects to in-progress runs via `joinStream`. Spec written: `docs/plans/2026-04-15-async-resumable-runs.md`.
 
 ## Next
 
@@ -33,7 +50,7 @@ The orchestrator re-sends a large system prompt, a pile of skill files, and full
 ## Later
 
 ### Nexus exposes itself as an MCP server
-Claude Desktop, Cursor, Zed, or any MCP client can call a `nexus_run` tool that hands a prompt to the orchestrator and streams the result back. Nexus becomes a multi-agent primitive that other agents can delegate to. The other half of MCP support — agents calling external MCP tools — already shipped via the filesystem-of-tools design (`docs/superpowers/specs/2026-04-13-mcp-filesystem-of-tools-design.md`).
+Claude Desktop, Cursor, Zed, or any MCP client can call a `nexus_run` tool that hands a prompt to the orchestrator and streams the result back. Nexus becomes a multi-agent primitive that other agents can delegate to. The other half of MCP support — agents calling external MCP tools — already shipped via the filesystem-of-tools design.
 
 ### Import skills from a Git URL
 `nexus skill add <git-url>` clones a skill folder (a `SKILL.md` plus templates) into the skills store, and the orchestrator picks it up on the next run. Skills are already plain files under a virtual POSIX path, so the plumbing is small. The goal is a set of reusable workflows that anyone can publish instead of a fixed set of five.
