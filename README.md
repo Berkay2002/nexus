@@ -7,103 +7,174 @@
 </p>
 
 <p align="center">
-  <a href="#setup">Setup</a> ·
-  <a href="#architecture">Architecture</a> ·
-  <a href="#tools">Tools</a> ·
-  <a href="#sub-agents">Sub-agents</a> ·
-  <a href="#demo">Demo</a> ·
+  <a href="https://nexus-web-snowy.vercel.app/">Live Demo</a> &middot;
+  <a href="#quick-start">Quick Start</a> &middot;
+  <a href="#core-features">Features</a> &middot;
+  <a href="#architecture">Architecture</a> &middot;
   <a href="#roadmap">Roadmap</a>
+</p>
+
+<p align="center">
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white" alt="Node.js" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white" alt="TypeScript" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
 </p>
 
 ---
 
-# Nexus
+## Table of Contents
 
-Nexus takes a single prompt, routes it through a classifier, hands it to an orchestrator that plans with a todo list, and fans work out to research, code, and creative sub-agents that share a sandboxed filesystem with shell, browser, code execution, Jupyter, and a catalog of 60 MCP tools they reach as files on disk. At the end you get a written report, code, or an image, assembled from whatever the agents produced along the way.
+- [What is Nexus](#what-is-nexus)
+- [Why I Built This](#why-i-built-this)
+- [Live Demo](#live-demo)
+- [Core Features](#core-features)
+  - [Skills & Tools](#skills--tools)
+  - [Sub-Agents](#sub-agents)
+  - [Sandbox & File System](#sandbox--file-system)
+  - [Provider-Agnostic Models](#provider-agnostic-models)
+- [Quick Start](#quick-start)
+  - [Prerequisites](#prerequisites)
+  - [Configuration](#configuration)
+  - [Running the Application](#running-the-application)
+- [Providers](#providers)
+  - [Tiers](#tiers)
+  - [Runtime Model Overrides](#runtime-model-overrides)
+- [Architecture](#architecture)
+- [Project Layout](#project-layout)
+- [Commands](#commands)
+- [Troubleshooting](#troubleshooting)
+- [Roadmap](#roadmap)
+- [Security Notice](#-security-notice)
+- [Contributing](#contributing)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
 
-## Why I built this
+## What is Nexus
 
-I like open source because I can pull it apart. Perplexity Computer showed me a shape of product I wanted to exist, and ByteDance's [deer-flow](https://github.com/bytedance/deer-flow) showed me it could be built in the open. I wanted my own take on it, running locally, in a stack I actually know: LangChain, LangGraph, and DeepAgents. Nexus is the result: the Docker container and the agents live on your machine, and you swap providers by editing `.env`.
+Nexus is an open-source **multi-agent harness** that takes a single prompt, routes it through a classifier, hands it to an orchestrator that plans with a todo list, and fans work out to **research**, **code**, and **creative** sub-agents. Those agents share a sandboxed filesystem with shell, browser, code execution, Jupyter, and a catalog of **60 MCP tools** they reach as files on disk. At the end you get a written report, runnable code, or a generated image — assembled from whatever the agents produced along the way.
 
-## What's in the box
+Built on [LangGraph](https://github.com/langchain-ai/langgraph), [DeepAgents](https://github.com/langchain-ai/deepagents), and [AIO Sandbox](https://github.com/agent-infra/sandbox). Runs entirely on your machine. Swap providers by editing `.env`.
 
-- **Meta-router** (a Flash-tier classifier) decides whether your prompt needs one agent or a full orchestration.
-- **Orchestrator** built on DeepAgents. Plans with a todo list, calls sub-agents, writes everything to a shared workspace.
-- **AIO Sandbox**: one Docker container with shell, browser, filesystem, and Jupyter that every agent shares.
-- **Provider-agnostic models**: five tiers (`classifier`, `default`, `code`, `deep-research`, `image`) resolved per role at runtime. Drop in Google, Anthropic, OpenAI, or Z.AI.
-- **Two-layer tool surface**: a small set of hot tools bound to each sub-agent every turn, plus a cold catalog of 60 MCP tools the agent reaches by reading wrapper files inside the sandbox.
+## Why I Built This
 
-## Demo
+I like open source because I can pull it apart. Perplexity Computer showed me a shape of product I wanted to exist, and ByteDance's [deer-flow](https://github.com/bytedance/deer-flow) showed me it could be built in the open. I wanted my own take on it, running locally, in a stack I actually know: LangChain, LangGraph, and DeepAgents. Nexus is the result — the Docker container and the agents live on your machine, and you swap providers by editing `.env`.
 
-A static preview of the execution view lives at `/demo` in the frontend (`apps/web/src/app/demo/page.tsx`). It runs on mocked data, so there's no backend or sandbox to set up, which means it can be deployed to Vercel as a UI-only preview.
+## Live Demo
 
-The real thing needs a LangGraph server and the AIO Sandbox container running locally. Keep reading for that.
+A static preview of the execution view is deployed at **[nexus-web-snowy.vercel.app](https://nexus-web-snowy.vercel.app/)**. It runs on mocked data with no backend, so you can explore the UI without any setup.
 
-## Prerequisites
+The full experience requires a LangGraph server and the AIO Sandbox container running locally. See [Quick Start](#quick-start).
 
-- Node.js 20+
-- Docker (for the AIO Sandbox container)
-- At least one model provider (see [Providers](#providers))
-- A Tavily API key for search, extract, and map: [tavily.com](https://tavily.com)
+<!-- TODO: Add a screenshot or demo video here -->
+<!-- <p align="center"><img src="docs/assets/demo.png" alt="Nexus execution view" width="800" /></p> -->
 
-## Providers
+## Core Features
 
-Nexus auto-detects providers from env vars. Set one and you're good. Set several and the tier router will pick a sensible model per role.
+### Skills & Tools
 
-| Provider           | Env vars                                                    | Tiers covered                                   |
-| ------------------ | ----------------------------------------------------------- | ----------------------------------------------- |
-| Google (Vertex)    | `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION` + ADC login | classifier, default, code, deep-research, image |
-| Google (AI Studio) | `GEMINI_API_KEY`                                            | classifier, default, code, deep-research, image |
-| Anthropic          | `ANTHROPIC_API_KEY`                                         | classifier, default, code, deep-research        |
-| OpenAI             | `OPENAI_API_KEY`                                            | classifier, default, code, deep-research        |
-| Z.AI (GLM)         | `ZAI_API_KEY` (+ optional `ZAI_BASE_URL`)                   | classifier, default, code, deep-research        |
+Skills are structured capability modules — Markdown files that define workflows, best practices, and templates. Nexus ships with five built-in skills: **deep research**, **build app**, **generate image**, **data analysis**, and **write report**. Skills are not embedded in the system prompt. They're loaded into the orchestrator's filesystem at startup and read on demand, keeping the context window lean.
 
-Image generation is Google-only for now. The creative sub-agent disables itself if no Google credentials are present. Loosening that is on the roadmap.
+Tools follow a **two-layer architecture**:
 
-### Tiers
+- **Hot layer** (~20 tools) — bound to every sub-agent on every turn. Web search, browser automation, code execution, Jupyter, image generation, and document conversion.
+- **Cold layer** (60 MCP tools) — TypeScript wrapper files under `/home/gem/workspace/servers/` in the sandbox. An agent discovers them via `mcp_tool_search`, reads the wrapper for the schema, and runs it through `sandbox_nodejs_execute`.
 
-Agents ask for a tier, not a specific model. That's how you can swap providers without touching agent code.
+Why the indirection? **Token cost** (60 schemas in the system prompt costs ~55K tokens before the conversation starts) and **tool selection accuracy** (models degrade past 30-50 tools). The whole thing is provider-agnostic — same code path on Google, Anthropic, OpenAI, and Z.AI.
 
-- `classifier` — fast routing (Flash Lite, Haiku, nano, GLM-4.7)
-- `default` — general reasoning (Flash, Sonnet, GPT-5.4, GLM-5 Turbo)
-- `code` — code gen (Sonnet, Opus, GPT-5.4, GLM-5.1)
-- `deep-research` — frontier models for long tasks (Gemini 3.1 Pro, Claude Opus 4.6, GPT-5.4, GLM-5.1)
-- `image` — Gemini 3.1 Flash Image
+```
+HOT — bound to sub-agents every turn       COLD — files in /home/gem/workspace/servers/
+research / code sub-agents                  60 MCP tools as TypeScript wrapper files
+                                       |
+                                       v
+                          mcp_tool_search   ->   wrapper paths
+                          read wrapper file ->   schema + example
+                          write Node script ->   sandbox_nodejs_execute
+```
 
-The priority order per tier lives in `apps/agents/src/nexus/models/registry.ts`. Tweak it if you want a different default.
+### Sub-Agents
 
-## Setup
+Complex tasks rarely fit in a single pass. The orchestrator decomposes them into sub-tasks and delegates to specialised agents, each with its own scoped context, tools, and tier.
 
-1. Clone and install.
+| Sub-agent         | Tier            | Tools                                                                   |
+| ----------------- | --------------- | ----------------------------------------------------------------------- |
+| `research`        | `deep-research` | tavily search/extract/map, browser, util-convert, MCP cold catalog      |
+| `code`            | `code`          | code/nodejs/jupyter execution, MCP cold catalog                         |
+| `creative`        | `image`         | `generate_image`                                                        |
+| `general-purpose` | `default`       | none — defers back to the orchestrator                                  |
 
-   ```
-   git clone <repo>
+Sub-agents are self-contained — they do not inherit tools, prompts, or skills from the orchestrator.
+
+### Sandbox & File System
+
+Every task gets its own execution environment with a full filesystem. The agent reads, writes, and edits files. It executes shell commands, runs code, launches a browser, and operates Jupyter notebooks — all inside an isolated Docker container.
+
+```
+/home/gem/workspace/
+  ├── research/task_{id}/     # research agent workspace
+  ├── code/task_{id}/         # code agent workspace
+  ├── creative/task_{id}/     # creative agent workspace
+  ├── orchestrator/           # orchestrator scratch space
+  ├── shared/                 # final deliverables
+  └── servers/                # cold MCP tool wrappers
+```
+
+### Provider-Agnostic Models
+
+Agents ask for a **tier**, not a specific model. Five tiers cover every role:
+
+| Tier            | Purpose                  | Example models                                        |
+| --------------- | ------------------------ | ----------------------------------------------------- |
+| `classifier`    | Fast routing             | Flash Lite, Haiku, nano, GLM-4.7                      |
+| `default`       | General reasoning        | Flash, Sonnet, GPT-5.4, GLM-5 Turbo                  |
+| `code`          | Code generation          | Sonnet, Opus, GPT-5.4, GLM-5.1                       |
+| `deep-research` | Frontier / long tasks    | Gemini 3.1 Pro, Claude Opus 4.6, GPT-5.4, GLM-5.1   |
+| `image`         | Image generation         | Gemini 3.1 Flash Image                                |
+
+Set one provider and you're good. Set several and the tier router picks a sensible model per role. The priority order lives in `apps/agents/src/nexus/models/registry.ts`.
+
+## Quick Start
+
+### Prerequisites
+
+- **Node.js** 20+
+- **Docker** (for the AIO Sandbox container)
+- At least **one model provider** (see [Providers](#providers))
+- A **Tavily API key** for search, extract, and map: [tavily.com](https://tavily.com)
+
+### Configuration
+
+1. **Clone and install**
+
+   ```bash
+   git clone https://github.com/Berkay2002/nexus.git
    cd nexus
    npm install
    ```
 
-2. Copy the env template and fill in one provider plus Tavily.
+2. **Set up environment variables**
 
-   ```
+   ```bash
    cp .env.example .env
    ```
 
-   Vertex users also run `gcloud auth application-default login` once. If you're on the GLM Coding Plan, set `ZAI_BASE_URL=https://api.z.ai/api/coding/paas/v4` (the default base URL only serves the pay-as-you-go catalog).
+   Fill in at least one provider key plus `TAVILY_API_KEY`. Vertex users also run `gcloud auth application-default login`. If you're on the GLM Coding Plan, set `ZAI_BASE_URL=https://api.z.ai/api/coding/paas/v4`.
 
-3. Start the AIO Sandbox in its own terminal.
+### Running the Application
 
-   ```
+3. **Start the AIO Sandbox** (in its own terminal)
+
+   ```bash
    docker run --security-opt seccomp=unconfined --rm -it -p 8080:8080 \
      ghcr.io/agent-infra/sandbox:latest
    ```
 
-4. Start Nexus.
+4. **Start Nexus**
 
-   ```
+   ```bash
    npm run dev
    ```
 
-   This runs LangGraph on `:2024` and Next.js on `:3000`. The startup log tells you which providers were detected and how each tier resolved:
+   This runs the LangGraph server on `:2024` and Next.js on `:3000`. The startup log shows which providers were detected and how each tier resolved:
 
    ```
    [Nexus] Preflight
@@ -113,161 +184,101 @@ The priority order per tier lives in `apps/agents/src/nexus/models/registry.ts`.
      openai    [--] (OPENAI_API_KEY not set)
      zai       [--] (ZAI_API_KEY not set)
    [Nexus] Tier resolution:
-     classifier    → google:gemini-3.1-flash-lite-preview
-     default       → google:gemini-3-flash-preview
-     code          → google:gemini-3-flash-preview
-     deep-research → google:gemini-3.1-pro-preview
-     image         → google:gemini-3.1-flash-image-preview
+     classifier    -> google:gemini-3.1-flash-lite-preview
+     default       -> google:gemini-3-flash-preview
+     code          -> google:gemini-3-flash-preview
+     deep-research -> google:gemini-3.1-pro-preview
+     image         -> google:gemini-3.1-flash-image-preview
    ```
 
    Nexus fails fast if no provider can satisfy the `default` tier. No silent fallbacks.
 
-5. Open http://localhost:3000.
+5. **Open** [http://localhost:3000](http://localhost:3000)
 
-## Runtime model overrides
+## Providers
 
-The settings gear in the top-right of the UI opens a panel that lists every model the server detected (via `/api/models`) and lets you override the model per role: orchestrator, router, research, code, creative. Overrides go through `configurable.models` on each run and are session-scoped. Nothing is persisted server-side, so a reload resets you to the defaults.
+Nexus auto-detects providers from environment variables.
+
+| Provider           | Env vars                                                    | Tiers covered                                   |
+| ------------------ | ----------------------------------------------------------- | ----------------------------------------------- |
+| Google (Vertex)    | `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION` + ADC login | classifier, default, code, deep-research, image |
+| Google (AI Studio) | `GEMINI_API_KEY`                                            | classifier, default, code, deep-research, image |
+| Anthropic          | `ANTHROPIC_API_KEY`                                         | classifier, default, code, deep-research        |
+| OpenAI             | `OPENAI_API_KEY`                                            | classifier, default, code, deep-research        |
+| Z.AI (GLM)         | `ZAI_API_KEY` (+ optional `ZAI_BASE_URL`)                   | classifier, default, code, deep-research        |
+
+Image generation is Google-only for now. The creative sub-agent disables itself if no Google credentials are present.
+
+### Tiers
+
+Agents ask for a tier, not a specific model. That's how you swap providers without touching agent code.
+
+The priority order per tier lives in `apps/agents/src/nexus/models/registry.ts`. Tweak it if you want a different default.
+
+### Runtime Model Overrides
+
+The settings gear in the top-right of the UI opens a panel listing every model the server detected (via `/api/models`) and lets you override the model per role: orchestrator, router, research, code, creative. Overrides are session-scoped — a reload resets to defaults.
 
 ## Architecture
 
 Three processes, talking only over HTTP.
 
 ```
-AIO Sandbox (Docker :8080) ←→ LangGraph dev server (:2024) ←→ Next.js (:3000)
+AIO Sandbox (Docker :8080) <--> LangGraph dev server (:2024) <--> Next.js (:3000)
 ```
 
-- **AIO Sandbox** is one Docker container shared by all agents: shell, browser, filesystem, Jupyter. Workspace root is `/home/gem/workspace/`, with per-agent subfolders like `research/task_{id}/` and a `shared/` folder for final deliverables.
-- **LangGraph server** hosts the meta-router, orchestrator, and sub-agents. The orchestrator is a DeepAgent with a `CompositeBackend` that routes `/memories/` and `/skills/` to SQLite (via Drizzle) and everything else to the sandbox.
-- **Next.js frontend** streams subagent messages, todos, and tool calls via `useStream` from `@langchain/react` (not `@langchain/langgraph-sdk/react`, which is missing subagent features). The execution view renders a todo panel, agent status, live subagent cards, a workspace outputs panel that previews files dropped into `/shared/`, and dedicated artifact renderers for filesystem ops, code execution, and image generation.
+- **AIO Sandbox** — one Docker container shared by all agents: shell, browser, filesystem, Jupyter. Workspace root is `/home/gem/workspace/`.
+- **LangGraph server** — hosts the meta-router, orchestrator, and sub-agents. The orchestrator is a DeepAgent with a `CompositeBackend` that routes `/memories/` and `/skills/` to SQLite (via Drizzle) and everything else to the sandbox.
+- **Next.js frontend** — streams subagent messages, todos, and tool calls via `useStream` from `@langchain/react`. The execution view renders a todo panel, agent status, live subagent cards, a workspace outputs panel, and dedicated artifact renderers for filesystem ops, code execution, and image generation.
 
-Full design spec: `docs/superpowers/specs/2026-04-10-nexus-design.md`.
+Full design spec: [`docs/superpowers/specs/2026-04-10-nexus-design.md`](docs/superpowers/specs/2026-04-10-nexus-design.md).
 
-## Tools
-
-Every sub-agent gets a small kit of hot tools bound to it on every turn. They cover the things agents do constantly: web search, browser automation, code and shell execution, Jupyter, image generation, and document conversion. Plus one search tool that opens the door to the cold catalog (see [Tool layering](#tool-layering)).
-
-| Tool                              | What it does                                                              | Backed by    |
-| --------------------------------- | ------------------------------------------------------------------------- | ------------ |
-| **Search**                        |                                                                           |              |
-| `tavily_search`                   | Web search with freshness, domain, and depth filters                      | Tavily       |
-| `tavily_extract`                  | Pull clean markdown from a URL                                            | Tavily       |
-| `tavily_map`                      | Crawl a site and return a URL graph                                       | Tavily       |
-| **Browser**                       |                                                                           |              |
-| `sandbox_browser_info`            | Inspect the current page (title, URL, DOM snapshot)                       | AIO Sandbox  |
-| `sandbox_browser_screenshot`      | Capture a PNG of the current viewport                                     | AIO Sandbox  |
-| `sandbox_browser_action`          | Click, type, scroll, navigate                                             | AIO Sandbox  |
-| `sandbox_browser_config`          | Configure viewport, user agent, cookies                                   | AIO Sandbox  |
-| **Code execution**                |                                                                           |              |
-| `sandbox_code_execute`            | Run Python/Bash/JS one-shot in the sandbox                                | AIO Sandbox  |
-| `sandbox_code_info`               | List installed languages and versions                                     | AIO Sandbox  |
-| `sandbox_nodejs_execute`          | Run a Node.js script with full stdlib + npm                               | AIO Sandbox  |
-| `sandbox_nodejs_info`             | Inspect the Node runtime (version, modules)                               | AIO Sandbox  |
-| **Jupyter**                       |                                                                           |              |
-| `sandbox_jupyter_create_session`  | Spin up a kernel for stateful work                                        | AIO Sandbox  |
-| `sandbox_jupyter_execute`         | Run a cell in an existing kernel                                          | AIO Sandbox  |
-| `sandbox_jupyter_info`            | Inspect kernel state, variables, history                                  | AIO Sandbox  |
-| `sandbox_jupyter_list_sessions`   | List active kernels                                                       | AIO Sandbox  |
-| `sandbox_jupyter_delete_session`  | Tear down a kernel                                                        | AIO Sandbox  |
-| **MCP discovery**                 |                                                                           |              |
-| `mcp_tool_search`                 | Search the cold catalog of 60 MCP tools by keyword, returns wrapper paths | Custom       |
-| **Media**                         |                                                                           |              |
-| `generate_image`                  | Generate or edit images via Gemini Imagen                                 | Google       |
-| **Util**                          |                                                                           |              |
-| `sandbox_util_convert_to_markdown`| Convert PDFs, DOCX, HTML, and other formats to LLM-readable markdown      | AIO Sandbox  |
-
-These are the only tools the model sees in its system prompt. Everything else lives in the cold layer.
-
-## Tool layering
-
-Two layers, one mental model.
-
-```
-HOT — bound to sub-agents every turn       COLD — files in /home/gem/workspace/servers/
-research / code sub-agents                  60 MCP tools as TypeScript wrapper files
-                                       │
-                                       ▼
-                          mcp_tool_search   →   wrapper paths
-                          read wrapper file →   schema + example
-                          write Node script →   sandbox_nodejs_execute
-```
-
-The hot layer is what you see in the table above: ~20 tools that ship in every sub-agent's system prompt. The cold layer is the AIO Sandbox's full MCP catalog — 60 tools across `chrome_devtools_*` (27), `browser_*` (23), and `sandbox_*` (10) — exposed as TypeScript wrapper files under `/home/gem/workspace/servers/`. The agent reaches them by calling `mcp_tool_search`, getting a list of file paths, reading the wrapper for the schema and a worked example, and then writing a small Node script that imports and runs the wrapper via `sandbox_nodejs_execute`.
-
-Why the indirection? Two reasons.
-
-1. **Token cost.** Binding 60 schemas to a sub-agent puts every schema in the system prompt every turn — measured at ~55K tokens before the conversation starts. With the cold layer, an agent only pays for the wrappers it chooses to read on a given turn.
-2. **Tool selection accuracy.** Models get worse at picking the right tool when the catalog is larger than 30-50 entries. Sixty tools is over the threshold. A search affordance plus a small hot kit beats one big flat namespace.
-
-The whole thing is provider-agnostic by construction: no `defer_loading`, no beta headers, no `ChatAnthropic`-only branches. Same code path on Google, Anthropic, OpenAI, and Z.AI. Full design in `docs/superpowers/specs/2026-04-13-mcp-filesystem-of-tools-design.md`.
-
-## Sub-agents
-
-Sub-agents are self-contained — they do not inherit tools, prompts, or skills from the orchestrator. Each one is wired to its own tier and its own kit.
-
-| Sub-agent         | Tier            | Tools                                                                                              |
-| ----------------- | --------------- | -------------------------------------------------------------------------------------------------- |
-| `research`        | `deep-research` | tavily search/extract/map, browser-*, util-convert-to-markdown, `mcp_tool_search`, `sandbox_nodejs_execute` |
-| `code`            | `code`          | code/nodejs/jupyter execution, `mcp_tool_search`                                                   |
-| `creative`        | `image`         | `generate_image`                                                                                   |
-| `general-purpose` | `default`       | none — defers back to the orchestrator                                                             |
-
-DeepAgents always adds a general-purpose sub-agent alongside custom ones. Nexus overrides its prompt to push work toward the specialised agents.
-
-## Skills
-
-Five orchestrator skills live as files under `apps/agents/src/nexus/skills/`:
-
-- `deep-research` — multi-pass investigation with critique
-- `build-app` — bootstrap a small project, write code, run it
-- `generate-image` — image generation with prompt refinement
-- `data-analysis` — CSV/Parquet analysis via Jupyter
-- `write-report` — synthesise a markdown deliverable from collected materials
-
-Skills are not embedded in the system prompt. They're loaded into the orchestrator's filesystem (under `/skills/`) at startup via the `CompositeBackend`'s `StoreBackend` route, and the orchestrator reads them on demand. Adding a skill is a matter of dropping a `SKILL.md` and templates folder under `skills/{name}/` and re-running.
-
-## Project layout
+## Project Layout
 
 ```
 apps/
   agents/src/nexus/
-    graph.ts                meta-router + orchestrator wiring
-    models/                 tier-based provider registry
+    graph.ts                  meta-router + orchestrator wiring
+    models/                   tier-based provider registry
     agents/{research,code,creative,general-purpose}/
     tools/{search,extract,map,generate-image,
            code-execute,code-info,nodejs-execute,nodejs-info,
-           jupyter-{create,execute,info,list,delete}-session,
-           browser-{info,screenshot,action,config},
-           util-convert-to-markdown}/
-    skills/{deep-research,build-app,...}/   # SKILL.md + templates
-    backend/                aio-sandbox + composite + store
-    middleware/             configurable per-role model swap, runtime instructions
+           jupyter-*,browser-*,util-convert-to-markdown}/
+    skills/{deep-research,build-app,...}/   SKILL.md + templates
+    backend/                  aio-sandbox + composite + store
+    middleware/               configurable per-role model swap
   web/src/
-    app/page.tsx                       landing ↔ execution switch
-    app/demo/page.tsx                  mocked demo view (Vercel-deployable)
-    components/execution/              todo panel, agent cards, prompt bar,
-                                       workspace outputs panel,
-                                       filesystem / execute / generate-image artifacts
-    components/landing/                logo, tagline, prompt input
-    components/settings/               runtime model override panel
-    providers/                         LangGraph client + Stream provider
+    app/page.tsx              landing <-> execution switch
+    app/demo/page.tsx         mocked demo view (Vercel-deployable)
+    components/execution/     todo panel, agent cards, prompt bar,
+                              workspace outputs, artifact renderers
+    components/landing/       logo, tagline, prompt input
+    components/settings/      runtime model override panel
+    providers/                LangGraph client + Stream provider
 ```
 
 ## Commands
 
-- `npm run dev` — start both servers
-- `npm run build` — build all workspaces
-- `npm run lint` — lint everything
-- `cd apps/agents && npm test` — agent tests (unit tests don't need credentials)
+| Command | What it does |
+| ------- | ------------ |
+| `npm run dev` | Start both servers (LangGraph :2024 + Next.js :3000) |
+| `npm run build` | Build all workspaces via Turbo |
+| `npm run lint` | Lint everything |
+| `npm run lint:fix` | Lint with auto-fix |
+| `npm run format` | Prettier format |
+| `cd apps/agents && npm test` | Agent unit tests (no credentials needed) |
 
 ## Troubleshooting
 
-- **`No provider can satisfy the 'default' tier`** — no provider env vars detected. Set at least one of `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `ZAI_API_KEY`, or a Vertex `GOOGLE_CLOUD_PROJECT` with ADC, then restart.
-- **Creative sub-agent disabled** — image generation needs Google. Add a Google credential if you want `generate_image`.
-- **Vertex AI auth errors** — re-run `gcloud auth application-default login` and check that `GOOGLE_CLOUD_PROJECT` points at a project with Vertex AI enabled.
-- **Z.AI returns 404 or model-not-found** — you're probably on the GLM Coding Plan. Set `ZAI_BASE_URL=https://api.z.ai/api/coding/paas/v4`.
-- **"Cannot reach LangGraph server"** — `npm run dev` isn't running, or it crashed during preflight. Check the terminal.
-- **"AIO Sandbox unreachable"** — start the Docker container (step 3 above).
-- **"TAVILY_API_KEY is not set"** — fill in `.env` and restart.
+| Problem | Fix |
+| ------- | --- |
+| `No provider can satisfy the 'default' tier` | No provider env vars detected. Set at least one of `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `ZAI_API_KEY`, or a Vertex `GOOGLE_CLOUD_PROJECT` with ADC. |
+| Creative sub-agent disabled | Image generation needs Google. Add a Google credential. |
+| Vertex AI auth errors | Re-run `gcloud auth application-default login` and check `GOOGLE_CLOUD_PROJECT`. |
+| Z.AI returns 404 / model-not-found | You're on the GLM Coding Plan. Set `ZAI_BASE_URL=https://api.z.ai/api/coding/paas/v4`. |
+| "Cannot reach LangGraph server" | `npm run dev` isn't running, or it crashed during preflight. Check the terminal. |
+| "AIO Sandbox unreachable" | Start the Docker container (step 3 above). |
+| "TAVILY_API_KEY is not set" | Fill in `.env` and restart. |
 
 ## Roadmap
 
@@ -283,16 +294,48 @@ MVP is done. What's next is less about shipping features and more about making t
 - Editable `AGENTS.md` for project-level instructions
 - Critic sub-agent that reviews drafts before synthesis
 - LangSmith trace integration in the UI
-- Context caching across providers (Anthropic, Gemini, OpenAI)
+- Context caching across providers
 
 **Later**
 - Nexus exposes itself as an MCP server
 - Import skills from a Git URL
 
+## Security Notice
+
+Nexus is designed to run in a **local trusted environment** — your laptop, accessible only via `127.0.0.1`. If you expose it to a LAN, public cloud, or the internet without strict security measures, you risk:
+
+- **Unauthorized execution** — the sandbox runs shell commands, writes files, and browses the web. An unauthenticated endpoint becomes an open RCE vector.
+- **Data exposure** — agent conversations, workspace files, and API keys could be accessed by anyone who can reach the ports.
+
+**Recommendations:**
+
+- Keep Nexus behind `localhost`. If you need remote access, put it behind an authenticated reverse proxy.
+- Never expose the AIO Sandbox port (`:8080`) to untrusted networks.
+- Treat `.env` as secrets — it contains API keys.
+- Review the AIO Sandbox's `--security-opt seccomp=unconfined` flag and tighten it for production use.
+
+## Contributing
+
+Contributions are welcome. Nexus is a solo project right now, but if you want to help:
+
+1. Fork the repo and create a feature branch.
+2. Follow existing patterns — read `CLAUDE.md` and `.claude/rules/` for conventions.
+3. Run `npm run lint` and `cd apps/agents && npm test` before opening a PR.
+4. Keep PRs focused — one feature or fix per PR.
+
+If you're not sure where to start, check the [Roadmap](#roadmap) for ideas or open an issue to discuss.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
 
-## Acknowledgements
+## Acknowledgments
 
-Inspired by Perplexity Computer and ByteDance's [deer-flow](https://github.com/bytedance/deer-flow). Built on [DeepAgents](https://github.com/langchain-ai/deepagents), [LangGraph](https://github.com/langchain-ai/langgraph), [AIO Sandbox](https://github.com/agent-infra/sandbox), and [Tavily](https://tavily.com).
+Inspired by [Perplexity Computer](https://www.perplexity.ai/) and ByteDance's [deer-flow](https://github.com/bytedance/deer-flow).
+
+Built on:
+- [DeepAgents](https://github.com/langchain-ai/deepagents) — orchestrator and sub-agent framework
+- [LangGraph](https://github.com/langchain-ai/langgraph) — agent runtime and streaming
+- [LangChain](https://github.com/langchain-ai/langchain) — LLM abstractions and tool definitions
+- [AIO Sandbox](https://github.com/agent-infra/sandbox) — isolated execution environment
+- [Tavily](https://tavily.com) — web search, extract, and map APIs

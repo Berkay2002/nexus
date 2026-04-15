@@ -13,7 +13,7 @@
     ]
   },
   "enabledPlugins": {
-    "wikillm@wikillm": true,
+    "wikillm@wikillm": false,
     "chrome-devtools-mcp@claude-plugins-official": true
   }
 }
