@@ -4,6 +4,7 @@ import React from "react";
 import { StreamProvider } from "@/providers/Stream";
 import { ThreadProvider } from "@/providers/Thread";
 import { Toaster } from "@/components/ui/sonner";
+import { GraphHealthCheck } from "@/components/graph-health-check";
 import { LandingPage } from "@/components/landing";
 import { ExecutionView } from "@/components/execution";
 import { useNexusStream } from "@/hooks/use-nexus-stream";
@@ -28,6 +29,7 @@ export default function Page(): React.ReactNode {
       }
     >
       <Toaster theme="dark" />
+      <GraphHealthCheck />
       <ThreadProvider>
         <StreamProvider>
           <NexusApp />

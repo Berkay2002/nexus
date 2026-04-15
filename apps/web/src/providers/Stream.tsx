@@ -16,7 +16,6 @@ import {
 } from "@langchain/langgraph-sdk/react-ui";
 import { useQueryState } from "nuqs";
 import { useThreads } from "./Thread";
-import { toast } from "sonner";
 
 export type StateType = { messages: Message[]; ui?: UIMessage[] };
 
@@ -31,15 +30,6 @@ const ASSISTANT_ID =
   process.env.NEXT_PUBLIC_ASSISTANT_ID || "nexus";
 const API_KEY =
   process.env.NEXT_PUBLIC_LANGSMITH_API_KEY || undefined;
-
-async function checkGraphStatus(apiUrl: string): Promise<boolean> {
-  try {
-    const res = await fetch(`${apiUrl}/info`);
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
 
 export const StreamProvider: React.FC<{ children: ReactNode }> = ({
   children,
@@ -130,19 +120,6 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId]);
-
-  useEffect(() => {
-    checkGraphStatus(API_URL).then((ok) => {
-      if (!ok) {
-        toast.error("Cannot reach LangGraph server", {
-          description: `Ensure the server is running at ${API_URL}`,
-          duration: 10000,
-          richColors: true,
-          closeButton: true,
-        });
-      }
-    });
-  }, []);
 
   return (
     <StreamContext.Provider value={streamValue}>
