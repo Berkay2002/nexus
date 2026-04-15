@@ -55,6 +55,16 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
     assistantId: ASSISTANT_ID,
     threadId: threadId ?? null,
     filterSubagentMessages: true,
+    // Persist the per-thread runId (`lg:stream:{threadId}`) to localStorage so
+    // reloading, closing the tab, or opening a new tab on the same machine
+    // rejoins the live run instead of cancelling it. `reconnectOnMount: true`
+    // would use sessionStorage (per-tab, dies with the tab) and doesn't
+    // satisfy the cross-tab story. Returning `localStorage` — which satisfies
+    // `RunMetadataStorage` structurally (getItem/setItem/removeItem) — keeps
+    // the key alive across tabs. Also flips the server-side `onDisconnect`
+    // default from "cancel" to "continue", so closing the SSE connection no
+    // longer aborts the run (stream.lgp.js:332-343, types.d.ts:896-900).
+    reconnectOnMount: () => window.localStorage,
     onCustomEvent: (event: unknown, options: { mutate: (fn: (prev: StateType) => Partial<StateType>) => void }) => {
       options.mutate((prev: StateType) => {
         const ui = uiMessageReducer(
@@ -69,6 +79,15 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
       setTimeout(() => {
         getThreads().then(setThreads).catch(console.error);
       }, 4000);
+    },
+    // Purge stale rejoin keys so a deleted-thread runId doesn't zombie in
+    // localStorage. The library auto-removes the key on success / stop /
+    // join-success, but not on joinStream failure.
+    onError: (error: unknown, run: { thread_id: string } | undefined) => {
+      if (run && typeof window !== "undefined") {
+        window.localStorage.removeItem(`lg:stream:${run.thread_id}`);
+      }
+      console.error("[useStream] error", error);
     },
   } as any);
 
