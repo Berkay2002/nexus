@@ -1,12 +1,12 @@
 import { validate } from "uuid";
 import { getApiKey } from "@/lib/api-key";
 import { Thread } from "@langchain/langgraph-sdk";
-import { useQueryState } from "nuqs";
 import {
   createContext,
   useContext,
   ReactNode,
   useCallback,
+  useEffect,
   useState,
   Dispatch,
   SetStateAction,
@@ -15,6 +15,7 @@ import { createClient } from "./client";
 
 interface ThreadContextType {
   getThreads: () => Promise<Thread[]>;
+  refreshThreads: () => Promise<void>;
   threads: Thread[];
   setThreads: Dispatch<SetStateAction<Thread[]>>;
   threadsLoading: boolean;
@@ -22,6 +23,9 @@ interface ThreadContextType {
 }
 
 const ThreadContext = createContext<ThreadContextType | undefined>(undefined);
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:2024";
+const ASSISTANT_ID = process.env.NEXT_PUBLIC_ASSISTANT_ID || "nexus";
 
 function getThreadSearchMetadata(
   assistantId: string,
@@ -33,28 +37,48 @@ function getThreadSearchMetadata(
   }
 }
 
+function sortByUpdatedDesc(threads: Thread[]): Thread[] {
+  return [...threads].sort((a, b) => {
+    const ta = a.updated_at ? Date.parse(a.updated_at) : 0;
+    const tb = b.updated_at ? Date.parse(b.updated_at) : 0;
+    return tb - ta;
+  });
+}
+
 export function ThreadProvider({ children }: { children: ReactNode }) {
-  const [apiUrl] = useQueryState("apiUrl");
-  const [assistantId] = useQueryState("assistantId");
   const [threads, setThreads] = useState<Thread[]>([]);
   const [threadsLoading, setThreadsLoading] = useState(false);
 
   const getThreads = useCallback(async (): Promise<Thread[]> => {
-    if (!apiUrl || !assistantId) return [];
-    const client = createClient(apiUrl, getApiKey() ?? undefined);
-
-    const threads = await client.threads.search({
+    const client = createClient(API_URL, getApiKey() ?? undefined);
+    const result = await client.threads.search({
       metadata: {
-        ...getThreadSearchMetadata(assistantId),
+        ...getThreadSearchMetadata(ASSISTANT_ID),
       },
       limit: 100,
     });
+    return sortByUpdatedDesc(result);
+  }, []);
 
-    return threads;
-  }, [apiUrl, assistantId]);
+  const refreshThreads = useCallback(async () => {
+    setThreadsLoading(true);
+    try {
+      const next = await getThreads();
+      setThreads(next);
+    } catch (err) {
+      console.error("[threads] refresh failed", err);
+    } finally {
+      setThreadsLoading(false);
+    }
+  }, [getThreads]);
+
+  useEffect(() => {
+    void refreshThreads();
+  }, [refreshThreads]);
 
   const value = {
     getThreads,
+    refreshThreads,
     threads,
     setThreads,
     threadsLoading,

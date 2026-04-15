@@ -35,7 +35,7 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [threadId, setThreadId] = useQueryState("threadId");
-  const { getThreads, setThreads } = useThreads();
+  const { refreshThreads } = useThreads();
 
   // filterSubagentMessages is typed on AnyStreamOptions but not on the
   // UseStreamOptions overload. Runtime handles it — use type assertion.
@@ -58,7 +58,7 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
     onThreadId: (id: string) => {
       setThreadId(id);
       setTimeout(() => {
-        getThreads().then(setThreads).catch(console.error);
+        void refreshThreads();
       }, 4000);
     },
     // Persist the per-thread runId to localStorage so a reload / reopen can
@@ -80,6 +80,7 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
       if (meta?.thread_id && typeof window !== "undefined") {
         window.localStorage.removeItem(`lg:stream:${meta.thread_id}`);
       }
+      void refreshThreads();
     },
     onStop: () => {
       if (threadId && typeof window !== "undefined") {
