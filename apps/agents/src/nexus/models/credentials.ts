@@ -139,10 +139,16 @@ export function loadCodexCliCredential(): CodexCliCredential | null {
 }
 
 function doLoadCodexCliCredential(): CodexCliCredential | null {
-  // 1. Env vars — require BOTH for the env path; accountId is mandatory for
-  // the `ChatGPT-Account-ID` request header. If only CODEX_ACCESS_TOKEN is
-  // set, fall through to the file path (the user may have the full pair in
-  // ~/.codex/auth.json).
+  // 1. Env vars — require BOTH for the env path so we only return an
+  // env-based credential when both values are present. If only
+  // CODEX_ACCESS_TOKEN is set, fall through to the file path (the user may
+  // have the full pair in ~/.codex/auth.json).
+  //
+  // Note: the file-based path below may still return an empty `accountId`
+  // if the auth file does not contain one (legacy top-level shape). Callers
+  // that require a populated `ChatGPT-Account-ID` request header should
+  // validate `accountId` at the call site (the Codex factory in
+  // providers.ts rejects the credential there if needed).
   const envToken = process.env.CODEX_ACCESS_TOKEN?.trim();
   const envAccount = process.env.CODEX_ACCOUNT_ID?.trim();
   if (envToken && envAccount) {

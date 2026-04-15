@@ -302,15 +302,24 @@ export class CodexChatModel extends BaseChatModel {
           `[CodexChatModel] HTTP ${status}, retrying ${attempt}/${this.retryMaxAttempts} after ${waitMs}ms`,
         );
         await new Promise<void>((resolve, reject) => {
-          const t = setTimeout(resolve, waitMs);
-          if (signal) {
-            const onAbort = () => {
-              clearTimeout(t);
-              reject(signal.reason ?? new Error("aborted"));
-            };
-            if (signal.aborted) onAbort();
-            else signal.addEventListener("abort", onAbort, { once: true });
+          let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+          const onAbort = () => {
+            if (timeoutHandle) clearTimeout(timeoutHandle);
+            reject(signal?.reason ?? new Error("aborted"));
+          };
+          const cleanup = () => {
+            if (timeoutHandle) clearTimeout(timeoutHandle);
+            signal?.removeEventListener("abort", onAbort);
+          };
+          if (signal?.aborted) {
+            onAbort();
+            return;
           }
+          timeoutHandle = setTimeout(() => {
+            cleanup();
+            resolve();
+          }, waitMs);
+          signal?.addEventListener("abort", onAbort, { once: true });
         });
       }
     }
@@ -355,12 +364,13 @@ export class CodexChatModel extends BaseChatModel {
   }
 
   /**
-   * Known `response.*` event prefixes we explicitly handle. Used by
+   * Known `response.*` event types we recognize. This is an exact-match
+   * allowlist (not a prefix list — despite the legacy name). Used by
    * `_convertSseEventToChunk` to decide whether an unknown `response.*` type
    * deserves a `console.debug` warning (protocol drift) or can be silently
    * dropped (already a no-op by design).
    */
-  static readonly KNOWN_EVENT_PREFIXES: readonly string[] = [
+  static readonly KNOWN_EVENT_TYPES: readonly string[] = [
     "response.output_text.delta",
     "response.reasoning_summary_text.delta",
     "response.output_item.added",
@@ -521,11 +531,12 @@ export class CodexChatModel extends BaseChatModel {
 
     // Unknown `response.*` events are a signal of protocol drift — log at
     // debug so regressions aren't silent. Non-`response.*` lines are
-    // intentionally ignorable (heartbeats, etc.).
+    // intentionally ignorable (heartbeats, etc.). The known list is an
+    // exact-match allowlist of event types.
     const t = typeof eventType === "string" ? eventType : "";
     if (
       t.startsWith("response.") &&
-      !CodexChatModel.KNOWN_EVENT_PREFIXES.some((p) => t === p)
+      !CodexChatModel.KNOWN_EVENT_TYPES.some((knownType) => t === knownType)
     ) {
       console.debug(`[CodexChatModel] Unhandled SSE event type: ${t}`);
     }
