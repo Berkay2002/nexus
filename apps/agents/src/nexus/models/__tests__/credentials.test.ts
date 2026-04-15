@@ -162,6 +162,29 @@ describe("loadCodexCliCredential", () => {
     expect(cred?.source).toBe("codex-cli-env");
   });
 
+  it("falls through to file when only CODEX_ACCESS_TOKEN is set without CODEX_ACCOUNT_ID", () => {
+    process.env.CODEX_ACCESS_TOKEN = "env-token-only";
+    // no CODEX_ACCOUNT_ID set
+    const authPath = join(tmp, "auth.json");
+    writeFileSync(
+      authPath,
+      JSON.stringify({
+        tokens: { access_token: "file-token", account_id: "acct_file" },
+      }),
+    );
+    process.env.CODEX_AUTH_PATH = authPath;
+    const cred = loadCodexCliCredential();
+    expect(cred?.accessToken).toBe("file-token");
+    expect(cred?.accountId).toBe("acct_file");
+    expect(cred?.source).toBe("codex-cli-file");
+  });
+
+  it("returns null when only CODEX_ACCESS_TOKEN is set and no file exists", () => {
+    process.env.CODEX_ACCESS_TOKEN = "env-token-only";
+    // no CODEX_ACCOUNT_ID set, no CODEX_AUTH_PATH, no ~/.codex/auth.json
+    expect(loadCodexCliCredential()).toBeNull();
+  });
+
   it("loads from nested tokens shape", () => {
     const authPath = join(tmp, "auth.json");
     writeFileSync(authPath, JSON.stringify({

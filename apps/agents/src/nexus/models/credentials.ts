@@ -139,13 +139,16 @@ export function loadCodexCliCredential(): CodexCliCredential | null {
 }
 
 function doLoadCodexCliCredential(): CodexCliCredential | null {
-  // 1. Env vars
+  // 1. Env vars — require BOTH for the env path; accountId is mandatory for
+  // the `ChatGPT-Account-ID` request header. If only CODEX_ACCESS_TOKEN is
+  // set, fall through to the file path (the user may have the full pair in
+  // ~/.codex/auth.json).
   const envToken = process.env.CODEX_ACCESS_TOKEN?.trim();
   const envAccount = process.env.CODEX_ACCOUNT_ID?.trim();
-  if (envToken) {
+  if (envToken && envAccount) {
     return {
       accessToken: envToken,
-      accountId: envAccount ?? "",
+      accountId: envAccount,
       source: "codex-cli-env",
     };
   }
