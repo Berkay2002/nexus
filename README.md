@@ -54,7 +54,7 @@
 
 Nexus is an open-source **multi-agent harness** that takes a single prompt, routes it through a classifier, hands it to an orchestrator that plans with a todo list, and fans work out to **research**, **code**, and **creative** sub-agents. Those agents share a sandboxed filesystem with shell, browser, code execution, Jupyter, and a catalog of **60 MCP tools** they reach as files on disk. At the end you get a written report, runnable code, or a generated image — assembled from whatever the agents produced along the way.
 
-Built on [LangGraph](https://github.com/langchain-ai/langgraph), [DeepAgents](https://github.com/langchain-ai/deepagents), and [AIO Sandbox](https://github.com/agent-infra/sandbox). Runs entirely on your machine. Swap providers by editing `.env`.
+Built on [LangGraph](https://github.com/langchain-ai/langgraph), [DeepAgents](https://github.com/langchain-ai/deepagents), and [AIO Sandbox](https://github.com/agent-infra/sandbox). Runs entirely on your machine. Swap providers by editing `.env` — or skip API billing entirely by logging in with your existing **Claude Max** or **ChatGPT Plus/Pro** subscription.
 
 ## Why I Built This
 
@@ -171,7 +171,12 @@ When present, Claude OAuth takes priority over `ANTHROPIC_API_KEY` in all tier r
    cp .env.example .env
    ```
 
-   Fill in at least one provider key plus `TAVILY_API_KEY`. Vertex users also run `gcloud auth application-default login`. If you're on the GLM Coding Plan, set `ZAI_BASE_URL=https://api.z.ai/api/coding/paas/v4`.
+   Fill in at least one provider key plus `TAVILY_API_KEY`. Alternatives to API keys:
+   - **Claude OAuth:** set `CLAUDE_CODE_OAUTH_TOKEN` or drop `~/.claude/.credentials.json` to reuse a Claude Max subscription
+   - **Codex CLI:** set `CODEX_ACCESS_TOKEN` + `CODEX_ACCOUNT_ID` or log in via `codex` CLI to reuse ChatGPT Plus/Pro
+   - **Vertex AI:** run `gcloud auth application-default login` (no API key needed)
+
+   If you're on the GLM Coding Plan, set `ZAI_BASE_URL=https://api.z.ai/api/coding/paas/v4`.
 
 ### Running the Application
 
@@ -193,15 +198,15 @@ When present, Claude OAuth takes priority over `ANTHROPIC_API_KEY` in all tier r
    ```
    [Nexus] Preflight
    [Nexus] Providers:
-     google    [OK] (vertex-adc)
-     anthropic [--] (ANTHROPIC_API_KEY not set)
-     openai    [--] (OPENAI_API_KEY not set)
-     zai       [--] (ZAI_API_KEY not set)
+     google      [OK] (vertex-adc)
+     anthropic   [OK] (claude-oauth)
+     openai      [OK] (codex-cli)
+     zai         [--] (ZAI_API_KEY not set)
    [Nexus] Tier resolution:
      classifier    -> google:gemini-3.1-flash-lite-preview
-     default       -> google:gemini-3-flash-preview
-     code          -> google:gemini-3-flash-preview
-     deep-research -> google:gemini-3.1-pro-preview
+     default       -> anthropic:claude-sonnet-4-6
+     code          -> openai:gpt-5.4 (codex)
+     deep-research -> anthropic:claude-opus-4-6
      image         -> google:gemini-3.1-flash-image-preview
    ```
 
@@ -217,11 +222,13 @@ Nexus auto-detects providers from environment variables.
 | ------------------ | ----------------------------------------------------------- | ----------------------------------------------- |
 | Google (Vertex)    | `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION` + ADC login | classifier, default, code, deep-research, image |
 | Google (AI Studio) | `GEMINI_API_KEY`                                            | classifier, default, code, deep-research, image |
-| Anthropic          | `ANTHROPIC_API_KEY`                                         | classifier, default, code, deep-research        |
-| OpenAI             | `OPENAI_API_KEY`                                            | classifier, default, code, deep-research        |
+| Anthropic (API)    | `ANTHROPIC_API_KEY`                                         | classifier, default, code, deep-research        |
+| Anthropic (OAuth)  | `CLAUDE_CODE_OAUTH_TOKEN` or `~/.claude/.credentials.json`  | classifier, default, code, deep-research        |
+| OpenAI (API)       | `OPENAI_API_KEY`                                            | classifier, default, code, deep-research        |
+| OpenAI (Codex CLI) | `CODEX_ACCESS_TOKEN` + `CODEX_ACCOUNT_ID` or `~/.codex/auth.json` | code                                     |
 | Z.AI (GLM)         | `ZAI_API_KEY` (+ optional `ZAI_BASE_URL`)                   | classifier, default, code, deep-research        |
 
-Image generation is Google-only for now. The creative sub-agent disables itself if no Google credentials are present.
+Image generation is Google-only for now. The creative sub-agent disables itself if no Google credentials are present. Claude OAuth takes priority over `ANTHROPIC_API_KEY` when both are present.
 
 ### Tiers
 
@@ -286,13 +293,15 @@ apps/
 
 | Problem | Fix |
 | ------- | --- |
-| `No provider can satisfy the 'default' tier` | No provider env vars detected. Set at least one of `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `ZAI_API_KEY`, or a Vertex `GOOGLE_CLOUD_PROJECT` with ADC. |
+| `No provider can satisfy the 'default' tier` | No provider env vars detected. Set at least one of `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `ZAI_API_KEY`, Vertex ADC, Claude OAuth, or Codex CLI credentials. |
 | Creative sub-agent disabled | Image generation needs Google. Add a Google credential. |
 | Vertex AI auth errors | Re-run `gcloud auth application-default login` and check `GOOGLE_CLOUD_PROJECT`. |
 | Z.AI returns 404 / model-not-found | You're on the GLM Coding Plan. Set `ZAI_BASE_URL=https://api.z.ai/api/coding/paas/v4`. |
 | "Cannot reach LangGraph server" | `npm run dev` isn't running, or it crashed during preflight. Check the terminal. |
 | "AIO Sandbox unreachable" | Start the Docker container (step 3 above). |
 | "TAVILY_API_KEY is not set" | Fill in `.env` and restart. |
+| Claude OAuth not detected | Check that `CLAUDE_CODE_OAUTH_TOKEN` is set or `~/.claude/.credentials.json` exists. Token may have expired — re-export from Claude Code. |
+| Codex CLI not detected | Ensure both `CODEX_ACCESS_TOKEN` and `CODEX_ACCOUNT_ID` are set, or run `codex` to populate `~/.codex/auth.json`. |
 
 ## Roadmap
 
@@ -301,6 +310,7 @@ MVP is done. What's next is less about shipping features and more about making t
 **Now**
 - `docker compose up` for the whole stack
 - Cost and token meter per run
+- Async / resumable runs (survive page reloads)
 
 **Next**
 - Interruptible agents with a redirect input
