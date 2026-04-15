@@ -1,0 +1,24 @@
+version: 2
+
+# GitGuardian configuration. The OAuth feature branch introduces fake OAuth
+# tokens in test fixtures and docs (e.g. "sk-ant-oat01-test") that match the
+# Anthropic API key detector. They are not real secrets — the format is used
+# to exercise isClaudeOAuthToken() prefix detection and credential loader
+# edge cases. All real credential loading happens from env/FD/CLI files at
+# runtime; nothing in the repo itself is a live credential.
+
+secret:
+  ignored-paths:
+    # Unit + integration tests contain fake sk-ant-oat01-* tokens as fixtures.
+    - apps/agents/src/nexus/models/__tests__
+    # The credential loader source contains the literal "sk-ant-oat" substring
+    # as a prefix-detection constant inside isClaudeOAuthToken().
+    - apps/agents/src/nexus/models/credentials.ts
+    # Spec and plan documents include copy-pasted test fixtures in code blocks.
+    - docs/superpowers/plans/2026-04-15-claude-codex-oauth.md
+    - docs/superpowers/specs/2026-04-15-claude-codex-oauth-design.md
+    # Historical reference Python files from bytedance/deer-flow (deleted in
+    # commit 8643d68 but still in branch history). Contain no real secrets —
+    # only variable names like `auth_token` and `api_key` that trip generic
+    # high-entropy detectors.
+    - docs/references/deerflow-oauth
