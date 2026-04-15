@@ -5,17 +5,48 @@ import { motion } from "framer-motion";
 import { PromptBar } from "@/components/execution/prompt-bar";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import { SettingsButton } from "@/components/settings/settings-button";
+import {
+  ThreadPickerButton,
+  useThreadPicker,
+} from "@/components/thread-picker/thread-picker";
+import { useThreads } from "@/providers/Thread";
 
 interface LandingPageProps {
   onSubmit: (message: string | PromptInputMessage) => void;
   isLoading: boolean;
 }
 
+function RunningThreadsPill() {
+  const { threads } = useThreads();
+  const { setOpen } = useThreadPicker();
+  const runningCount = threads.filter((t) => t.status === "busy").length;
+  if (runningCount === 0) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => setOpen(true)}
+      className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-400 transition hover:bg-amber-500/15"
+    >
+      <span className="size-1.5 animate-pulse rounded-full bg-amber-400" />
+      {runningCount === 1
+        ? "1 run in progress"
+        : `${runningCount} runs in progress`}
+      <span className="text-muted-foreground">· open command palette</span>
+    </button>
+  );
+}
+
 export function LandingPage({ onSubmit, isLoading }: LandingPageProps) {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center px-4">
+      <div className="absolute top-4 left-4 z-10">
+        <ThreadPickerButton />
+      </div>
       <div className="absolute top-4 right-4 z-10">
         <SettingsButton />
+      </div>
+      <div className="absolute top-16 left-1/2 z-10 -translate-x-1/2">
+        <RunningThreadsPill />
       </div>
       <div className="flex flex-col items-center gap-8 w-full">
         {/* Tagline */}

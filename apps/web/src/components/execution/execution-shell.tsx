@@ -19,6 +19,7 @@ import {
   ConversationContent,
 } from "@/components/ai-elements/conversation";
 import { SettingsButton } from "@/components/settings/settings-button";
+import { ThreadPickerButton } from "@/components/thread-picker/thread-picker";
 
 type ExecutionShellProps = {
   messages: any[];
@@ -66,7 +67,10 @@ export function ExecutionShell({
       )}
 
       <div className="flex items-center justify-between px-4 py-2.5 border-b shrink-0">
-        <h1 className="text-lg font-semibold tracking-tight">Nexus</h1>
+        <div className="flex items-center gap-3">
+          <ThreadPickerButton />
+          <h1 className="text-lg font-semibold tracking-tight">Nexus</h1>
+        </div>
         <div className="flex items-center gap-3">
           {isLoading && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
