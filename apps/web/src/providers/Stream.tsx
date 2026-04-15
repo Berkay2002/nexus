@@ -5,6 +5,7 @@ import React, {
   useContext,
   ReactNode,
   useEffect,
+  useRef,
 } from "react";
 import { useStream } from "@langchain/react";
 import { type Message } from "@langchain/langgraph-sdk";
@@ -55,16 +56,6 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
     assistantId: ASSISTANT_ID,
     threadId: threadId ?? null,
     filterSubagentMessages: true,
-    // Persist the per-thread runId (`lg:stream:{threadId}`) to localStorage so
-    // reloading, closing the tab, or opening a new tab on the same machine
-    // rejoins the live run instead of cancelling it. `reconnectOnMount: true`
-    // would use sessionStorage (per-tab, dies with the tab) and doesn't
-    // satisfy the cross-tab story. Returning `localStorage` — which satisfies
-    // `RunMetadataStorage` structurally (getItem/setItem/removeItem) — keeps
-    // the key alive across tabs. Also flips the server-side `onDisconnect`
-    // default from "cancel" to "continue", so closing the SSE connection no
-    // longer aborts the run (stream.lgp.js:332-343, types.d.ts:896-900).
-    reconnectOnMount: () => window.localStorage,
     onCustomEvent: (event: unknown, options: { mutate: (fn: (prev: StateType) => Partial<StateType>) => void }) => {
       options.mutate((prev: StateType) => {
         const ui = uiMessageReducer(
@@ -80,16 +71,65 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
         getThreads().then(setThreads).catch(console.error);
       }, 4000);
     },
+    // Persist the per-thread runId to localStorage so a reload / reopen can
+    // rejoin the live run. Submit flags `onDisconnect: "continue"` +
+    // `streamResumable: true` are set in use-nexus-stream.ts#submitPrompt.
+    // Key format matches the library's own `lg:stream:{thread_id}` template.
+    onCreated: (run: { thread_id: string; run_id: string }) => {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(
+          `lg:stream:${run.thread_id}`,
+          run.run_id,
+        );
+      }
+    },
+    onFinish: (
+      _state: unknown,
+      meta: { thread_id?: string } | undefined,
+    ) => {
+      if (meta?.thread_id && typeof window !== "undefined") {
+        window.localStorage.removeItem(`lg:stream:${meta.thread_id}`);
+      }
+    },
+    onStop: () => {
+      if (threadId && typeof window !== "undefined") {
+        window.localStorage.removeItem(`lg:stream:${threadId}`);
+      }
+    },
     // Purge stale rejoin keys so a deleted-thread runId doesn't zombie in
-    // localStorage. The library auto-removes the key on success / stop /
-    // join-success, but not on joinStream failure.
-    onError: (error: unknown, run: { thread_id: string } | undefined) => {
+    // localStorage when the main stream errors.
+    onError: (error: unknown, run: { thread_id: string; run_id?: string } | undefined) => {
+      // eslint-disable-next-line no-console
+      console.error("[useStream] error", { error, run });
       if (run && typeof window !== "undefined") {
         window.localStorage.removeItem(`lg:stream:${run.thread_id}`);
       }
-      console.error("[useStream] error", error);
     },
   } as any);
+
+  // Mount-time manual rejoin per join-rejoin-streams.md L1173-1210. The ref
+  // guards against React-19 strict-mode double-mount and dep-array re-runs on
+  // the same threadId. `streamValue` intentionally omitted from deps — its
+  // identity is unstable across renders.
+  const triedRejoinRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!threadId || typeof window === "undefined") return;
+    if (triedRejoinRef.current === threadId) return;
+    const runId = window.localStorage.getItem(`lg:stream:${threadId}`);
+    if (!runId) return;
+    triedRejoinRef.current = threadId;
+    void (async () => {
+      try {
+        await (streamValue as unknown as {
+          joinStream: (runId: string, lastEventId: string) => Promise<void>;
+        }).joinStream(runId, "-1");
+      } catch (err) {
+        console.error("[stream] rejoin failed", err);
+        window.localStorage.removeItem(`lg:stream:${threadId}`);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId]);
 
   useEffect(() => {
     checkGraphStatus(API_URL).then((ok) => {

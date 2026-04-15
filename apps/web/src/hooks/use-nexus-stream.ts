@@ -101,6 +101,8 @@ export function useNexusStream() {
           // filterSubagentMessages/getSubagentsByMessage.
           streamMode: ["messages", "values"],
           streamSubgraphs: true,
+          onDisconnect: "continue",
+          streamResumable: true,
           config: {
             configurable: {
               models: modelsByRole,

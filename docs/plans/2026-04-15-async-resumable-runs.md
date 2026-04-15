@@ -17,6 +17,12 @@ So closing the tab literally sends a server-side cancel. Everything downstream (
 
 **Explicitly out of scope:** server-restart durability. `langgraph dev` is in-memory by design — durability arrives for free with the already-planned "docker compose up" roadmap item (Postgres-backed `langgraph up`), not with this spec.
 
+### 2026-04-15 pivot — `reconnectOnMount` ➜ explicit join/rejoin
+
+Step 1 originally wired `reconnectOnMount: () => window.localStorage` on `useStream`. That commit (`f9d58c7`) typechecks and lints, and the mount-time auto-rejoin effect in `stream.lgp.js:505-538` **does** fire the request (confirmed via DevTools — `GET /threads/{id}/runs/{runId}/stream?cancel_on_disconnect=0 → 200`). But the browser's for-await over the SSE generator yields **zero events** and `onSuccess` silently removes the stored runId — while `curl` with the same `Last-Event-ID: -1` header replays the full event log. The internal reconnect effect is opaque enough that instrumenting it means patching `node_modules`, and `reconnectOnMount` flips both `streamResumable` and `onDisconnect` defaults implicitly, so there is no partial rollback.
+
+The LangChain docs at `.kb/raw/langchain/langchain/join-rejoin-streams.md` describe a fully explicit pattern — submit with `{ onDisconnect: "continue", streamResumable: true }`, capture the runId in `onCreated`, store it in localStorage, and call `stream.joinStream(runId)` yourself on mount. This keeps every step in user space where we can log, guard, and error-handle it. **Step 1 below is rewritten to match that documented pattern.** Steps 2–8 are unaffected; Steps 6 and 7 become smaller (the types we wanted already exist on the public `UseStream` interface — see notes inline).
+
 ---
 
 ## Grounding references
@@ -65,6 +71,17 @@ So closing the tab literally sends a server-side cancel. Everything downstream (
 - `node_modules/@langchain/react/dist/stream.lgp.js:505-538` — mount-time reconnect effect reads stored runId → auto-calls `joinStream`
 - `node_modules/@langchain/react/dist/stream.lgp.js:653-663` — `queue.cancel` / `queue.clear` server-side cancellation
 
+**Official join/rejoin guide (canonical pattern — `.kb/raw/langchain/langchain/`):**
+- `join-rejoin-streams.md:884-898` — "Core concepts" table: `stop()`, `joinStream(runId)`, `onDisconnect: "continue"`, `streamResumable: true`
+- `join-rejoin-streams.md:899-1027` — "Setting up `useStream`" — capture runId via `onCreated`
+- `join-rejoin-streams.md:1029-1051` — "Submitting with resumable options" — explicit submit call, table at L1043-1046 defines both flags and their default behavior
+- `join-rejoin-streams.md:1067-1080` — "Rejoining a stream" — `stream.joinStream(savedRunId)` contract
+- `join-rejoin-streams.md:1082-1121` — "Building a connection status indicator" — maps `stream.isLoading` to a UI "connected" flag
+- `join-rejoin-streams.md:1173-1195` — "Persisting the run ID" — localStorage pattern + mount-time manual rejoin (the exact shape used in Step 1 below)
+- `join-rejoin-streams.md:1197-1210` — "Error handling" — try/catch on `joinStream` + stale-runId cleanup
+- `join-rejoin-streams.md:1212-1278` — "Complete example" — end-to-end reference wiring
+- `join-rejoin-streams.md:1280-1287` — "Best practices" — save runId everywhere, show connection state, clean up completed runs
+
 **Nexus files involved:**
 - `apps/web/src/providers/Stream.tsx` — wraps `useStream`, missing `reconnectOnMount`
 - `apps/web/src/providers/Thread.tsx:42-54` — already fetches threads via `client.threads.search`; UI never renders the list
@@ -97,37 +114,92 @@ So closing the tab literally sends a server-side cancel. Everything downstream (
 
 ## Implementation plan
 
-### Step 1 — Enable resumable streams (the 1-line fix that unblocks everything)
+### Step 1 — Resumable streams via the documented join/rejoin pattern
 
-**File:** `apps/web/src/providers/Stream.tsx`
+**Files:**
+- `apps/web/src/providers/Stream.tsx`
+- `apps/web/src/hooks/use-nexus-stream.ts`
 
-Add to the `useStream` options object:
+**Reference:** `.kb/raw/langchain/langchain/join-rejoin-streams.md` — the canonical LangChain guide to the join & rejoin feature. The implementation below mirrors the guide's "Persisting the run ID" pattern (L1173-1195) and "Complete example" (L1212-1278).
 
-```ts
-reconnectOnMount: () =>
-  typeof window === "undefined" ? (null as never) : window.localStorage,
-```
+**Why not `reconnectOnMount`?** See the "2026-04-15 pivot" note in the Context section. tl;dr: the internal mount-time reconnect effect fires the rejoin request but the browser's SSE consumer yields zero events and silently removes the stored runId, while `curl` on the identical endpoint replays the full log. The explicit pattern bypasses that opaque effect and puts every step in user space.
 
-Why a function returning `localStorage` instead of `true`:
-- `true` → `sessionStorage` (per-tab, dies when tab closes — doesn't satisfy "close tab, open new tab" story).
-- Function → any `RunMetadataStorage` we return. `localStorage` survives across tabs and reloads, which is exactly the stated UX.
-- `localStorage` satisfies the `RunMetadataStorage` interface structurally (`getItem`/`setItem`/`removeItem`).
-- Reference: `stream.lgp.js:131-137` (storage resolution), `types.d.ts:896-900` (interface).
+---
 
-**Also add an `onError` handler that purges stale rejoin keys:**
+**A. `apps/web/src/hooks/use-nexus-stream.ts`** — pass both resumable flags on `stream.submit`
+*(per `join-rejoin-streams.md:1029-1051`; flag semantics table at L1043-1046)*
 
 ```ts
-onError: (error, run) => {
-  if (run && typeof window !== "undefined") {
-    window.localStorage.removeItem(`lg:stream:${run.thread_id}`);
-  }
-  // existing error behavior (toast, etc.)
-},
+stream.submit(values, {
+  streamSubgraphs: true,      // existing
+  onDisconnect: "continue",    // NEW — keep the server-side run alive when the client disconnects
+  streamResumable: true,       // NEW — retain stream state so a later client can rejoin
+});
 ```
 
-Why: if a stored runId points to a thread that was deleted on the server, `joinStream` will throw and the key will otherwise zombie in storage (`stream.lgp.js:445-488` — no auto-cleanup in the error path). This is the one hand-maintenance point in an otherwise automatic flow.
+Both flags must be set together — `onDisconnect: "continue"` alone keeps the agent running but leaves nothing to rejoin (`join-rejoin-streams.md:1048-1050`).
 
-**Strip the `as any` cast on the options.** Type the hook as `useStream<typeof orchestrator>` once we import the orchestrator agent type from `apps/agents`. Cross-workspace type import — check if `apps/web` has a path alias; if not, re-export the type from a shared file or use a structural `UseDeepAgentStreamOptions`-compatible interface. If this fights with the build, keep the cast and add a TODO — it's not load-bearing for the feature.
+**B. `apps/web/src/providers/Stream.tsx`** — four pieces:
+
+1. **Drop** `reconnectOnMount: () => window.localStorage` from the options object.
+
+2. **`onCreated` — persist the runId to localStorage**
+   *(per `join-rejoin-streams.md:899-1027` and `1177-1184`)*:
+   ```ts
+   onCreated: (run) => {
+     if (typeof window !== "undefined") {
+       window.localStorage.setItem(`lg:stream:${run.thread_id}`, run.run_id);
+     }
+   },
+   ```
+   The `lg:stream:${thread_id}` key format matches the library's own convention when given a `runMetadataStorage` — stay compatible with anything that inspects storage by that template literal (`types.d.ts:896-900`).
+
+3. **Mount-time manual rejoin effect**
+   *(per `join-rejoin-streams.md:1067-1080` and `1186-1190`; error handling per `1197-1210`)*:
+   ```ts
+   const triedRejoinRef = useRef<string | null>(null);
+   useEffect(() => {
+     if (!threadId || typeof window === "undefined") return;
+     if (triedRejoinRef.current === threadId) return;
+     const runId = window.localStorage.getItem(`lg:stream:${threadId}`);
+     if (!runId) return;
+     triedRejoinRef.current = threadId;
+     void (async () => {
+       try {
+         await streamValue.joinStream(runId, "-1");
+       } catch (err) {
+         console.error("[stream] rejoin failed", err);
+         window.localStorage.removeItem(`lg:stream:${threadId}`);
+       }
+     })();
+   }, [threadId]);
+   ```
+   - `lastEventId: "-1"` replays from the beginning of the event log (`client.js:1008-1020`).
+   - `triedRejoinRef` guards against React-19 strict-mode double-mount and dep-array re-runs on the same `threadId`.
+   - Dep array intentionally omits `streamValue` — its identity is unstable across renders; the ref guard prevents duplicates.
+   - The try/catch matches `join-rejoin-streams.md:1201-1209` — stale/expired runIds are cleared on the error path.
+
+4. **Cleanup callbacks** — clear the stored runId when the run ends cleanly or the user stops it
+   *(per best-practice note at `join-rejoin-streams.md:1193-1195` — "Persisted run IDs should be cleaned up when a run completes")*:
+   ```ts
+   onFinish: (_state, meta) => {
+     if (meta?.thread_id && typeof window !== "undefined") {
+       window.localStorage.removeItem(`lg:stream:${meta.thread_id}`);
+     }
+   },
+   onStop: () => {
+     if (threadId && typeof window !== "undefined") {
+       window.localStorage.removeItem(`lg:stream:${threadId}`);
+     }
+   },
+   ```
+   The existing `onError` from `f9d58c7` (purges the key when the main stream errors) stays as-is — it handles the fourth cleanup path (main-stream errors, distinct from `joinStream` errors handled inline above).
+
+---
+
+**Step 4 interaction (heads-up):** `triedRejoinRef` is per-provider-lifetime. When Step 4's thread picker calls `switchThread(otherId)` and the user switches back, the second visit to the original thread will **not** re-attempt rejoin. Acceptable for the core reload/reopen story; revisit in Step 4 if `switchThread` is found to clear stream state while the run is still live on the server.
+
+**Non-blocking type cleanup:** drop the outer `as any` on the `useStream` options once the hook can be typed as `useStream<typeof orchestrator>`. If cross-workspace type import fights the build, keep the cast and add a TODO — not load-bearing.
 
 ### Step 2 — Move the graph-status toast out of `StreamProvider`
 
@@ -185,6 +257,8 @@ On execution: the current view is fine, but the thread picker button goes in the
 
 **File:** `apps/web/src/hooks/use-nexus-stream.ts`
 
+> **Typing note:** `stream.queue` is a first-class member of the `UseStream` return type with a fully typed `QueueInterface` (`{ size, entries, cancel, clear }`). See `.kb/raw/langchain/langchain/references/react-sdk/interface/UseStream.md` and `interface/QueueInterface.md`. No `as any` needed — just expose it.
+
 The hook currently doesn't expose `stream.queue`. Auto-enqueue (`stream.lgp.js:411-433`) means if the user submits during an active run, a new server-side run is created with `multitaskStrategy: "enqueue"` and tracked in `queue.entries`. Today we silently enqueue and users see nothing.
 
 Add to the return object:
@@ -202,6 +276,8 @@ Render a "N queued" chip in the prompt bar when `queue.size > 0`, with a "clear 
 ### Step 7 — Verify DeepAgents typing passes through
 
 **File:** `apps/web/src/hooks/use-nexus-stream.ts`
+
+> **Typing note:** `subagents`, `activeSubagents`, `getSubagent`, `getSubagentsByType`, `getSubagentsByMessage`, `toolCalls`, `getToolCalls`, and `toolProgress` are already typed on `UseStream` (`.kb/raw/langchain/langchain/references/react-sdk/interface/UseStream.md`). The `as any` casts in the current hook implementation were never required by the public API — this step is mechanical removal, not a type cleanup project.
 
 The hook currently casts `(stream as any).subagents` and `(stream as any).getSubagentsByMessage`. Per `interface/UseStream.md` and `interface/UseDeepAgentStream.md`, both are first-class members of the return interface — **even the base `UseStream` already carries them** (`interface/BaseStream.md` confirms the subagent accessors inherit through the hierarchy). So typing the hook as `useStream<typeof orchestrator>` is enough; no DeepAgent-specific import needed.
 
@@ -251,7 +327,7 @@ Run the LangGraph dev server (`npm run dev` from repo root) and the AIO Sandbox 
 ### Test 5 — Stale key cleanup
 1. Manually set `localStorage.setItem('lg:stream:nonexistent-thread', 'fake-run-id')` in DevTools.
 2. Navigate to `?threadId=nonexistent-thread`.
-3. **Expected:** hook attempts `joinStream('fake-run-id')`, server returns an error, `onError` fires and removes the key (per the handler added in Step 1).
+3. **Expected:** the Stream.tsx mount-time rejoin effect reads the key, calls `streamValue.joinStream('fake-run-id', '-1')`, the server returns an error, the surrounding try/catch logs `[stream] rejoin failed` and removes the key (matches `join-rejoin-streams.md:1201-1209`).
 4. Verify key is gone from localStorage.
 
 ### Lint / typecheck
@@ -264,7 +340,7 @@ Run the LangGraph dev server (`npm run dev` from repo root) and the AIO Sandbox 
 
 1. **Dev server restart kills everything.** Documented in CLAUDE.md as the `langgraph dev` limitation. Mention in the spec explicitly so users don't file bugs. Durability ships with the `docker compose up` roadmap item.
 2. **Two tabs, same thread, one actively streaming.** The localStorage key is a single slot — whichever tab wrote last "owns" the rejoin for that thread. In practice this is fine: if tab A streams, tab B mounts, both call `joinStream` against the same `runId`, and `client.runs.joinStream` is server-side-idempotent (returns the same SSE stream to both). No dedup needed (`stream.lgp.js:445-488` — server handles it).
-3. **`onError` cleanup is the only manual storage hand-off.** Everything else (success, stop, join-success) is already handled in the library. Make sure the `onError` path in Step 1 actually fires for stale-thread errors — test with Test 5.
+3. **Storage lifecycle is entirely hand-wired in Step 1.** With the explicit pattern we own every write and every removal: `onCreated` sets the key, `onFinish`/`onStop`/`onError` remove it on clean completion, and the mount-time rejoin effect's try/catch removes it on stale-runId errors. The library itself does not touch the key in this pattern (`reconnectOnMount` is dropped, so `runMetadataStorage` is null inside `useStreamLGP` — see `stream.lgp.js:131-137`). Verify all four cleanup paths in the Test matrix.
 4. **Cross-workspace type import** (Step 7). If importing `typeof orchestrator` from `apps/agents` into `apps/web` trips the build, don't force it. The casts aren't a regression.
 5. **`shadcn add command`** may overwrite an existing file if the team already added cmdk. Check `apps/web/src/components/ui/command.tsx` before running. Per CLAUDE.md: "preserve `src/components/ui/` — shadcn/ui base components".
 
