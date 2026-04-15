@@ -53,6 +53,102 @@ export class CodexChatModel extends BaseChatModel {
     return "codex-responses";
   }
 
+  static readonly BASE_URL = "https://chatgpt.com/backend-api/codex";
+
+  static _parseSseDataLine(line: string): Record<string, unknown> | null {
+    if (!line.startsWith("data:")) return null;
+    const raw = line.slice(5).trim();
+    if (!raw || raw === "[DONE]") return null;
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      return parsed && typeof parsed === "object"
+        ? (parsed as Record<string, unknown>)
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
+  protected async _streamResponse(
+    headers: Record<string, string>,
+    payload: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    const resp = await fetch(`${CodexChatModel.BASE_URL}/responses`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+      const err = new Error(
+        `Codex API returned ${resp.status}: ${resp.statusText}`,
+      ) as Error & { status: number; response: Response };
+      err.status = resp.status;
+      err.response = resp;
+      throw err;
+    }
+    if (!resp.body) throw new Error("Codex API returned empty body");
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let completed: Record<string, unknown> | null = null;
+    const streamedItems = new Map<number, Record<string, unknown>>();
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let newlineIdx: number;
+      while ((newlineIdx = buffer.indexOf("\n")) !== -1) {
+        const line = buffer.slice(0, newlineIdx).replace(/\r$/, "");
+        buffer = buffer.slice(newlineIdx + 1);
+        const data = CodexChatModel._parseSseDataLine(line);
+        if (!data) continue;
+
+        const eventType = data.type;
+        if (eventType === "response.output_item.done") {
+          const idx = data.output_index;
+          const item = data.item;
+          if (typeof idx === "number" && item && typeof item === "object") {
+            streamedItems.set(idx, item as Record<string, unknown>);
+          }
+        } else if (eventType === "response.completed") {
+          completed = data.response as Record<string, unknown>;
+        }
+      }
+    }
+
+    if (!completed) {
+      throw new Error("Codex API stream ended without response.completed event");
+    }
+
+    if (streamedItems.size > 0) {
+      const existing = Array.isArray(completed.output)
+        ? [...(completed.output as Array<Record<string, unknown> | null>)]
+        : [];
+      const maxIdx = Math.max(
+        ...Array.from(streamedItems.keys()),
+        existing.length - 1,
+      );
+      while (existing.length <= maxIdx) existing.push(null);
+      for (const [idx, item] of streamedItems) {
+        if (!existing[idx] || typeof existing[idx] !== "object") {
+          existing[idx] = item;
+        }
+      }
+      completed = {
+        ...completed,
+        output: existing.filter(
+          (x): x is Record<string, unknown> => x !== null && typeof x === "object",
+        ),
+      };
+    }
+
+    return completed;
+  }
+
   static _normalizeContent(content: unknown): string {
     if (typeof content === "string") return content;
     if (Array.isArray(content)) {

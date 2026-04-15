@@ -145,3 +145,30 @@ describe("CodexChatModel._convertTools", () => {
     expect(result).toEqual(tools);
   });
 });
+
+import { CodexChatModel as CodexCls } from "../codex-chat-model.js";
+
+describe("CodexChatModel SSE parser", () => {
+  it("returns null for [DONE] marker", () => {
+    expect(CodexCls._parseSseDataLine("data: [DONE]")).toBeNull();
+  });
+
+  it("returns null for event: lines", () => {
+    expect(CodexCls._parseSseDataLine("event: response.completed")).toBeNull();
+  });
+
+  it("returns null for non-data lines", () => {
+    expect(CodexCls._parseSseDataLine("")).toBeNull();
+    expect(CodexCls._parseSseDataLine(": heartbeat")).toBeNull();
+  });
+
+  it("returns null for malformed JSON payload", () => {
+    expect(CodexCls._parseSseDataLine("data: not-json")).toBeNull();
+  });
+
+  it("parses valid JSON payload", () => {
+    expect(
+      CodexCls._parseSseDataLine('data: {"type":"response.completed"}'),
+    ).toEqual({ type: "response.completed" });
+  });
+});
