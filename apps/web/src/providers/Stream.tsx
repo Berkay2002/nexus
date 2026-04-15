@@ -7,7 +7,7 @@ import React, {
   useEffect,
   useRef,
 } from "react";
-import { useStream } from "@langchain/react";
+import { useStream, type UseDeepAgentStream } from "@langchain/react";
 import { type Message } from "@langchain/langgraph-sdk";
 import {
   uiMessageReducer,
@@ -19,8 +19,12 @@ import { useThreads } from "./Thread";
 
 export type StateType = { messages: Message[]; ui?: UIMessage[] };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type StreamContextType = ReturnType<typeof useStream<any>>;
+// Context is typed as UseDeepAgentStream so consumers see `subagents`,
+// `getSubagentsByMessage`, `queue`, etc. without casts. ResolveStreamInterface
+// can't pick this automatically from a plain StateType — we'd need
+// `typeof orchestrator` from apps/agents, which fights the build — so we
+// assert at the context boundary.
+export type StreamContextType = UseDeepAgentStream<StateType>;
 const StreamContext = createContext<StreamContextType | undefined>(undefined);
 
 // Nexus defaults — no config form needed
@@ -98,6 +102,8 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
     },
   } as any);
 
+  const typedStream = streamValue as unknown as StreamContextType;
+
   // Mount-time manual rejoin per join-rejoin-streams.md L1173-1210. The ref
   // guards against React-19 strict-mode double-mount and dep-array re-runs on
   // the same threadId. `streamValue` intentionally omitted from deps — its
@@ -111,9 +117,7 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
     triedRejoinRef.current = threadId;
     void (async () => {
       try {
-        await (streamValue as unknown as {
-          joinStream: (runId: string, lastEventId: string) => Promise<void>;
-        }).joinStream(runId, "-1");
+        await typedStream.joinStream(runId, "-1");
       } catch (err) {
         console.error("[stream] rejoin failed", err);
         window.localStorage.removeItem(`lg:stream:${threadId}`);
@@ -123,7 +127,7 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
   }, [threadId]);
 
   return (
-    <StreamContext.Provider value={streamValue}>
+    <StreamContext.Provider value={typedStream}>
       {children}
     </StreamContext.Provider>
   );

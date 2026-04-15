@@ -6,7 +6,6 @@ import { useCallback, useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { ensureToolCallsHaveResponses } from "@/lib/ensure-tool-responses";
 import type { Message } from "@langchain/langgraph-sdk";
-import type { SubagentStreamInterface } from "@langchain/langgraph-sdk/ui";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import type {
   RoutingResult,
@@ -126,20 +125,11 @@ export function useNexusStream() {
 
   const hasMessages = stream.messages.length > 0;
 
-  // Subagent data. Fully typed on UseDeepAgentStream, but the context is
-  // parameterized as useStream<StateType> (a BaseStream variant) to avoid
-  // importing `typeof orchestrator` from apps/agents — that cross-workspace
-  // type import fights our build. Keep the narrow cast; the runtime shape
-  // is guaranteed by filterSubagentMessages: true in Stream.tsx.
-  // TODO: drop once apps/agents type export is build-clean.
-  const subagentStream = stream as unknown as {
-    subagents?: Map<string, SubagentStreamInterface>;
-    getSubagentsByMessage?: (
-      messageId: string,
-    ) => SubagentStreamInterface[];
-  };
-  const subagents = subagentStream.subagents;
-  const getSubagentsByMessage = subagentStream.getSubagentsByMessage;
+  // Subagent data — first-class on UseDeepAgentStream. The context in
+  // Stream.tsx is typed as UseDeepAgentStream<StateType>, so the runtime
+  // shape (guaranteed by filterSubagentMessages: true) is fully typed here.
+  const subagents = stream.subagents;
+  const getSubagentsByMessage = stream.getSubagentsByMessage;
 
   // Meta-router visualization. The graph writes routerResult to state at the
   // end of the metaRouter node — there's no streaming during classification,
