@@ -27,6 +27,8 @@ When verifying a change, "green" means everything passes **except** these three 
 - `apps/agents/src/nexus/__tests__/integration.test.ts` (Meta-Router — needs a model provider key)
 - `apps/agents/src/nexus/__tests__/tools-integration.test.ts` (Tavily — needs `TAVILY_API_KEY`)
 - `apps/agents/src/nexus/backend/__tests__/aio-sandbox.test.ts` (needs the `ghcr.io/agent-infra/sandbox` container running)
+- `apps/agents/src/nexus/models/__tests__/claude-oauth-chat-model.integration.test.ts` (gated on Claude OAuth credential)
+- `apps/agents/src/nexus/models/__tests__/codex-chat-model.integration.test.ts` (gated on Codex CLI credential)
 
 Don't rewrite these or treat their failure as a regression.
 
@@ -36,6 +38,8 @@ Agents fail fast without a resolvable model tier — preflight diagnostics print
 
 Required env (in `.env`):
 - At least one provider: `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `ZAI_API_KEY`, or Vertex via `GOOGLE_CLOUD_PROJECT` + `gcloud auth application-default login`
+- **Claude OAuth** (optional — reuses a Claude Max subscription instead of the API-key billing path): set `CLAUDE_CODE_OAUTH_TOKEN` or drop an exported credentials file at `~/.claude/.credentials.json`. When present, it takes priority over `ANTHROPIC_API_KEY` in all tier resolutions. Prompt caching is disabled on the OAuth path due to the 4-block `cache_control` cap — use the API-key path if you need caching.
+- **Codex CLI** (optional — reuses a ChatGPT Plus/Pro subscription): set `CODEX_ACCESS_TOKEN` + `CODEX_ACCOUNT_ID`, or log in via `codex` CLI to populate `~/.codex/auth.json`. Only wired into the `code` tier; does not compete with Anthropic/Google in `default`.
 - `TAVILY_API_KEY`
 - `SANDBOX_URL=http://localhost:8080`
 - `NEXT_PUBLIC_API_URL=http://localhost:2024`

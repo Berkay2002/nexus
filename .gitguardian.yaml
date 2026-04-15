@@ -1,0 +1,54 @@
+version: 2
+
+# GitGuardian configuration. The Claude OAuth + Codex feature branch introduces
+# fake OAuth tokens in test fixtures and design documents (e.g.
+# "sk-ant-oat01-test") that match the Generic High Entropy Secret detector.
+# They are not real credentials — the format is used to exercise
+# isClaudeOAuthToken() prefix detection and credential loader edge cases.
+# All real credential loading happens from env/FD/CLI files at runtime;
+# nothing in the repo itself is a live credential.
+
+secret:
+  ignored-paths:
+    # Unit + integration tests contain fake sk-ant-oat01-* tokens as fixtures.
+    - apps/agents/src/nexus/models/__tests__/credentials.test.ts
+    - apps/agents/src/nexus/models/__tests__/claude-oauth-chat-model.test.ts
+    - apps/agents/src/nexus/models/__tests__/claude-oauth-chat-model.integration.test.ts
+    # The credential loader source contains the literal "sk-ant-oat" substring
+    # as a prefix-detection constant inside isClaudeOAuthToken().
+    - apps/agents/src/nexus/models/credentials.ts
+    # Spec and plan documents include copy-pasted test fixtures in code blocks.
+    - docs/superpowers/plans/2026-04-15-claude-codex-oauth.md
+    - docs/superpowers/specs/2026-04-15-claude-codex-oauth-design.md
+    # Historical reference files from bytedance/deer-flow (deleted in commit
+    # 8643d68 but still in branch history). Contain no real secrets — only
+    # variable names like `auth_token` and `api_key`.
+    - docs/references/deerflow-oauth/claude_provider.py
+    - docs/references/deerflow-oauth/credential_loader.py
+    - docs/references/deerflow-oauth/openai_codex_provider.py
+    - docs/references/deerflow-oauth/export_claude_code_oauth.py
+
+  ignored-matches:
+    # Known-fake tokens used as test fixtures. Each `match` is a substring
+    # that GitGuardian will ignore anywhere in any file. Listed individually
+    # so real secrets with different values would still be flagged.
+    - name: fake test fixture — env-loaded OAuth token
+      match: sk-ant-oat01-env
+    - name: fake test fixture — ANTHROPIC_AUTH_TOKEN fallback
+      match: sk-ant-oat01-anthropic-auth
+    - name: fake test fixture — FD-loaded OAuth token
+      match: sk-ant-oat01-fd
+    - name: fake test fixture — override file path
+      match: sk-ant-oat01-override
+    - name: fake test fixture — override refresh token
+      match: sk-ant-ort01-override
+    - name: fake test fixture — default file path
+      match: sk-ant-oat01-default
+    - name: fake test fixture — expired token
+      match: sk-ant-oat01-expired
+    - name: fake test fixture — constructor test token
+      match: sk-ant-oat01-test
+    - name: fake test fixture — constructor + payload tests
+      match: sk-ant-oat01-abc
+    - name: fake test fixture — manual preflight smoke test
+      match: sk-ant-oat01-fake-test-token

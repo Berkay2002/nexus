@@ -1,3 +1,4 @@
+import { loadClaudeOAuthCredential, loadCodexCliCredential } from "./credentials.js";
 import type { ProviderId } from "./types.js";
 
 function hasEnv(name: string): boolean {
@@ -25,6 +26,14 @@ export function isZaiAvailable(): boolean {
   return hasEnv("ZAI_API_KEY");
 }
 
+export function isClaudeOAuthAvailable(): boolean {
+  return loadClaudeOAuthCredential() !== null;
+}
+
+export function isCodexCliAvailable(): boolean {
+  return loadCodexCliCredential() !== null;
+}
+
 export function isProviderAvailable(provider: ProviderId): boolean {
   switch (provider) {
     case "google":
@@ -35,5 +44,9 @@ export function isProviderAvailable(provider: ProviderId): boolean {
       return isOpenAIAvailable();
     case "zai":
       return isZaiAvailable();
+    case "claude-oauth":
+      return isClaudeOAuthAvailable();
+    case "codex":
+      return isCodexCliAvailable();
   }
 }

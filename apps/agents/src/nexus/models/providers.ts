@@ -3,6 +3,12 @@ import { ChatGoogle } from "@langchain/google/node";
 import { ChatAnthropic } from "@langchain/anthropic";
 import { ChatOpenAI } from "@langchain/openai";
 import { ZaiChatOpenAI } from "./zai-chat-model.js";
+import { ClaudeOAuthChatAnthropic } from "./claude-oauth-chat-model.js";
+import { CodexChatModel } from "./codex-chat-model.js";
+import {
+  loadClaudeOAuthCredential,
+  loadCodexCliCredential,
+} from "./credentials.js";
 import type { ProviderId } from "./types.js";
 
 export interface ModelBuildOptions {
@@ -40,4 +46,33 @@ export const providerFactories: Record<
       },
       ...(opts ?? {}),
     }) as unknown as BaseChatModel,
+  "claude-oauth": (id, opts) => {
+    const cred = loadClaudeOAuthCredential();
+    if (!cred) {
+      throw new Error(
+        "Claude OAuth credential not found. Set CLAUDE_CODE_OAUTH_TOKEN or run 'claude setup-token'.",
+      );
+    }
+    return new ClaudeOAuthChatAnthropic({
+      model: id,
+      oauthToken: cred.accessToken,
+      ...(opts ?? {}),
+    }) as unknown as BaseChatModel;
+  },
+  codex: (id, opts) => {
+    const cred = loadCodexCliCredential();
+    if (!cred) {
+      throw new Error(
+        "Codex CLI credential not found. Set CODEX_ACCESS_TOKEN + CODEX_ACCOUNT_ID or log in via `codex`.",
+      );
+    }
+    // Codex endpoint rejects max_tokens; strip it from opts.
+    const { maxTokens: _dropMax, ...rest } = (opts ?? {}) as ModelBuildOptions;
+    return new CodexChatModel({
+      model: id,
+      accessToken: cred.accessToken,
+      accountId: cred.accountId,
+      ...rest,
+    }) as unknown as BaseChatModel;
+  },
 };

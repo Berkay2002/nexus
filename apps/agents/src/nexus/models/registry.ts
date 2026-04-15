@@ -55,6 +55,28 @@ export const MODEL_CATALOG: ModelDescriptor[] = [
     tiers: ["code", "deep-research"],
     capabilities: { tools: true, images: false },
   },
+  // Claude OAuth — same models as Anthropic, different auth path.
+  {
+    provider: "claude-oauth",
+    id: "claude-haiku-4-5",
+    label: "Claude Haiku 4.5 (OAuth)",
+    tiers: ["classifier", "default"],
+    capabilities: { tools: true, images: false },
+  },
+  {
+    provider: "claude-oauth",
+    id: "claude-sonnet-4-6",
+    label: "Claude Sonnet 4.6 (OAuth)",
+    tiers: ["default", "code", "deep-research"],
+    capabilities: { tools: true, images: false },
+  },
+  {
+    provider: "claude-oauth",
+    id: "claude-opus-4-6",
+    label: "Claude Opus 4.6 (OAuth)",
+    tiers: ["code", "deep-research"],
+    capabilities: { tools: true, images: false },
+  },
   // OpenAI
   {
     provider: "openai",
@@ -100,13 +122,21 @@ export const MODEL_CATALOG: ModelDescriptor[] = [
     tiers: ["default", "code", "deep-research"],
     capabilities: { tools: true, images: false },
   },
+  // Codex (ChatGPT Plus/Pro subscription via OAuth)
+  {
+    provider: "codex",
+    id: "gpt-5.4",
+    label: "GPT-5.4 (Codex)",
+    tiers: ["code"],
+    capabilities: { tools: true, images: false },
+  },
 ];
 
 export const TIER_PRIORITY: Record<Tier, ProviderId[]> = {
-  classifier: ["google", "anthropic", "openai", "zai"],
-  default: ["anthropic", "openai", "zai", "google"],
-  code: ["anthropic", "google", "openai", "zai"],
-  "deep-research": ["google", "anthropic", "openai", "zai"],
+  classifier: ["claude-oauth", "google", "anthropic", "openai", "zai"],
+  default: ["claude-oauth", "anthropic", "openai", "zai", "google"],
+  code: ["claude-oauth", "anthropic", "google", "openai", "zai", "codex"],
+  "deep-research": ["claude-oauth", "google", "anthropic", "openai", "zai"],
   image: ["google"],
 };
 

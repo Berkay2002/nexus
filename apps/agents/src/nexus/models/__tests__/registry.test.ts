@@ -2,13 +2,31 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { ChatGoogle } from "@langchain/google/node";
 import { ChatAnthropic } from "@langchain/anthropic";
 import { ChatOpenAI } from "@langchain/openai";
+import { __resetCredentialCacheForTesting } from "../credentials.js";
 import {
   resolveTier,
   listAvailableModels,
   isTierAvailable,
   getTierDefault,
   MODEL_CATALOG,
+  TIER_PRIORITY,
 } from "../registry.js";
+
+// Force the credential loaders to return null so host-machine Claude Code
+// OAuth / Codex credentials don't leak into env-driven tier tests. Individual
+// tests below opt-in to credentials via enableClaudeOAuth / enableCodex.
+let _claudeOAuthCred: ReturnType<typeof Object> | null = null;
+let _codexCred: ReturnType<typeof Object> | null = null;
+vi.mock("../credentials.js", async () => {
+  const actual = await vi.importActual<typeof import("../credentials.js")>(
+    "../credentials.js",
+  );
+  return {
+    ...actual,
+    loadClaudeOAuthCredential: () => _claudeOAuthCred,
+    loadCodexCliCredential: () => _codexCred,
+  };
+});
 
 function clearProviderEnv() {
   vi.stubEnv("GOOGLE_CLOUD_PROJECT", "");
@@ -18,6 +36,9 @@ function clearProviderEnv() {
   vi.stubEnv("OPENAI_API_KEY", "");
   vi.stubEnv("ZAI_API_KEY", "");
   vi.stubEnv("ZAI_BASE_URL", "");
+  _claudeOAuthCred = null;
+  _codexCred = null;
+  __resetCredentialCacheForTesting();
 }
 
 function enableGoogle() {
@@ -149,5 +170,37 @@ describe("models/registry", () => {
     expect(descriptor).not.toBeNull();
     expect(descriptor?.provider).toBe("google");
     expect(descriptor?.tiers).toContain("default");
+  });
+});
+
+describe("registry — Claude OAuth + Codex wiring", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    _claudeOAuthCred = null;
+    _codexCred = null;
+    __resetCredentialCacheForTesting();
+  });
+
+  it("includes claude-oauth before anthropic in every tier that has anthropic", () => {
+    for (const tier of ["classifier", "default", "code", "deep-research"] as const) {
+      const priority = TIER_PRIORITY[tier];
+      const oauthIdx = priority.indexOf("claude-oauth");
+      const anthropicIdx = priority.indexOf("anthropic");
+      if (anthropicIdx === -1) continue;
+      expect(oauthIdx).toBeGreaterThanOrEqual(0);
+      expect(oauthIdx).toBeLessThan(anthropicIdx);
+    }
+  });
+
+  it("appends codex to the code tier priority", () => {
+    expect(TIER_PRIORITY.code).toContain("codex");
+  });
+
+  it("resolves code tier to anthropic when Claude OAuth is absent", () => {
+    clearProviderEnv();
+    enableAnthropic();
+    // _claudeOAuthCred and _codexCred already nulled by clearProviderEnv.
+    const descriptor = getTierDefault("code");
+    expect(descriptor?.provider).toBe("anthropic");
   });
 });
