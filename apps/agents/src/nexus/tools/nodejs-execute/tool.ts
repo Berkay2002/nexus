@@ -21,11 +21,15 @@ export const sandboxNodejsExecuteSchema = z.object({
     .optional()
     .describe("Optional standard input piped to the Node.js process"),
   files: z
-    .record(z.string(), z.string())
+    .array(
+      z.object({
+        name: z.string().describe("Filename (e.g. 'utils.js')"),
+        content: z.string().describe("File contents"),
+      }),
+    )
     .optional()
     .describe(
-      "Optional helper files to create in the execution directory before running. " +
-        "Keys are filenames (e.g. 'utils.js'), values are file contents.",
+      "Optional helper files to create in the execution directory before running.",
     ),
 });
 
@@ -55,7 +59,11 @@ export const sandboxNodejsExecute = tool(
       const payload: Record<string, unknown> = { code };
       if (typeof timeout === "number") payload.timeout = timeout;
       if (typeof stdin === "string") payload.stdin = stdin;
-      if (files && Object.keys(files).length > 0) payload.files = files;
+      if (files && files.length > 0) {
+        const filesRecord: Record<string, string> = {};
+        for (const f of files) filesRecord[f.name] = f.content;
+        payload.files = filesRecord;
+      }
 
       const result = await sandboxPostJson("/v1/nodejs/execute", payload);
       if (!result.ok) {
