@@ -4,6 +4,10 @@ import {
   getTierDefault,
 } from "./models/index.js";
 import type { Tier, ProviderId } from "./models/index.js";
+import {
+  loadClaudeOAuthCredential,
+  loadCodexCliCredential,
+} from "./models/credentials.js";
 
 export type GoogleAuthMode = "vertex-adc" | "api-key" | "none";
 
@@ -62,13 +66,22 @@ export function checkMissing(): string[] {
   return missing;
 }
 
-const PROVIDERS: ProviderId[] = ["google", "anthropic", "openai", "zai"];
+const PROVIDERS: ProviderId[] = [
+  "google",
+  "anthropic",
+  "claude-oauth",
+  "openai",
+  "zai",
+  "codex",
+];
 
 const PROVIDER_KEY_HINT: Record<ProviderId, string> = {
   google: "GEMINI_API_KEY / GOOGLE_API_KEY / GOOGLE_CLOUD_PROJECT",
   anthropic: "ANTHROPIC_API_KEY not set",
   openai: "OPENAI_API_KEY not set",
   zai: "ZAI_API_KEY not set",
+  "claude-oauth": "no Claude OAuth credential (run 'claude setup-token')",
+  codex: "no Codex CLI credential (run 'codex login')",
 };
 
 const TIERS: Tier[] = ["classifier", "default", "code", "deep-research", "image"];
@@ -95,10 +108,19 @@ export function logPreflight(): void {
     let hint = "";
     if (provider === "google" && available) {
       hint = ` (${googleMode})`;
+    } else if (provider === "claude-oauth" && available) {
+      const cred = loadClaudeOAuthCredential();
+      hint = cred ? ` (source: ${cred.source}, caching: off)` : "";
+    } else if (provider === "codex" && available) {
+      const cred = loadCodexCliCredential();
+      const masked = cred?.accountId
+        ? `${cred.accountId.slice(0, 8)}${cred.accountId.length > 8 ? "..." : ""}`
+        : "unknown";
+      hint = ` (account: ${masked})`;
     } else if (!available) {
       hint = ` (${PROVIDER_KEY_HINT[provider]})`;
     }
-    const label = provider.padEnd(10);
+    const label = provider.padEnd(14);
     console.log(`  ${label}${mark}${hint}`);
   }
 
