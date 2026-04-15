@@ -255,10 +255,95 @@ describe("CodexChatModel._convertSseEventToChunk", () => {
     expect((msg.response_metadata as Record<string, unknown>).model).toBe("gpt-5.4");
   });
 
-  it("returns null for unknown event types", () => {
+  it("returns null for known no-op event types without warning", () => {
+    const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    try {
+      expect(
+        CodexChatModel._convertSseEventToChunk({ type: "response.in_progress" }),
+      ).toBeNull();
+      expect(debugSpy).not.toHaveBeenCalled();
+    } finally {
+      debugSpy.mockRestore();
+    }
+  });
+
+  it("returns null but warns for unknown response.* event types", () => {
+    const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    try {
+      expect(
+        CodexChatModel._convertSseEventToChunk({ type: "response.foo.bar" }),
+      ).toBeNull();
+      expect(debugSpy).toHaveBeenCalledTimes(1);
+      expect(debugSpy.mock.calls[0][0]).toContain("response.foo.bar");
+    } finally {
+      debugSpy.mockRestore();
+    }
+  });
+
+  it("returns null without warning for non-response.* event types", () => {
+    const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    try {
+      expect(
+        CodexChatModel._convertSseEventToChunk({ type: "heartbeat" }),
+      ).toBeNull();
+      expect(debugSpy).not.toHaveBeenCalled();
+    } finally {
+      debugSpy.mockRestore();
+    }
+  });
+
+  it("emits a name-only tool_call_chunk on output_item.added for function_call", () => {
+    const chunk = CodexChatModel._convertSseEventToChunk({
+      type: "response.output_item.added",
+      output_index: 0,
+      item: {
+        type: "function_call",
+        name: "bash",
+        call_id: "tc-1",
+        arguments: "",
+      },
+    });
+    expect(chunk).not.toBeNull();
+    const msg = chunk!.message as AIMessageChunk;
+    expect(msg.tool_call_chunks).toEqual([
+      {
+        name: "bash",
+        args: "",
+        id: "tc-1",
+        index: 0,
+        type: "tool_call_chunk",
+      },
+    ]);
+  });
+
+  it("returns null for output_item.added with non-function_call item type", () => {
     expect(
-      CodexChatModel._convertSseEventToChunk({ type: "response.in_progress" }),
+      CodexChatModel._convertSseEventToChunk({
+        type: "response.output_item.added",
+        output_index: 0,
+        item: { type: "message", content: [] },
+      }),
     ).toBeNull();
+  });
+
+  it("emits an args-only tool_call_chunk on function_call_arguments.delta", () => {
+    const chunk = CodexChatModel._convertSseEventToChunk({
+      type: "response.function_call_arguments.delta",
+      output_index: 0,
+      item_id: "fc-1",
+      delta: '{"cmd":',
+    });
+    expect(chunk).not.toBeNull();
+    const msg = chunk!.message as AIMessageChunk;
+    expect(msg.tool_call_chunks).toEqual([
+      {
+        name: "",
+        args: '{"cmd":',
+        id: "fc-1",
+        index: 0,
+        type: "tool_call_chunk",
+      },
+    ]);
   });
 });
 
@@ -411,6 +496,25 @@ describe("CodexChatModel _streamResponseChunks + _generate (mocked fetch)", () =
       `data: {"type":"response.completed","response":{"model":"gpt-5.4","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}}`,
     ];
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(makeSseResponse(toolLines));
+    try {
+      const model = new CodexChatModel({ accessToken: "tok", accountId: "acct" });
+      const result = await model.invoke([new HumanMessage("run ls")]);
+      expect(result.tool_calls).toEqual([
+        { name: "bash", args: { cmd: "ls" }, id: "tc-1", type: "tool_call" },
+      ]);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("concatenates streamed function_call_arguments.delta chunks into tool_calls", async () => {
+    const streamedLines = [
+      `data: {"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","name":"bash","call_id":"tc-1","arguments":""}}`,
+      `data: {"type":"response.function_call_arguments.delta","output_index":0,"item_id":"tc-1","delta":"{\\"cmd\\""}`,
+      `data: {"type":"response.function_call_arguments.delta","output_index":0,"item_id":"tc-1","delta":":\\"ls\\"}"}`,
+      `data: {"type":"response.completed","response":{"model":"gpt-5.4","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}}`,
+    ];
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(makeSseResponse(streamedLines));
     try {
       const model = new CodexChatModel({ accessToken: "tok", accountId: "acct" });
       const result = await model.invoke([new HumanMessage("run ls")]);

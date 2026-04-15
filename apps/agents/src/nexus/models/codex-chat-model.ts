@@ -344,6 +344,34 @@ export class CodexChatModel extends BaseChatModel {
   }
 
   /**
+   * Known `response.*` event prefixes we explicitly handle. Used by
+   * `_convertSseEventToChunk` to decide whether an unknown `response.*` type
+   * deserves a `console.debug` warning (protocol drift) or can be silently
+   * dropped (already a no-op by design).
+   */
+  static readonly KNOWN_EVENT_PREFIXES: readonly string[] = [
+    "response.output_text.delta",
+    "response.reasoning_summary_text.delta",
+    "response.output_item.added",
+    "response.output_item.done",
+    "response.function_call_arguments.delta",
+    "response.completed",
+    "response.created",
+    "response.in_progress",
+    "response.content_part.added",
+    "response.content_part.done",
+    "response.output_text.done",
+    "response.reasoning_summary_text.done",
+    "response.reasoning_summary_part.added",
+    "response.reasoning_summary_part.done",
+    "response.function_call_arguments.done",
+    "response.incomplete",
+    "response.failed",
+  ];
+
+  // TODO: this method is approaching ~150 lines as event coverage grows —
+  // consider extracting to codex-converters.ts next time a new handler lands.
+  /**
    * Pure function that maps one Codex SSE event to a ChatGenerationChunk, or
    * null if the event type is not one we emit chunks for.
    */
@@ -366,6 +394,55 @@ export class CodexChatModel extends BaseChatModel {
         message: new AIMessageChunk({
           content: "",
           additional_kwargs: { reasoning_content: delta },
+        }),
+        text: "",
+      });
+    }
+
+    if (eventType === "response.output_item.added") {
+      const item = event.item;
+      if (!item || typeof item !== "object") return null;
+      const itemObj = item as Record<string, unknown>;
+      if (itemObj.type !== "function_call") return null;
+      const name = typeof itemObj.name === "string" ? itemObj.name : "";
+      const callId =
+        typeof itemObj.call_id === "string" ? itemObj.call_id : "";
+      const outputIndex =
+        typeof event.output_index === "number" ? event.output_index : 0;
+      return new ChatGenerationChunk({
+        message: new AIMessageChunk({
+          content: "",
+          tool_call_chunks: [
+            {
+              name,
+              args: "",
+              id: callId,
+              index: outputIndex,
+              type: "tool_call_chunk",
+            },
+          ],
+        }),
+        text: "",
+      });
+    }
+
+    if (eventType === "response.function_call_arguments.delta") {
+      const delta = typeof event.delta === "string" ? event.delta : "";
+      const itemId = typeof event.item_id === "string" ? event.item_id : "";
+      const outputIndex =
+        typeof event.output_index === "number" ? event.output_index : 0;
+      return new ChatGenerationChunk({
+        message: new AIMessageChunk({
+          content: "",
+          tool_call_chunks: [
+            {
+              name: "",
+              args: delta,
+              id: itemId,
+              index: outputIndex,
+              type: "tool_call_chunk",
+            },
+          ],
         }),
         text: "",
       });
@@ -431,6 +508,16 @@ export class CodexChatModel extends BaseChatModel {
       });
     }
 
+    // Unknown `response.*` events are a signal of protocol drift — log at
+    // debug so regressions aren't silent. Non-`response.*` lines are
+    // intentionally ignorable (heartbeats, etc.).
+    const t = typeof eventType === "string" ? eventType : "";
+    if (
+      t.startsWith("response.") &&
+      !CodexChatModel.KNOWN_EVENT_PREFIXES.some((p) => t === p)
+    ) {
+      console.debug(`[CodexChatModel] Unhandled SSE event type: ${t}`);
+    }
     return null;
   }
 
