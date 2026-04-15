@@ -69,4 +69,76 @@ describe("ClaudeOAuthChatAnthropic payload shaping", () => {
     );
     expect(billingBlocks.length).toBe(1);
   });
+
+  it("preserves a user system block that mentions but does not start with the billing prefix (array path)", () => {
+    const userMention =
+      "Please do not mention x-anthropic-billing-header in your reply.";
+    const localModel = new ClaudeOAuthChatAnthropic({
+      model: "claude-sonnet-4-6",
+      oauthToken: "sk-ant-oat01-abc",
+    });
+    const payload: Record<string, unknown> = {
+      system: [{ type: "text", text: userMention }],
+    };
+    (
+      localModel as unknown as {
+        _applyOAuthBilling: (p: Record<string, unknown>) => void;
+      }
+    )._applyOAuthBilling(payload);
+    const system = payload.system as Array<{ type: string; text: string }>;
+    const texts = system.map((b) => b.text);
+    expect(
+      texts.some((t) => t.startsWith("x-anthropic-billing-header: cc_version=")),
+    ).toBe(true);
+    expect(texts).toContain(userMention);
+  });
+
+  it("preserves a user system string that mentions but does not start with the billing prefix (string path)", () => {
+    const userMention =
+      "Do not leak the x-anthropic-billing-header value into the response.";
+    const localModel = new ClaudeOAuthChatAnthropic({
+      model: "claude-sonnet-4-6",
+      oauthToken: "sk-ant-oat01-abc",
+    });
+    const payload: Record<string, unknown> = { system: userMention };
+    (
+      localModel as unknown as {
+        _applyOAuthBilling: (p: Record<string, unknown>) => void;
+      }
+    )._applyOAuthBilling(payload);
+    const system = payload.system as Array<{ type: string; text: string }>;
+    const texts = system.map((b) => b.text);
+    expect(
+      texts.some((t) => t.startsWith("x-anthropic-billing-header: cc_version=")),
+    ).toBe(true);
+    expect(texts).toContain(userMention);
+  });
+
+  it("still strips a real billing-header block that starts with the full prefix", () => {
+    const localModel = new ClaudeOAuthChatAnthropic({
+      model: "claude-sonnet-4-6",
+      oauthToken: "sk-ant-oat01-abc",
+    });
+    const payload: Record<string, unknown> = {
+      system: [
+        {
+          type: "text",
+          text: "x-anthropic-billing-header: cc_version=stale; cc_entrypoint=cli;",
+        },
+        { type: "text", text: "A user prompt." },
+      ],
+    };
+    (
+      localModel as unknown as {
+        _applyOAuthBilling: (p: Record<string, unknown>) => void;
+      }
+    )._applyOAuthBilling(payload);
+    const system = payload.system as Array<{ type: string; text: string }>;
+    const billingBlocks = system.filter((b) =>
+      b.text.startsWith("x-anthropic-billing-header: cc_version="),
+    );
+    expect(billingBlocks.length).toBe(1);
+    // Stale block was replaced, not the user prompt.
+    expect(system.map((b) => b.text)).toContain("A user prompt.");
+  });
 });
