@@ -1,78 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import { ExecutionShell } from "@/components/execution/execution-shell";
 import type { RoutingState } from "@/components/execution/routing-card";
 import type { NexusTodo } from "@/lib/subagent-utils";
 import { Button } from "@/components/ui/button";
 import { Compass, RotateCcw, Play, FastForward } from "lucide-react";
-
-type ProviderLogoKey = "claude" | "gemini" | "openai" | "zai";
-
-type IdentityBadgeData = {
-  provider: ProviderLogoKey;
-  model: string;
-  role: string;
-};
-
-const PROVIDER_LOGO_PATHS: Record<ProviderLogoKey, string> = {
-  claude: "/logo/providers/claude.svg",
-  gemini: "/logo/providers/gemini.svg",
-  openai: "/logo/providers/openai.svg",
-  zai: "/logo/providers/zai.svg",
-};
-
-const PROVIDER_LOGO_VERSION = "2026-04-14-demo";
-
-const ROUTER_PROTOTYPE_BADGES: IdentityBadgeData[] = [
-  { provider: "claude", model: "Claude Haiku 4.5", role: "Strong" },
-  { provider: "gemini", model: "Gemini 3 Flash", role: "Fast" },
-];
-
-const SUBAGENT_PROTOTYPE_BADGES: IdentityBadgeData[] = [
-  { provider: "gemini", model: "Gemini 3.1 Pro", role: "Research" },
-  { provider: "claude", model: "Claude Sonnet 4.6", role: "Code" },
-  { provider: "gemini", model: "Gemini 3.1 Flash Image", role: "Creative" },
-  { provider: "openai", model: "GPT-5.4 mini", role: "General" },
-];
-
-function ModelIdentityBadge({
-  provider,
-  model,
-  role,
-}: IdentityBadgeData) {
-  const [logoFailed, setLogoFailed] = useState(false);
-  const providerLabel = provider === "zai" ? "Z.AI" : provider;
-  const logoSrc = `${PROVIDER_LOGO_PATHS[provider]}?v=${PROVIDER_LOGO_VERSION}`;
-  const fallbackInitial = providerLabel.charAt(0).toUpperCase();
-  const useThemeAdaptiveMono = provider === "openai" || provider === "zai";
-
-  return (
-    <div className="inline-flex h-7 items-center overflow-hidden rounded-full border border-border/70 bg-background/70">
-      <span className="inline-flex h-full items-center gap-1.5 border-r border-border/60 px-2.5">
-        {logoFailed ? (
-          <span className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-sm bg-muted text-[9px] font-bold text-foreground/80">
-            {fallbackInitial}
-          </span>
-        ) : (
-          <img
-            src={logoSrc}
-            alt={`${providerLabel} logo`}
-            className={[
-              "size-3.5 shrink-0 object-contain",
-              useThemeAdaptiveMono ? "invert-0 dark:invert" : "",
-            ].join(" ")}
-            onError={() => setLogoFailed(true)}
-          />
-        )}
-        <span className="text-[11px] font-medium text-foreground/90">{model}</span>
-      </span>
-      <span className="px-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-        {role}
-      </span>
-    </div>
-  );
-}
+import type { Thread } from "@langchain/langgraph-sdk";
+import {
+  ThreadContext,
+  type ThreadContextType,
+} from "@/providers/Thread";
+import StreamContext, {
+  type StreamContextType,
+} from "@/providers/Stream";
+import { ThreadPickerProvider } from "@/components/thread-picker/thread-picker";
 
 // ─── Mock Data ───────────────────────────────────────────────────────
 
@@ -329,6 +271,62 @@ const MOCK_ROUTER_RESULT = {
 //     "Recovered from non-JSON classifier output; interpreted label as default.",
 // };
 
+// ─── Mock Threads (for thread picker demo) ───────────────────────────
+
+function makeMockThread(
+  threadId: string,
+  firstHuman: string,
+  status: Thread["status"],
+  updatedAtMs: number,
+): Thread {
+  const iso = new Date(updatedAtMs).toISOString();
+  return {
+    thread_id: threadId,
+    created_at: iso,
+    updated_at: iso,
+    state_updated_at: iso,
+    metadata: { graph_id: "nexus" },
+    status,
+    values: {
+      messages: [{ type: "human", content: firstHuman }],
+    },
+    interrupts: {},
+  } as unknown as Thread;
+}
+
+const MOCK_THREADS: Thread[] = [
+  makeMockThread(
+    "th-1",
+    "Research AI in K-12 education — adoption rates, top platforms, trends",
+    "busy",
+    now - 60_000,
+  ),
+  makeMockThread(
+    "th-2",
+    "Generate a 30-day content calendar for a DevRel team launching an open-source agent framework",
+    "idle",
+    now - 1000 * 60 * 45,
+  ),
+  makeMockThread(
+    "th-3",
+    "Investigate why the fusion energy Q-factor plateau hasn't broken past 1.5 yet",
+    "idle",
+    now - 1000 * 60 * 60 * 5,
+  ),
+  makeMockThread(
+    "th-4",
+    "Draft and refine the quarterly OKR review memo with stakeholder feedback",
+    "interrupted",
+    now - 1000 * 60 * 60 * 8,
+  ),
+  makeMockThread(
+    "th-5",
+    "Scrape competitor pricing pages and build a comparison matrix",
+    "error",
+    now - 1000 * 60 * 60 * 24,
+  ),
+];
+
 // ─── Demo States ─────────────────────────────────────────────────────
 
 type DemoState = "routing" | "running" | "synthesizing" | "complete";
@@ -336,6 +334,20 @@ type DemoState = "routing" | "running" | "synthesizing" | "complete";
 // ─── Demo Page ───────────────────────────────────────────────────────
 
 export default function DemoPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-muted-foreground">Loading demo...</div>
+        </div>
+      }
+    >
+      <DemoPageInner />
+    </Suspense>
+  );
+}
+
+function DemoPageInner() {
   const [state, setState] = useState<DemoState>("routing");
 
   const isRouting = state === "routing";
@@ -395,53 +407,61 @@ export default function DemoPage() {
           </Button>
         </div>
       </div>
-
-      <div className="mt-2 rounded-md border border-primary/20 bg-background/40 px-2.5 py-2">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-          Badge Prototype
-        </p>
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Router</span>
-          {ROUTER_PROTOTYPE_BADGES.map((item) => (
-            <ModelIdentityBadge
-              key={`${item.provider}-${item.model}-${item.role}`}
-              provider={item.provider}
-              model={item.model}
-              role={item.role}
-            />
-          ))}
-        </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Subagents</span>
-          {SUBAGENT_PROTOTYPE_BADGES.map((item) => (
-            <ModelIdentityBadge
-              key={`${item.provider}-${item.model}-${item.role}`}
-              provider={item.provider}
-              model={item.model}
-              role={item.role}
-            />
-          ))}
-        </div>
-      </div>
     </div>
   );
 
+  const [mockThreads, setMockThreads] = useState<Thread[]>(MOCK_THREADS);
+
+  const mockThreadValue = useMemo<ThreadContextType>(
+    () => ({
+      threads: mockThreads,
+      setThreads: setMockThreads,
+      threadsLoading: false,
+      setThreadsLoading: () => {},
+      getThreads: async () => mockThreads,
+      refreshThreads: async () => {},
+    }),
+    [mockThreads],
+  );
+
+  const handleSwitchThread = useCallback((id: string | null) => {
+    if (id == null) {
+      alert("Demo: would start a new thread");
+      return;
+    }
+    alert(`Demo: would switch to thread ${id}`);
+  }, []);
+
+  const mockStreamValue = useMemo(
+    () =>
+      ({
+        switchThread: handleSwitchThread,
+      }) as unknown as StreamContextType,
+    [handleSwitchThread],
+  );
+
   return (
-    <ExecutionShell
-      messages={messages}
-      todos={todos}
-      subagents={subagentMap}
-      allSubagents={allSubagents}
-      outputPaths={outputPaths}
-      getSubagentsByMessage={getSubagentsByMessage}
-      isLoading={isLoading}
-      routing={routing}
-      onSubmit={(message) => {
-        const text = typeof message === "string" ? message : message.text;
-        alert(`Would submit: ${text}`);
-      }}
-      onStop={() => setState("complete")}
-      topSlot={demoToolbar}
-    />
+    <ThreadContext.Provider value={mockThreadValue}>
+      <StreamContext.Provider value={mockStreamValue}>
+        <ThreadPickerProvider>
+          <ExecutionShell
+            messages={messages}
+            todos={todos}
+            subagents={subagentMap}
+            allSubagents={allSubagents}
+            outputPaths={outputPaths}
+            getSubagentsByMessage={getSubagentsByMessage}
+            isLoading={isLoading}
+            routing={routing}
+            onSubmit={(message) => {
+              const text = typeof message === "string" ? message : message.text;
+              alert(`Would submit: ${text}`);
+            }}
+            onStop={() => setState("complete")}
+            topSlot={demoToolbar}
+          />
+        </ThreadPickerProvider>
+      </StreamContext.Provider>
+    </ThreadContext.Provider>
   );
 }

@@ -13,7 +13,7 @@ import {
 } from "react";
 import { createClient } from "./client";
 
-interface ThreadContextType {
+export interface ThreadContextType {
   getThreads: () => Promise<Thread[]>;
   refreshThreads: () => Promise<void>;
   threads: Thread[];
@@ -22,7 +22,9 @@ interface ThreadContextType {
   setThreadsLoading: Dispatch<SetStateAction<boolean>>;
 }
 
-const ThreadContext = createContext<ThreadContextType | undefined>(undefined);
+export const ThreadContext = createContext<ThreadContextType | undefined>(
+  undefined,
+);
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:2024";
 const ASSISTANT_ID = process.env.NEXT_PUBLIC_ASSISTANT_ID || "nexus";

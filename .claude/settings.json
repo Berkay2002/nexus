@@ -1,7 +1,4 @@
 {
-  "enabledPlugins": {
-    "wikillm@wikillm": true
-  },
   "hooks": {
     "PostToolUse": [
       {
@@ -14,5 +11,9 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "wikillm@wikillm": true,
+    "chrome-devtools-mcp@claude-plugins-official": true
   }
 }

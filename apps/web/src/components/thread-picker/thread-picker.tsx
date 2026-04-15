@@ -15,6 +15,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Menu01Icon, PlusSignIcon } from "@hugeicons/core-free-icons";
 
 import {
+  Command,
   CommandDialog,
   CommandEmpty,
   CommandGroup,
@@ -34,16 +35,20 @@ interface ThreadPickerContextValue {
   toggle: () => void;
 }
 
-const ThreadPickerContext = createContext<ThreadPickerContextValue | null>(
-  null,
+// Default to a no-op so pages that render ThreadPickerButton outside
+// ThreadPickerProvider (e.g. /demo) don't crash at runtime or during SSG.
+const NOOP_THREAD_PICKER: ThreadPickerContextValue = {
+  open: false,
+  setOpen: () => {},
+  toggle: () => {},
+};
+
+const ThreadPickerContext = createContext<ThreadPickerContextValue>(
+  NOOP_THREAD_PICKER,
 );
 
 export function useThreadPicker(): ThreadPickerContextValue {
-  const ctx = useContext(ThreadPickerContext);
-  if (!ctx) {
-    throw new Error("useThreadPicker must be used within ThreadPickerProvider");
-  }
-  return ctx;
+  return useContext(ThreadPickerContext);
 }
 
 function firstHumanText(thread: Thread): string {
@@ -182,49 +187,51 @@ function ThreadPickerDialog() {
       title="Threads"
       description="Switch between recent runs"
     >
-      <CommandInput placeholder="Search threads..." />
-      <CommandList>
-        <CommandEmpty>No threads found.</CommandEmpty>
-        <CommandGroup>
-          <CommandItem
-            value="__new-thread__"
-            onSelect={() => handleSelectThread(null)}
-          >
-            <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} />
-            <span>New thread</span>
-          </CommandItem>
-        </CommandGroup>
-        {threads.length > 0 ? (
-          <>
-            <CommandSeparator />
-            <CommandGroup heading="Recent">
-              {threads.map((thread) => {
-                const label = truncate(firstHumanText(thread));
-                const updated = thread.updated_at
-                  ? formatDistanceToNow(new Date(thread.updated_at), {
-                      addSuffix: true,
-                    })
-                  : "";
-                return (
-                  <CommandItem
-                    key={thread.thread_id}
-                    value={`${thread.thread_id} ${label}`}
-                    onSelect={() => handleSelectThread(thread.thread_id)}
-                  >
-                    <div className="flex min-w-0 flex-1 items-center gap-2">
-                      <span className="min-w-0 flex-1 truncate">{label}</span>
-                      <span className="shrink-0 text-[10px] text-muted-foreground">
-                        {updated}
-                      </span>
-                      <StatusBadge status={thread.status} />
-                    </div>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-          </>
-        ) : null}
-      </CommandList>
+      <Command>
+        <CommandInput placeholder="Search threads..." />
+        <CommandList>
+          <CommandEmpty>No threads found.</CommandEmpty>
+          <CommandGroup>
+            <CommandItem
+              value="__new-thread__"
+              onSelect={() => handleSelectThread(null)}
+            >
+              <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} />
+              <span>New thread</span>
+            </CommandItem>
+          </CommandGroup>
+          {threads.length > 0 ? (
+            <>
+              <CommandSeparator />
+              <CommandGroup heading="Recent">
+                {threads.map((thread) => {
+                  const label = truncate(firstHumanText(thread));
+                  const updated = thread.updated_at
+                    ? formatDistanceToNow(new Date(thread.updated_at), {
+                        addSuffix: true,
+                      })
+                    : "";
+                  return (
+                    <CommandItem
+                      key={thread.thread_id}
+                      value={`${thread.thread_id} ${label}`}
+                      onSelect={() => handleSelectThread(thread.thread_id)}
+                    >
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate">{label}</span>
+                        <span className="shrink-0 text-[10px] text-muted-foreground">
+                          {updated}
+                        </span>
+                        <StatusBadge status={thread.status} />
+                      </div>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </>
+          ) : null}
+        </CommandList>
+      </Command>
     </CommandDialog>
   );
 }
