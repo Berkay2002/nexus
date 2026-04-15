@@ -13,6 +13,11 @@ import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
+type QueueSurface = {
+  size: number;
+  clear: () => Promise<void>;
+};
+
 // Local attachment shape: images carry their Data URL, non-images only carry
 // the metadata. FileUIPart (from `ai`) requires `url`, so we carry the optional
 // form in state and fill an empty string at the submit boundary — consumers
@@ -30,12 +35,14 @@ export function PromptBar({
   onStop,
   placeholder = "Follow up...",
   size = "sm",
+  queue,
 }: {
   onSubmit: (message: string | PromptInputMessage) => void;
   isLoading: boolean;
   onStop?: () => void;
   placeholder?: string;
   size?: "sm" | "lg";
+  queue?: QueueSurface;
 }) {
   const [input, setInput] = useState("");
   const [files, setFiles] = useState<AttachedFile[]>([]);
@@ -269,6 +276,21 @@ export function PromptBar({
             </div>
 
             <div className="ml-auto flex items-center gap-2">
+              {queue && queue.size > 0 ? (
+                <div className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-400">
+                  <span>{queue.size} queued</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void queue.clear();
+                    }}
+                    className="ml-1 text-[10px] text-muted-foreground transition hover:text-foreground"
+                    title="Cancel queued runs"
+                  >
+                    clear
+                  </button>
+                </div>
+              ) : null}
               {isLoading && onStop ? (
                 <Button
                   type="button"

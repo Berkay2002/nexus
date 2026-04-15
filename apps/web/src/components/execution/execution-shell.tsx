@@ -34,6 +34,7 @@ type ExecutionShellProps = {
   onStop: () => void;
   topSlot?: ReactNode;
   error?: unknown;
+  queue?: { size: number; clear: () => Promise<void> };
 };
 
 export function ExecutionShell({
@@ -49,6 +50,7 @@ export function ExecutionShell({
   onStop,
   topSlot,
   error,
+  queue,
 }: ExecutionShellProps) {
   const errorMessage = error
     ? String((error as any)?.message ?? error)
@@ -132,6 +134,7 @@ export function ExecutionShell({
             onSubmit={onSubmit}
             isLoading={isLoading}
             onStop={onStop}
+            queue={queue}
           />
         </ResizablePanel>
       </ResizablePanelGroup>

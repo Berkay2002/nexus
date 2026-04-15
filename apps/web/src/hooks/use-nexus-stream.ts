@@ -167,6 +167,10 @@ export function useNexusStream() {
         }
       : undefined;
 
+  // Server-side submission queue (multitaskStrategy: "enqueue"). First-class
+  // on the UseStream return type — QueueInterface is already typed.
+  const queue = stream.queue;
+
   return {
     messages: stream.messages,
     isLoading: stream.isLoading,
@@ -180,5 +184,6 @@ export function useNexusStream() {
     subagents,
     getSubagentsByMessage,
     routing,
+    queue,
   };
 }

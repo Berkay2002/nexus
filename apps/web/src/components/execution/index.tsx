@@ -21,6 +21,7 @@ export function ExecutionView() {
     stop,
     error,
     routing,
+    queue,
   } = useNexusStream();
 
   const todosFromValues = extractTodosFromValues(values as any);
@@ -47,6 +48,7 @@ export function ExecutionView() {
       onSubmit={submitPrompt}
       onStop={stop}
       error={error}
+      queue={queue}
     />
   );
 }
