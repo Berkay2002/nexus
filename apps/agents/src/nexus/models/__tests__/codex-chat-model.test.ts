@@ -172,3 +172,72 @@ describe("CodexChatModel SSE parser", () => {
     ).toEqual({ type: "response.completed" });
   });
 });
+
+describe("CodexChatModel._parseResponse", () => {
+  const model = new CodexChatModel({ accessToken: "tok", accountId: "acct" });
+
+  it("parses valid tool_calls", () => {
+    const result = (
+      model as unknown as { _parseResponse: (r: unknown) => { generations: Array<{ message: AIMessage }> } }
+    )._parseResponse({
+      model: "gpt-5.4",
+      output: [
+        {
+          type: "function_call",
+          name: "bash",
+          arguments: JSON.stringify({ cmd: "pwd" }),
+          call_id: "tc-1",
+        },
+      ],
+      usage: {},
+    });
+    const msg = result.generations[0].message;
+    expect(msg.tool_calls).toEqual([
+      { name: "bash", args: { cmd: "pwd" }, id: "tc-1", type: "tool_call" },
+    ]);
+  });
+
+  it("routes malformed tool arguments to invalid_tool_calls", () => {
+    const result = (
+      model as unknown as {
+        _parseResponse: (r: unknown) => { generations: Array<{ message: AIMessage }> };
+      }
+    )._parseResponse({
+      model: "gpt-5.4",
+      output: [
+        { type: "function_call", name: "bash", arguments: "{invalid", call_id: "tc-1" },
+      ],
+      usage: {},
+    });
+    const msg = result.generations[0].message;
+    expect(msg.tool_calls).toEqual([]);
+    expect(msg.invalid_tool_calls?.length).toBe(1);
+    expect(msg.invalid_tool_calls?.[0]?.name).toBe("bash");
+    expect(msg.invalid_tool_calls?.[0]?.id).toBe("tc-1");
+    expect(msg.invalid_tool_calls?.[0]?.error).toMatch(/parse/i);
+  });
+
+  it("extracts reasoning content into additional_kwargs", () => {
+    const result = (
+      model as unknown as {
+        _parseResponse: (r: unknown) => { generations: Array<{ message: AIMessage }> };
+      }
+    )._parseResponse({
+      model: "gpt-5.4",
+      output: [
+        {
+          type: "reasoning",
+          summary: [{ type: "summary_text", text: "Thinking about it..." }],
+        },
+        {
+          type: "message",
+          content: [{ type: "output_text", text: "Here is the answer." }],
+        },
+      ],
+      usage: {},
+    });
+    const msg = result.generations[0].message;
+    expect(msg.content).toBe("Here is the answer.");
+    expect(msg.additional_kwargs?.reasoning_content).toBe("Thinking about it...");
+  });
+});

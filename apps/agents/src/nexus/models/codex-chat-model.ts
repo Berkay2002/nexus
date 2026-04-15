@@ -1,7 +1,7 @@
 import { BaseChatModel, type BaseChatModelParams } from "@langchain/core/language_models/chat_models";
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
-import type { ChatResult } from "@langchain/core/outputs";
+import type { ChatGeneration, ChatResult } from "@langchain/core/outputs";
 import type { CallbackManagerForLLMRun } from "@langchain/core/callbacks/manager";
 
 export type CodexReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
@@ -274,6 +274,98 @@ export class CodexChatModel extends BaseChatModel {
     return this.withConfig({ tools: formatted, ...(kwargs ?? {}) } as unknown as Partial<
       this["ParsedCallOptions"]
     >);
+  }
+
+  _parseResponse(response: Record<string, unknown>): ChatResult {
+    let content = "";
+    let reasoning = "";
+    const toolCalls: Array<{ name: string; args: Record<string, unknown>; id: string; type: "tool_call" }> = [];
+    const invalidToolCalls: Array<{
+      type: "invalid_tool_call";
+      name: string;
+      args: string;
+      id: string;
+      error: string;
+    }> = [];
+
+    const output = Array.isArray(response.output) ? (response.output as Array<Record<string, unknown>>) : [];
+    for (const item of output) {
+      if (item.type === "reasoning") {
+        const summary = Array.isArray(item.summary) ? (item.summary as Array<unknown>) : [];
+        for (const s of summary) {
+          if (typeof s === "string") {
+            reasoning += s;
+          } else if (s && typeof s === "object") {
+            const obj = s as Record<string, unknown>;
+            if (obj.type === "summary_text" && typeof obj.text === "string") {
+              reasoning += obj.text;
+            }
+          }
+        }
+      } else if (item.type === "message") {
+        const parts = Array.isArray(item.content) ? (item.content as Array<Record<string, unknown>>) : [];
+        for (const part of parts) {
+          if (part.type === "output_text" && typeof part.text === "string") {
+            content += part.text;
+          }
+        }
+      } else if (item.type === "function_call") {
+        const rawArgs = typeof item.arguments === "string" ? item.arguments : "{}";
+        const name = typeof item.name === "string" ? item.name : "";
+        const callId = typeof item.call_id === "string" ? item.call_id : "";
+        try {
+          const parsed = JSON.parse(rawArgs) as unknown;
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            toolCalls.push({
+              name,
+              args: parsed as Record<string, unknown>,
+              id: callId,
+              type: "tool_call",
+            });
+          } else {
+            invalidToolCalls.push({
+              type: "invalid_tool_call",
+              name,
+              args: rawArgs,
+              id: callId,
+              error: "Tool arguments must decode to a JSON object.",
+            });
+          }
+        } catch (e) {
+          invalidToolCalls.push({
+            type: "invalid_tool_call",
+            name,
+            args: rawArgs,
+            id: callId,
+            error: `Failed to parse tool arguments: ${(e as Error).message}`,
+          });
+        }
+      }
+    }
+
+    const usage = (response.usage as Record<string, unknown> | undefined) ?? {};
+    const message = new AIMessage({
+      content,
+      tool_calls: toolCalls,
+      invalid_tool_calls: invalidToolCalls,
+      additional_kwargs: reasoning ? { reasoning_content: reasoning } : {},
+      response_metadata: {
+        model: response.model ?? this.model,
+        usage,
+      },
+    });
+
+    return {
+      generations: [{ message, text: content } as ChatGeneration],
+      llmOutput: {
+        tokenUsage: {
+          promptTokens: (usage.input_tokens as number) ?? 0,
+          completionTokens: (usage.output_tokens as number) ?? 0,
+          totalTokens: (usage.total_tokens as number) ?? 0,
+        },
+        model_name: response.model ?? this.model,
+      },
+    };
   }
 
   async _generate(
