@@ -3,9 +3,15 @@ import {
   type BaseChatModelParams,
   type BindToolsInput,
 } from "@langchain/core/language_models/chat_models";
-import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
-import type { BaseMessage, AIMessageChunk } from "@langchain/core/messages";
-import type { ChatGeneration, ChatResult } from "@langchain/core/outputs";
+import {
+  AIMessage,
+  AIMessageChunk,
+  HumanMessage,
+  SystemMessage,
+  ToolMessage,
+} from "@langchain/core/messages";
+import type { BaseMessage } from "@langchain/core/messages";
+import { ChatGenerationChunk, type ChatResult } from "@langchain/core/outputs";
 import type { CallbackManagerForLLMRun } from "@langchain/core/callbacks/manager";
 import type { Runnable } from "@langchain/core/runnables";
 import type { BaseLanguageModelInput } from "@langchain/core/language_models/base";
@@ -73,86 +79,6 @@ export class CodexChatModel extends BaseChatModel {
     } catch {
       return null;
     }
-  }
-
-  protected async _streamResponse(
-    headers: Record<string, string>,
-    payload: Record<string, unknown>,
-  ): Promise<Record<string, unknown>> {
-    const resp = await fetch(`${CodexChatModel.BASE_URL}/responses`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(payload),
-    });
-
-    if (!resp.ok) {
-      const err = new Error(
-        `Codex API returned ${resp.status}: ${resp.statusText}`,
-      ) as Error & { status: number; response: Response };
-      err.status = resp.status;
-      err.response = resp;
-      throw err;
-    }
-    if (!resp.body) throw new Error("Codex API returned empty body");
-
-    const reader = resp.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let completed: Record<string, unknown> | null = null;
-    const streamedItems = new Map<number, Record<string, unknown>>();
-
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-
-      let newlineIdx: number;
-      while ((newlineIdx = buffer.indexOf("\n")) !== -1) {
-        const line = buffer.slice(0, newlineIdx).replace(/\r$/, "");
-        buffer = buffer.slice(newlineIdx + 1);
-        const data = CodexChatModel._parseSseDataLine(line);
-        if (!data) continue;
-
-        const eventType = data.type;
-        if (eventType === "response.output_item.done") {
-          const idx = data.output_index;
-          const item = data.item;
-          if (typeof idx === "number" && item && typeof item === "object") {
-            streamedItems.set(idx, item as Record<string, unknown>);
-          }
-        } else if (eventType === "response.completed") {
-          completed = data.response as Record<string, unknown>;
-        }
-      }
-    }
-
-    if (!completed) {
-      throw new Error("Codex API stream ended without response.completed event");
-    }
-
-    if (streamedItems.size > 0) {
-      const existing = Array.isArray(completed.output)
-        ? [...(completed.output as Array<Record<string, unknown> | null>)]
-        : [];
-      const maxIdx = Math.max(
-        ...Array.from(streamedItems.keys()),
-        existing.length - 1,
-      );
-      while (existing.length <= maxIdx) existing.push(null);
-      for (const [idx, item] of streamedItems) {
-        if (!existing[idx] || typeof existing[idx] !== "object") {
-          existing[idx] = item;
-        }
-      }
-      completed = {
-        ...completed,
-        output: existing.filter(
-          (x): x is Record<string, unknown> => x !== null && typeof x === "object",
-        ),
-      };
-    }
-
-    return completed;
   }
 
   static _normalizeContent(content: unknown): string {
@@ -282,98 +208,6 @@ export class CodexChatModel extends BaseChatModel {
     >);
   }
 
-  _parseResponse(response: Record<string, unknown>): ChatResult {
-    let content = "";
-    let reasoning = "";
-    const toolCalls: Array<{ name: string; args: Record<string, unknown>; id: string; type: "tool_call" }> = [];
-    const invalidToolCalls: Array<{
-      type: "invalid_tool_call";
-      name: string;
-      args: string;
-      id: string;
-      error: string;
-    }> = [];
-
-    const output = Array.isArray(response.output) ? (response.output as Array<Record<string, unknown>>) : [];
-    for (const item of output) {
-      if (item.type === "reasoning") {
-        const summary = Array.isArray(item.summary) ? (item.summary as Array<unknown>) : [];
-        for (const s of summary) {
-          if (typeof s === "string") {
-            reasoning += s;
-          } else if (s && typeof s === "object") {
-            const obj = s as Record<string, unknown>;
-            if (obj.type === "summary_text" && typeof obj.text === "string") {
-              reasoning += obj.text;
-            }
-          }
-        }
-      } else if (item.type === "message") {
-        const parts = Array.isArray(item.content) ? (item.content as Array<Record<string, unknown>>) : [];
-        for (const part of parts) {
-          if (part.type === "output_text" && typeof part.text === "string") {
-            content += part.text;
-          }
-        }
-      } else if (item.type === "function_call") {
-        const rawArgs = typeof item.arguments === "string" ? item.arguments : "{}";
-        const name = typeof item.name === "string" ? item.name : "";
-        const callId = typeof item.call_id === "string" ? item.call_id : "";
-        try {
-          const parsed = JSON.parse(rawArgs) as unknown;
-          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-            toolCalls.push({
-              name,
-              args: parsed as Record<string, unknown>,
-              id: callId,
-              type: "tool_call",
-            });
-          } else {
-            invalidToolCalls.push({
-              type: "invalid_tool_call",
-              name,
-              args: rawArgs,
-              id: callId,
-              error: "Tool arguments must decode to a JSON object.",
-            });
-          }
-        } catch (e) {
-          invalidToolCalls.push({
-            type: "invalid_tool_call",
-            name,
-            args: rawArgs,
-            id: callId,
-            error: `Failed to parse tool arguments: ${(e as Error).message}`,
-          });
-        }
-      }
-    }
-
-    const usage = (response.usage as Record<string, unknown> | undefined) ?? {};
-    const message = new AIMessage({
-      content,
-      tool_calls: toolCalls,
-      invalid_tool_calls: invalidToolCalls,
-      additional_kwargs: reasoning ? { reasoning_content: reasoning } : {},
-      response_metadata: {
-        model: response.model ?? this.model,
-        usage,
-      },
-    });
-
-    return {
-      generations: [{ message, text: content } as ChatGeneration],
-      llmOutput: {
-        tokenUsage: {
-          promptTokens: (usage.input_tokens as number) ?? 0,
-          completionTokens: (usage.output_tokens as number) ?? 0,
-          totalTokens: (usage.total_tokens as number) ?? 0,
-        },
-        model_name: response.model ?? this.model,
-      },
-    };
-  }
-
   protected _buildHeaders(): Record<string, string> {
     return {
       Authorization: `Bearer ${this.accessToken}`,
@@ -406,17 +240,32 @@ export class CodexChatModel extends BaseChatModel {
     return payload;
   }
 
-  protected async _callCodexApi(
-    messages: BaseMessage[],
-    tools?: Array<Record<string, unknown>>,
-  ): Promise<Record<string, unknown>> {
-    const headers = this._buildHeaders();
-    const payload = this._buildPayload(messages, tools);
-
+  /**
+   * POST to the Codex responses endpoint with retry-on-429/500/529, exponential
+   * backoff, and Retry-After header support. Returns the raw Response on success.
+   */
+  protected async _fetchCodexStream(
+    headers: Record<string, string>,
+    payload: Record<string, unknown>,
+  ): Promise<Response> {
     let lastError: unknown = null;
     for (let attempt = 1; attempt <= this.retryMaxAttempts; attempt++) {
       try {
-        return await this._streamResponse(headers, payload);
+        const resp = await fetch(`${CodexChatModel.BASE_URL}/responses`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+        });
+        if (!resp.ok) {
+          const err = new Error(
+            `Codex API returned ${resp.status}: ${resp.statusText}`,
+          ) as Error & { status: number; response: Response };
+          err.status = resp.status;
+          err.response = resp;
+          throw err;
+        }
+        if (!resp.body) throw new Error("Codex API returned empty body");
+        return resp;
       } catch (err) {
         lastError = err;
         const status = (err as { status?: number }).status;
@@ -441,13 +290,179 @@ export class CodexChatModel extends BaseChatModel {
     throw lastError;
   }
 
+  /**
+   * Async generator that reads an already-opened SSE Response line-by-line and
+   * yields parsed event objects (non-null only). Unrelated to Codex payload shape.
+   */
+  protected async *_streamSseEvents(
+    response: Response,
+  ): AsyncGenerator<Record<string, unknown>> {
+    if (!response.body) throw new Error("Codex API returned empty body");
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let newlineIdx: number;
+      while ((newlineIdx = buffer.indexOf("\n")) !== -1) {
+        const line = buffer.slice(0, newlineIdx).replace(/\r$/, "");
+        buffer = buffer.slice(newlineIdx + 1);
+        const data = CodexChatModel._parseSseDataLine(line);
+        if (data) yield data;
+      }
+    }
+    // Flush any trailing line the stream didn't terminate with \n.
+    if (buffer.length > 0) {
+      const data = CodexChatModel._parseSseDataLine(buffer.replace(/\r$/, ""));
+      if (data) yield data;
+    }
+  }
+
+  /**
+   * Pure function that maps one Codex SSE event to a ChatGenerationChunk, or
+   * null if the event type is not one we emit chunks for.
+   */
+  static _convertSseEventToChunk(
+    event: Record<string, unknown>,
+  ): ChatGenerationChunk | null {
+    const eventType = event.type;
+
+    if (eventType === "response.output_text.delta") {
+      const delta = typeof event.delta === "string" ? event.delta : "";
+      return new ChatGenerationChunk({
+        message: new AIMessageChunk({ content: delta }),
+        text: delta,
+      });
+    }
+
+    if (eventType === "response.reasoning_summary_text.delta") {
+      const delta = typeof event.delta === "string" ? event.delta : "";
+      return new ChatGenerationChunk({
+        message: new AIMessageChunk({
+          content: "",
+          additional_kwargs: { reasoning_content: delta },
+        }),
+        text: "",
+      });
+    }
+
+    if (eventType === "response.output_item.done") {
+      const item = event.item;
+      if (!item || typeof item !== "object") return null;
+      const itemObj = item as Record<string, unknown>;
+      if (itemObj.type !== "function_call") return null;
+      const name = typeof itemObj.name === "string" ? itemObj.name : "";
+      const argsStr =
+        typeof itemObj.arguments === "string" ? itemObj.arguments : "{}";
+      const callId = typeof itemObj.call_id === "string" ? itemObj.call_id : "";
+      const outputIndex =
+        typeof event.output_index === "number" ? event.output_index : 0;
+      return new ChatGenerationChunk({
+        message: new AIMessageChunk({
+          content: "",
+          tool_call_chunks: [
+            {
+              name,
+              args: argsStr,
+              id: callId,
+              index: outputIndex,
+              type: "tool_call_chunk",
+            },
+          ],
+        }),
+        text: "",
+      });
+    }
+
+    if (eventType === "response.completed") {
+      const response =
+        event.response && typeof event.response === "object"
+          ? (event.response as Record<string, unknown>)
+          : {};
+      const usageRaw =
+        response.usage && typeof response.usage === "object"
+          ? (response.usage as Record<string, unknown>)
+          : {};
+      const input_tokens =
+        typeof usageRaw.input_tokens === "number" ? usageRaw.input_tokens : 0;
+      const output_tokens =
+        typeof usageRaw.output_tokens === "number" ? usageRaw.output_tokens : 0;
+      const total_tokens =
+        typeof usageRaw.total_tokens === "number"
+          ? usageRaw.total_tokens
+          : input_tokens + output_tokens;
+      const model = typeof response.model === "string" ? response.model : undefined;
+      return new ChatGenerationChunk({
+        message: new AIMessageChunk({
+          content: "",
+          usage_metadata: {
+            input_tokens,
+            output_tokens,
+            total_tokens,
+          },
+          response_metadata: model ? { model } : {},
+        }),
+        text: "",
+      });
+    }
+
+    return null;
+  }
+
+  override async *_streamResponseChunks(
+    messages: BaseMessage[],
+    options: this["ParsedCallOptions"],
+    runManager?: CallbackManagerForLLMRun,
+  ): AsyncGenerator<ChatGenerationChunk> {
+    const tools = (options as unknown as { tools?: Array<Record<string, unknown>> })
+      .tools;
+    const headers = this._buildHeaders();
+    const payload = this._buildPayload(messages, tools);
+    const response = await this._fetchCodexStream(headers, payload);
+    for await (const event of this._streamSseEvents(response)) {
+      const chunk = CodexChatModel._convertSseEventToChunk(event);
+      if (chunk == null) continue;
+      yield chunk;
+      await runManager?.handleLLMNewToken(
+        chunk.text ?? "",
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { chunk },
+      );
+    }
+  }
+
   override async _generate(
     messages: BaseMessage[],
     options: this["ParsedCallOptions"],
-    _runManager?: CallbackManagerForLLMRun,
+    runManager?: CallbackManagerForLLMRun,
   ): Promise<ChatResult> {
-    const tools = (options as unknown as { tools?: Array<Record<string, unknown>> }).tools;
-    const response = await this._callCodexApi(messages, tools);
-    return this._parseResponse(response);
+    const stream = this._streamResponseChunks(messages, options, runManager);
+    let finalChunk: ChatGenerationChunk | undefined;
+    for await (const chunk of stream) {
+      finalChunk = finalChunk?.concat(chunk) ?? chunk;
+    }
+    if (!finalChunk) {
+      return { generations: [], llmOutput: {} };
+    }
+    const msg = finalChunk.message as AIMessageChunk;
+    const usage = msg.usage_metadata;
+    const respMeta = (msg.response_metadata as Record<string, unknown> | undefined) ?? {};
+    return {
+      generations: [finalChunk],
+      llmOutput: {
+        tokenUsage: {
+          promptTokens: usage?.input_tokens ?? 0,
+          completionTokens: usage?.output_tokens ?? 0,
+          totalTokens: usage?.total_tokens ?? 0,
+        },
+        model_name:
+          typeof respMeta.model === "string" ? respMeta.model : this.model,
+      },
+    };
   }
 }

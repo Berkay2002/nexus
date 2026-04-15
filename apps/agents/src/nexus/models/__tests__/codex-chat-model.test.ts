@@ -1,7 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { CodexChatModel } from "../codex-chat-model.js";
-import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
+import {
+  AIMessage,
+  AIMessageChunk,
+  HumanMessage,
+  SystemMessage,
+  ToolMessage,
+} from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
+import { ChatGenerationChunk } from "@langchain/core/outputs";
 
 describe("CodexChatModel constructor", () => {
   it("rejects retryMaxAttempts < 1", () => {
@@ -173,71 +180,164 @@ describe("CodexChatModel SSE parser", () => {
   });
 });
 
-describe("CodexChatModel._parseResponse", () => {
-  const model = new CodexChatModel({ accessToken: "tok", accountId: "acct" });
-
-  it("parses valid tool_calls", () => {
-    const result = (
-      model as unknown as { _parseResponse: (r: unknown) => { generations: Array<{ message: AIMessage }> } }
-    )._parseResponse({
-      model: "gpt-5.4",
-      output: [
-        {
-          type: "function_call",
-          name: "bash",
-          arguments: JSON.stringify({ cmd: "pwd" }),
-          call_id: "tc-1",
-        },
-      ],
-      usage: {},
+describe("CodexChatModel._convertSseEventToChunk", () => {
+  it("converts output_text.delta into a text chunk", () => {
+    const chunk = CodexChatModel._convertSseEventToChunk({
+      type: "response.output_text.delta",
+      delta: "hello",
     });
-    const msg = result.generations[0].message;
-    expect(msg.tool_calls).toEqual([
-      { name: "bash", args: { cmd: "pwd" }, id: "tc-1", type: "tool_call" },
+    expect(chunk).toBeInstanceOf(ChatGenerationChunk);
+    expect(chunk!.text).toBe("hello");
+    expect(chunk!.message.content).toBe("hello");
+  });
+
+  it("converts reasoning_summary_text.delta into a reasoning chunk", () => {
+    const chunk = CodexChatModel._convertSseEventToChunk({
+      type: "response.reasoning_summary_text.delta",
+      delta: "thinking...",
+    });
+    expect(chunk).not.toBeNull();
+    expect(chunk!.message.content).toBe("");
+    expect(
+      (chunk!.message as AIMessageChunk).additional_kwargs?.reasoning_content,
+    ).toBe("thinking...");
+    expect(chunk!.text).toBe("");
+  });
+
+  it("converts output_item.done with function_call into tool_call_chunks", () => {
+    const chunk = CodexChatModel._convertSseEventToChunk({
+      type: "response.output_item.done",
+      output_index: 0,
+      item: {
+        type: "function_call",
+        name: "bash",
+        arguments: JSON.stringify({ cmd: "ls" }),
+        call_id: "tc-1",
+      },
+    });
+    expect(chunk).not.toBeNull();
+    const msg = chunk!.message as AIMessageChunk;
+    expect(msg.tool_call_chunks).toEqual([
+      {
+        name: "bash",
+        args: JSON.stringify({ cmd: "ls" }),
+        id: "tc-1",
+        index: 0,
+        type: "tool_call_chunk",
+      },
     ]);
   });
 
-  it("routes malformed tool arguments to invalid_tool_calls", () => {
-    const result = (
-      model as unknown as {
-        _parseResponse: (r: unknown) => { generations: Array<{ message: AIMessage }> };
-      }
-    )._parseResponse({
-      model: "gpt-5.4",
-      output: [
-        { type: "function_call", name: "bash", arguments: "{invalid", call_id: "tc-1" },
-      ],
-      usage: {},
+  it("returns null for output_item.done with message type", () => {
+    const chunk = CodexChatModel._convertSseEventToChunk({
+      type: "response.output_item.done",
+      output_index: 0,
+      item: { type: "message", content: [] },
     });
-    const msg = result.generations[0].message;
-    expect(msg.tool_calls).toEqual([]);
-    expect(msg.invalid_tool_calls?.length).toBe(1);
-    expect(msg.invalid_tool_calls?.[0]?.name).toBe("bash");
-    expect(msg.invalid_tool_calls?.[0]?.id).toBe("tc-1");
-    expect(msg.invalid_tool_calls?.[0]?.error).toMatch(/parse/i);
+    expect(chunk).toBeNull();
   });
 
-  it("extracts reasoning content into additional_kwargs", () => {
-    const result = (
-      model as unknown as {
-        _parseResponse: (r: unknown) => { generations: Array<{ message: AIMessage }> };
-      }
-    )._parseResponse({
-      model: "gpt-5.4",
-      output: [
-        {
-          type: "reasoning",
-          summary: [{ type: "summary_text", text: "Thinking about it..." }],
-        },
-        {
-          type: "message",
-          content: [{ type: "output_text", text: "Here is the answer." }],
-        },
-      ],
-      usage: {},
+  it("extracts usage_metadata from response.completed", () => {
+    const chunk = CodexChatModel._convertSseEventToChunk({
+      type: "response.completed",
+      response: {
+        model: "gpt-5.4",
+        usage: { input_tokens: 12, output_tokens: 34, total_tokens: 46 },
+      },
     });
-    const msg = result.generations[0].message;
-    expect(msg.content).toBe("Here is the answer.");
-    expect(msg.additional_kwargs?.reasoning_content).toBe("Thinking about it...");
+    expect(chunk).not.toBeNull();
+    const msg = chunk!.message as AIMessageChunk;
+    expect(msg.usage_metadata).toEqual({
+      input_tokens: 12,
+      output_tokens: 34,
+      total_tokens: 46,
+    });
+    expect((msg.response_metadata as Record<string, unknown>).model).toBe("gpt-5.4");
+  });
+
+  it("returns null for unknown event types", () => {
+    expect(
+      CodexChatModel._convertSseEventToChunk({ type: "response.in_progress" }),
+    ).toBeNull();
+  });
+});
+
+function makeSseResponse(lines: string[]): Response {
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const encoder = new TextEncoder();
+      for (const line of lines) {
+        controller.enqueue(encoder.encode(line + "\n"));
+      }
+      controller.close();
+    },
+  });
+  return new Response(body, {
+    status: 200,
+    headers: { "content-type": "text/event-stream" },
+  });
+}
+
+describe("CodexChatModel _streamResponseChunks + _generate (mocked fetch)", () => {
+  const sseLines = [
+    `data: {"type":"response.output_text.delta","delta":"Hel"}`,
+    `data: {"type":"response.output_text.delta","delta":"lo"}`,
+    `data: {"type":"response.output_text.delta","delta":" world"}`,
+    `data: {"type":"response.completed","response":{"model":"gpt-5.4","usage":{"input_tokens":5,"output_tokens":3,"total_tokens":8}}}`,
+  ];
+
+  it("streams text deltas as individual chunks", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(makeSseResponse(sseLines));
+    try {
+      const model = new CodexChatModel({ accessToken: "tok", accountId: "acct" });
+      const chunks: ChatGenerationChunk[] = [];
+      const stream = (
+        model as unknown as {
+          _streamResponseChunks: (
+            msgs: BaseMessage[],
+            opts: unknown,
+          ) => AsyncGenerator<ChatGenerationChunk>;
+        }
+      )._streamResponseChunks([new HumanMessage("hi")], {});
+      for await (const chunk of stream) chunks.push(chunk);
+      // 3 text delta chunks + 1 completion metadata chunk
+      expect(chunks.length).toBe(4);
+      expect(chunks[0].text).toBe("Hel");
+      expect(chunks[1].text).toBe("lo");
+      expect(chunks[2].text).toBe(" world");
+      expect(chunks[3].text).toBe("");
+      const finalMsg = chunks[3].message as AIMessageChunk;
+      expect(finalMsg.usage_metadata?.total_tokens).toBe(8);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("_generate accumulates chunks into a single ChatResult", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(makeSseResponse(sseLines));
+    try {
+      const model = new CodexChatModel({ accessToken: "tok", accountId: "acct" });
+      const result = await model.invoke([new HumanMessage("hi")]);
+      expect(result.content).toBe("Hello world");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("merges function_call items from output_item.done into tool_calls", async () => {
+    const toolLines = [
+      `data: {"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","name":"bash","arguments":"{\\"cmd\\":\\"ls\\"}","call_id":"tc-1"}}`,
+      `data: {"type":"response.completed","response":{"model":"gpt-5.4","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}}`,
+    ];
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(makeSseResponse(toolLines));
+    try {
+      const model = new CodexChatModel({ accessToken: "tok", accountId: "acct" });
+      const result = await model.invoke([new HumanMessage("run ls")]);
+      expect(result.tool_calls).toEqual([
+        { name: "bash", args: { cmd: "ls" }, id: "tc-1", type: "tool_call" },
+      ]);
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 });
