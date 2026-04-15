@@ -514,6 +514,17 @@ export class CodexChatModel extends BaseChatModel {
         typeof usageRaw.total_tokens === "number"
           ? usageRaw.total_tokens
           : input_tokens + output_tokens;
+      // OpenAI's Responses API reports automatic-cache hits via
+      // `usage.input_tokens_details.cached_tokens`. We surface it through
+      // LangChain's `usage_metadata.input_token_details.cache_read` so
+      // downstream cost tracking can observe whether the Codex prefix cache
+      // is actually firing without making any request-side changes.
+      const detailsRaw =
+        usageRaw.input_tokens_details && typeof usageRaw.input_tokens_details === "object"
+          ? (usageRaw.input_tokens_details as Record<string, unknown>)
+          : {};
+      const cachedTokens =
+        typeof detailsRaw.cached_tokens === "number" ? detailsRaw.cached_tokens : 0;
       const model = typeof response.model === "string" ? response.model : undefined;
       return new ChatGenerationChunk({
         message: new AIMessageChunk({
@@ -522,6 +533,7 @@ export class CodexChatModel extends BaseChatModel {
             input_tokens,
             output_tokens,
             total_tokens,
+            input_token_details: { cache_read: cachedTokens },
           },
           response_metadata: model ? { model } : {},
         }),

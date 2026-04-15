@@ -333,8 +333,28 @@ describe("CodexChatModel._convertSseEventToChunk", () => {
       input_tokens: 12,
       output_tokens: 34,
       total_tokens: 46,
+      input_token_details: { cache_read: 0 },
     });
     expect((msg.response_metadata as Record<string, unknown>).model).toBe("gpt-5.4");
+  });
+
+  it("surfaces cached_tokens from input_tokens_details into input_token_details.cache_read", () => {
+    const chunk = CodexChatModel._convertSseEventToChunk({
+      type: "response.completed",
+      response: {
+        model: "gpt-5.4",
+        usage: {
+          input_tokens: 100,
+          output_tokens: 20,
+          total_tokens: 120,
+          input_tokens_details: { cached_tokens: 75 },
+        },
+      },
+    });
+    expect(chunk).not.toBeNull();
+    const msg = chunk!.message as AIMessageChunk;
+    expect(msg.usage_metadata?.input_token_details?.cache_read).toBe(75);
+    expect(msg.usage_metadata?.input_tokens).toBe(100);
   });
 
   it("returns null for known no-op event types without warning", () => {
