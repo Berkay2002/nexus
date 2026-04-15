@@ -243,18 +243,23 @@ export class CodexChatModel extends BaseChatModel {
   /**
    * POST to the Codex responses endpoint with retry-on-429/500/529, exponential
    * backoff, and Retry-After header support. Returns the raw Response on success.
+   * Honors the provided AbortSignal for both the underlying fetch and the retry
+   * backoff wait (cancelling a run must not leave a pending setTimeout behind).
    */
   protected async _fetchCodexStream(
     headers: Record<string, string>,
     payload: Record<string, unknown>,
+    signal?: AbortSignal,
   ): Promise<Response> {
     let lastError: unknown = null;
     for (let attempt = 1; attempt <= this.retryMaxAttempts; attempt++) {
+      signal?.throwIfAborted?.();
       try {
         const resp = await fetch(`${CodexChatModel.BASE_URL}/responses`, {
           method: "POST",
           headers,
           body: JSON.stringify(payload),
+          signal,
         });
         if (!resp.ok) {
           const err = new Error(
@@ -268,10 +273,11 @@ export class CodexChatModel extends BaseChatModel {
         return resp;
       } catch (err) {
         lastError = err;
+        if (signal?.aborted) throw err;
         const status = (err as { status?: number }).status;
         const retryable = status === 429 || status === 500 || status === 529;
         if (!retryable || attempt >= this.retryMaxAttempts) throw err;
-        const base = 2000 * Math.pow(2, attempt - 1);
+        const base = CodexChatModel.RETRY_BASE_MS * Math.pow(2, attempt - 1);
         const jitterFactor = 0.8 + Math.random() * 0.4;
         let waitMs = Math.floor(base * jitterFactor);
         const retryAfter = (err as { response?: Response }).response?.headers?.get?.(
@@ -284,18 +290,34 @@ export class CodexChatModel extends BaseChatModel {
         console.warn(
           `[CodexChatModel] HTTP ${status}, retrying ${attempt}/${this.retryMaxAttempts} after ${waitMs}ms`,
         );
-        await new Promise((r) => setTimeout(r, waitMs));
+        await new Promise<void>((resolve, reject) => {
+          const t = setTimeout(resolve, waitMs);
+          if (signal) {
+            const onAbort = () => {
+              clearTimeout(t);
+              reject(signal.reason ?? new Error("aborted"));
+            };
+            if (signal.aborted) onAbort();
+            else signal.addEventListener("abort", onAbort, { once: true });
+          }
+        });
       }
     }
     throw lastError;
   }
 
+  /** Base milliseconds for exponential backoff. Test-only override. */
+  static RETRY_BASE_MS = 2000;
+
   /**
    * Async generator that reads an already-opened SSE Response line-by-line and
    * yields parsed event objects (non-null only). Unrelated to Codex payload shape.
+   * If an AbortSignal is provided, the loop exits early after each reader.read()
+   * when the signal has been aborted.
    */
   protected async *_streamSseEvents(
     response: Response,
+    signal?: AbortSignal,
   ): AsyncGenerator<Record<string, unknown>> {
     if (!response.body) throw new Error("Codex API returned empty body");
     const reader = response.body.getReader();
@@ -304,6 +326,7 @@ export class CodexChatModel extends BaseChatModel {
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
+      if (signal?.aborted) return;
       buffer += decoder.decode(value, { stream: true });
       let newlineIdx: number;
       while ((newlineIdx = buffer.indexOf("\n")) !== -1) {
@@ -416,15 +439,17 @@ export class CodexChatModel extends BaseChatModel {
     options: this["ParsedCallOptions"],
     runManager?: CallbackManagerForLLMRun,
   ): AsyncGenerator<ChatGenerationChunk> {
+    options.signal?.throwIfAborted?.();
     const tools = (options as unknown as { tools?: Array<Record<string, unknown>> })
       .tools;
     const headers = this._buildHeaders();
     const payload = this._buildPayload(messages, tools);
-    const response = await this._fetchCodexStream(headers, payload);
-    for await (const event of this._streamSseEvents(response)) {
+    const response = await this._fetchCodexStream(headers, payload, options.signal);
+    for await (const event of this._streamSseEvents(response, options.signal)) {
       const chunk = CodexChatModel._convertSseEventToChunk(event);
       if (chunk == null) continue;
       yield chunk;
+      if (options.signal?.aborted) return;
       await runManager?.handleLLMNewToken(
         chunk.text ?? "",
         undefined,
@@ -441,6 +466,7 @@ export class CodexChatModel extends BaseChatModel {
     options: this["ParsedCallOptions"],
     runManager?: CallbackManagerForLLMRun,
   ): Promise<ChatResult> {
+    options.signal?.throwIfAborted?.();
     const stream = this._streamResponseChunks(messages, options, runManager);
     let finalChunk: ChatGenerationChunk | undefined;
     for await (const chunk of stream) {

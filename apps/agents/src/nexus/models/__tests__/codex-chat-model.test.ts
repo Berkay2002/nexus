@@ -324,6 +324,87 @@ describe("CodexChatModel _streamResponseChunks + _generate (mocked fetch)", () =
     }
   });
 
+  it("throws immediately when _streamResponseChunks is called with an already-aborted signal", async () => {
+    // fetch mock that never resolves — if we reach it, the abort plumbing is broken
+    const fetchSpy = vi.spyOn(global, "fetch").mockImplementation(
+      () =>
+        new Promise(() => {
+          /* never resolves */
+        }),
+    );
+    try {
+      const model = new CodexChatModel({ accessToken: "tok", accountId: "acct" });
+      const controller = new AbortController();
+      controller.abort();
+      const stream = (
+        model as unknown as {
+          _streamResponseChunks: (
+            msgs: BaseMessage[],
+            opts: unknown,
+          ) => AsyncGenerator<ChatGenerationChunk>;
+        }
+      )._streamResponseChunks([new HumanMessage("hi")], { signal: controller.signal });
+      await expect(async () => {
+        for await (const _ of stream) {
+          /* should not yield */
+        }
+      }).rejects.toThrow();
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("stops streaming mid-flight when signal aborts after first chunk", async () => {
+    // SSE response with one delta, then a reader that hangs forever.
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        const encoder = new TextEncoder();
+        controller.enqueue(
+          encoder.encode(
+            `data: {"type":"response.output_text.delta","delta":"a"}\n`,
+          ),
+        );
+        // Do not close — stream stays open so the loop depends on abort.
+      },
+    });
+    const hangResponse = new Response(body, {
+      status: 200,
+      headers: { "content-type": "text/event-stream" },
+    });
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(hangResponse);
+    try {
+      const model = new CodexChatModel({ accessToken: "tok", accountId: "acct" });
+      const controller = new AbortController();
+      const stream = (
+        model as unknown as {
+          _streamResponseChunks: (
+            msgs: BaseMessage[],
+            opts: unknown,
+          ) => AsyncGenerator<ChatGenerationChunk>;
+        }
+      )._streamResponseChunks([new HumanMessage("hi")], { signal: controller.signal });
+      const chunks: ChatGenerationChunk[] = [];
+      const iter = stream[Symbol.asyncIterator]();
+      const first = await iter.next();
+      if (!first.done) chunks.push(first.value);
+      controller.abort();
+      // Cancelling the body reader unblocks the pending reader.read() with an error.
+      try {
+        await body.cancel();
+      } catch {
+        /* ignore */
+      }
+      // Further iteration must stop cleanly (loop exits after detecting abort).
+      for (let i = 0; i < 5; i++) {
+        const step = await iter.next().catch(() => ({ done: true, value: undefined }));
+        if (step.done) break;
+      }
+      expect(chunks.length).toBe(1);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
   it("merges function_call items from output_item.done into tool_calls", async () => {
     const toolLines = [
       `data: {"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","name":"bash","arguments":"{\\"cmd\\":\\"ls\\"}","call_id":"tc-1"}}`,
