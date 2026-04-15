@@ -5,7 +5,13 @@ export type Tier =
   | "deep-research"
   | "image";
 
-export type ProviderId = "google" | "anthropic" | "openai" | "zai";
+export type ProviderId =
+  | "google"
+  | "anthropic"
+  | "openai"
+  | "zai"
+  | "claude-oauth"
+  | "codex";
 
 export interface ModelDescriptor {
   provider: ProviderId;
