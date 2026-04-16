@@ -19,18 +19,25 @@ function shellQuote(s: string): string {
 }
 
 /**
+ * Delimiter for stat format output. The AIO Sandbox API strips tab characters
+ * from command output, so we use a multi-char delimiter that survives the
+ * round-trip.
+ */
+const STAT_DELIM = "|||";
+
+/**
  * Shared stat-line parser for ls() and glob() overrides.
- * Input format: "size\tmtime\ttype\tpath" from `stat -c '%s\t%Y\t%F\t%n'`.
+ * Input format: "size|||mtime|||type|||path" from `stat -c '%s|||%Y|||%F|||%n'`.
  */
 function parseStatCLine(
   line: string,
 ): { size: number; mtime: number; isDir: boolean; fullPath: string } | null {
-  const parts = line.split("\t");
+  const parts = line.split(STAT_DELIM);
   if (parts.length < 4) return null;
   const size = parseInt(parts[0], 10);
   const mtime = parseInt(parts[1], 10);
   const typeStr = parts[2];
-  const fullPath = parts.slice(3).join("\t"); // path might contain tabs
+  const fullPath = parts.slice(3).join(STAT_DELIM); // path might contain delimiter
   if (isNaN(size) || isNaN(mtime)) return null;
   return { size, mtime, isDir: typeStr === "directory", fullPath };
 }
@@ -194,7 +201,7 @@ export class AIOSandboxBackend extends BaseSandbox {
     const command =
       `for f in ${shellQuote(physicalPath)}/*; do ` +
       `[ -e "$f" ] || continue; ` +
-      `stat -c '%s\t%Y\t%F\t%n' "$f"; ` +
+      `stat -c '%s|||%Y|||%F|||%n' "$f"; ` +
       `done`;
     const result = await this.execute(command);
     const files = [];
@@ -220,7 +227,7 @@ export class AIOSandboxBackend extends BaseSandbox {
     const physicalPath = this.toPhysicalPath(searchPath);
     const command =
       `find ${shellQuote(physicalPath)} -not -path ${shellQuote(physicalPath)} ` +
-      `-exec stat -c '%s\t%Y\t%F\t%n' {} +`;
+      `-exec stat -c '%s|||%Y|||%F|||%n' {} +`;
     const result = await this.execute(command);
     const regex = globToRegex(pattern);
     const basePath = physicalPath.endsWith("/")
