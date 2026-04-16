@@ -418,8 +418,10 @@ export async function metaRouter(
   }
 
   const orchestratorOverride = config?.configurable?.models?.orchestrator;
+  // The orchestrator is the brain — use deep-research tier for non-trivial
+  // tasks to get the strongest available model for coordination quality.
   const tierForComplexity =
-    result.complexity === "trivial" ? "classifier" : "default";
+    result.complexity === "trivial" ? "default" : "deep-research";
   const defaultDescriptor = getTierDefault(tierForComplexity);
   const normalizedOrchestratorOverride = normalizeOverrideModelRef(
     orchestratorOverride,

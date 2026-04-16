@@ -102,6 +102,13 @@ export function createNexusOrchestrator(
   // error so the agent falls back to hot-layer tools.
   void ensureSandboxFilesystem(sandbox);
 
+  // Pre-create workspace directory scaffold so agents never encounter missing
+  // top-level dirs. This is cheap (single mkdir -p) and prevents the
+  // orchestrator from wasting a turn creating them mid-conversation.
+  void sandbox.execute(
+    `mkdir -p ${workspaceRoot}/{research,code,creative,shared,orchestrator}`,
+  );
+
   const defaultModel = resolveTier("default");
   if (!defaultModel) {
     throw new Error(
@@ -189,8 +196,11 @@ export async function orchestratorNode(
     skillFiles,
   } = getOrchestrator(threadId);
 
+  // The orchestrator is the brain — it plans, delegates, inspects workspace
+  // state, and synthesizes results. Use deep-research tier for non-trivial
+  // tasks to get the strongest available model for coordination quality.
   const tierForComplexity: Tier =
-    state.routerResult?.complexity === "trivial" ? "classifier" : "default";
+    state.routerResult?.complexity === "trivial" ? "default" : "deep-research";
   const descriptor = getTierDefault(tierForComplexity);
   const classifierResolvedString = descriptor
     ? `${descriptor.provider}:${descriptor.id}`

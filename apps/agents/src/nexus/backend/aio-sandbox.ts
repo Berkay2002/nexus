@@ -3,6 +3,8 @@ import {
   type ExecuteResponse,
   type FileUploadResponse,
   type FileDownloadResponse,
+  type LsResult,
+  type GlobResult,
 } from "deepagents";
 import { SandboxClient } from "@agent-infra/sandbox";
 import {
@@ -11,6 +13,71 @@ import {
   remapWorkspaceCommand,
   remapWorkspacePath,
 } from "./workspace.js";
+
+function shellQuote(s: string): string {
+  return "'" + s.replace(/'/g, "'\\''") + "'";
+}
+
+/**
+ * Shared stat-line parser for ls() and glob() overrides.
+ * Input format: "size\tmtime\ttype\tpath" from `stat -c '%s\t%Y\t%F\t%n'`.
+ */
+function parseStatCLine(
+  line: string,
+): { size: number; mtime: number; isDir: boolean; fullPath: string } | null {
+  const parts = line.split("\t");
+  if (parts.length < 4) return null;
+  const size = parseInt(parts[0], 10);
+  const mtime = parseInt(parts[1], 10);
+  const typeStr = parts[2];
+  const fullPath = parts.slice(3).join("\t"); // path might contain tabs
+  if (isNaN(size) || isNaN(mtime)) return null;
+  return { size, mtime, isDir: typeStr === "directory", fullPath };
+}
+
+/**
+ * Convert a glob pattern to a regex for matching relative paths.
+ * Supports *, **, ?, and [...] character classes.
+ */
+function globToRegex(pattern: string): RegExp {
+  let regexStr = "^";
+  let i = 0;
+  while (i < pattern.length) {
+    const ch = pattern[i];
+    if (ch === "*") {
+      if (pattern[i + 1] === "*") {
+        // ** matches any path segments
+        regexStr += ".*";
+        i += 2;
+        if (pattern[i] === "/") i++; // skip trailing slash after **
+      } else {
+        // * matches anything except /
+        regexStr += "[^/]*";
+        i++;
+      }
+    } else if (ch === "?") {
+      regexStr += "[^/]";
+      i++;
+    } else if (ch === "[") {
+      const close = pattern.indexOf("]", i + 1);
+      if (close === -1) {
+        regexStr += "\\[";
+        i++;
+      } else {
+        regexStr += pattern.slice(i, close + 1);
+        i = close + 1;
+      }
+    } else if (".+^${}()|\\".includes(ch)) {
+      regexStr += "\\" + ch;
+      i++;
+    } else {
+      regexStr += ch;
+      i++;
+    }
+  }
+  regexStr += "$";
+  return new RegExp(regexStr);
+}
 
 /**
  * AIO Sandbox backend for DeepAgents.
@@ -27,7 +94,7 @@ export class AIOSandboxBackend extends BaseSandbox {
   readonly id = "aio-sandbox";
   private client: SandboxClient;
   private baseURL: string;
-  private workspaceRoot: string;
+  readonly workspaceRoot: string;
 
   constructor(
     baseURL: string = "http://localhost:8080",
@@ -37,6 +104,35 @@ export class AIOSandboxBackend extends BaseSandbox {
     this.baseURL = baseURL;
     this.client = new SandboxClient({ environment: baseURL });
     this.workspaceRoot = normalizeWorkspaceRoot(workspaceRoot);
+  }
+
+  /**
+   * Map a virtual path to a physical sandbox path.
+   *
+   * DeepAgents tools present a virtual filesystem where "/" is the workspace
+   * root. Paths like "/research/task_1/" are virtual — the real files live at
+   * "{workspaceRoot}/research/task_1/" in the container.
+   *
+   * This method handles three cases:
+   * 1. Path already starts with workspaceRoot → use as-is
+   * 2. Path starts with DEFAULT_WORKSPACE_ROOT → remap to workspaceRoot
+   * 3. Bare virtual path (e.g. "/research/") → prepend workspaceRoot
+   */
+  private toPhysicalPath(virtualPath: string): string {
+    // Already fully qualified with this thread's workspace root
+    if (virtualPath.startsWith(this.workspaceRoot + "/") || virtualPath === this.workspaceRoot) {
+      return virtualPath;
+    }
+    // Legacy default workspace path → remap
+    if (virtualPath.startsWith(DEFAULT_WORKSPACE_ROOT + "/") || virtualPath === DEFAULT_WORKSPACE_ROOT) {
+      return remapWorkspacePath(virtualPath, this.workspaceRoot);
+    }
+    // Virtual path (e.g. "/research/", "/shared/file.md") → prepend workspace root
+    if (virtualPath.startsWith("/")) {
+      return this.workspaceRoot + virtualPath;
+    }
+    // Relative path — shouldn't happen but be safe
+    return this.workspaceRoot + "/" + virtualPath;
   }
 
   private unreachableMessage(): string {
@@ -82,6 +178,72 @@ export class AIOSandboxBackend extends BaseSandbox {
       exitCode: result?.exit_code ?? null,
       truncated,
     };
+  }
+
+  /**
+   * Override BaseSandbox.ls() which uses `find` with `/dev/null`-based
+   * detection of GNU vs BusyBox vs BSD tooling. The AIO Sandbox runs shell
+   * commands in a chrooted environment where `/dev/null` doesn't exist,
+   * causing all three detection branches to fail silently and return empty.
+   *
+   * This override uses a simple `stat`-based listing that works in any
+   * POSIX environment without relying on `/dev/null`.
+   */
+  async ls(dirPath: string): Promise<LsResult> {
+    const physicalPath = this.toPhysicalPath(dirPath);
+    const command =
+      `for f in ${shellQuote(physicalPath)}/*; do ` +
+      `[ -e "$f" ] || continue; ` +
+      `stat -c '%s\t%Y\t%F\t%n' "$f"; ` +
+      `done`;
+    const result = await this.execute(command);
+    const files = [];
+    for (const line of result.output.trim().split("\n")) {
+      if (!line) continue;
+      const parsed = parseStatCLine(line);
+      if (!parsed) continue;
+      files.push({
+        path: parsed.isDir ? parsed.fullPath + "/" : parsed.fullPath,
+        is_dir: parsed.isDir,
+        size: parsed.size,
+        modified_at: new Date(parsed.mtime * 1000).toISOString(),
+      });
+    }
+    return { files };
+  }
+
+  /**
+   * Override BaseSandbox.glob() — same /dev/null issue as ls(), plus
+   * needs virtual-to-physical path mapping.
+   */
+  async glob(pattern: string, searchPath = "/"): Promise<GlobResult> {
+    const physicalPath = this.toPhysicalPath(searchPath);
+    const command =
+      `find ${shellQuote(physicalPath)} -not -path ${shellQuote(physicalPath)} ` +
+      `-exec stat -c '%s\t%Y\t%F\t%n' {} +`;
+    const result = await this.execute(command);
+    const regex = globToRegex(pattern);
+    const basePath = physicalPath.endsWith("/")
+      ? physicalPath.slice(0, -1)
+      : physicalPath;
+    const files = [];
+    for (const line of result.output.trim().split("\n")) {
+      if (!line) continue;
+      const parsed = parseStatCLine(line);
+      if (!parsed) continue;
+      const relPath = parsed.fullPath.startsWith(basePath + "/")
+        ? parsed.fullPath.slice(basePath.length + 1)
+        : parsed.fullPath;
+      if (regex.test(relPath)) {
+        files.push({
+          path: relPath,
+          is_dir: parsed.isDir,
+          size: parsed.size,
+          modified_at: new Date(parsed.mtime * 1000).toISOString(),
+        });
+      }
+    }
+    return { files };
   }
 
   async uploadFiles(

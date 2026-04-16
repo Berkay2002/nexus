@@ -136,7 +136,7 @@ export const TIER_PRIORITY: Record<Tier, ProviderId[]> = {
   classifier: ["claude-oauth", "google", "anthropic", "openai", "zai"],
   default: ["claude-oauth", "anthropic", "openai", "zai", "google"],
   code: ["claude-oauth", "anthropic", "google", "openai", "zai", "codex"],
-  "deep-research": ["claude-oauth", "google", "anthropic", "openai", "zai"],
+  "deep-research": ["google", "zai", "claude-oauth", "anthropic", "openai"],
   image: ["google"],
 };
 
